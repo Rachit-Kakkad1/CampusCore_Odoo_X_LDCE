@@ -1,11 +1,11 @@
 // frontend/src/pages/public/PublicEvents.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import eventsService from '../../services/events.service';
 import authService from '../../services/auth.service';
 import membershipService from '../../services/membership.service';
-import { Calendar, MapPin, Search, ArrowRight, ShieldCheck, AlertCircle, Ticket } from 'lucide-react';
+import { Calendar, MapPin, Search, ArrowRight, ShieldCheck, AlertCircle, Ticket, ArrowLeft } from 'lucide-react';
 
 export const PublicEvents = () => {
   const navigate = useNavigate();
@@ -90,9 +90,19 @@ export const PublicEvents = () => {
               </p>
             </div>
 
-            {/* Search Input */}
-            <div className="w-full md:w-72">
-              <div className="relative">
+            {/* Search Input & Workspace Action */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              {currentUser && (
+                <Link
+                  to="/dashboard"
+                  className="font-mono text-xs uppercase tracking-wider px-4 py-2.5 border border-[#e5e4de] bg-white/70 hover:bg-white flex items-center gap-1.5 text-slate-700 hover:text-slate-900 transition-colors shrink-0"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Workspace</span>
+                </Link>
+              )}
+
+              <div className="relative w-full md:w-64">
                 <Search className="w-4 h-4 text-[#1c1c1c]/40 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"

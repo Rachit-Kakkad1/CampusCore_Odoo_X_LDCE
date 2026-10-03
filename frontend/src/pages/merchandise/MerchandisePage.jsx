@@ -172,14 +172,26 @@ export const MerchandisePage = () => {
               </p>
             </div>
 
-            {/* Cart Quick Toggle */}
-            <button
-              onClick={() => handleTabChange('cart')}
-              className="font-mono text-xs uppercase tracking-wider px-4 py-2.5 border border-[#e5e4de] bg-white/70 hover:bg-white flex items-center gap-2 self-start sm:self-auto"
-            >
-              <ShoppingBag className="w-4 h-4 text-[#5F3F56]" />
-              <span>Cart ({totalCartCount})</span>
-            </button>
+            {/* Actions: Back to Workspace & Cart Quick Toggle */}
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              {isAuthenticated && (
+                <Link
+                  to="/dashboard"
+                  className="font-mono text-xs uppercase tracking-wider px-4 py-2.5 border border-[#e5e4de] bg-white/70 hover:bg-white flex items-center gap-1.5 text-slate-700 hover:text-slate-900 transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Workspace</span>
+                </Link>
+              )}
+
+              <button
+                onClick={() => handleTabChange('cart')}
+                className="font-mono text-xs uppercase tracking-wider px-4 py-2.5 border border-[#e5e4de] bg-white/70 hover:bg-white flex items-center gap-2"
+              >
+                <ShoppingBag className="w-4 h-4 text-[#5F3F56]" />
+                <span>Cart ({totalCartCount})</span>
+              </button>
+            </div>
           </div>
 
           {/* Toast Notification */}
