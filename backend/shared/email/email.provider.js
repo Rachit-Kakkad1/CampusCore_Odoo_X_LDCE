@@ -113,12 +113,16 @@ class SmtpEmailProvider extends BaseEmailProvider {
 
       const attachments = [];
       if (mailOptions.qrDataUrl && mailOptions.qrDataUrl.startsWith('data:image')) {
+        const base64Data = mailOptions.qrDataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
         attachments.push({
           filename: 'ticket-qr.png',
-          path: mailOptions.qrDataUrl,
+          content: Buffer.from(base64Data, 'base64'),
           cid: 'ticket_qr_code',
+          contentType: 'image/png',
+          contentDisposition: 'inline',
         });
       }
+
       if (mailOptions.attachments) {
         attachments.push(...mailOptions.attachments);
       }

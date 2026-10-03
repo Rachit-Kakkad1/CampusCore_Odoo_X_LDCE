@@ -187,12 +187,13 @@ function renderTicketEmail({
       <p>Your ticket payment has been confirmed! Please keep this email accessible on your mobile phone or print it out for entry.</p>
 
       <div class="qr-section">
-        ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Check-in QR Code" class="qr-image" />` : '<p style="color: #e53e3e;">QR Code generation pending</p>'}
+        ${qrDataUrl ? `<img src="cid:ticket_qr_code" data-qr="${qrDataUrl}" alt="Check-in QR Code" class="qr-image" style="width: 180px; height: 180px; display: block; margin: 0 auto 12px auto;" />` : '<p style="color: #e53e3e;">QR Code generation pending</p>'}
         <div class="fallback-code-box">
           <span>Manual Fallback Ticket Code:</span>
           <span class="fallback-code">${ticketCode}</span>
         </div>
       </div>
+
 
       <table class="details-table">
         <tr>
