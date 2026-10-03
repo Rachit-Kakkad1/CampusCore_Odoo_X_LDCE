@@ -9,9 +9,6 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleGuard from './components/dashboard/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
-import Membership from './pages/membership/Membership';
-import MembershipPass from './pages/membership/MembershipPass';
-import Announcements from './pages/announcements/Announcements';
 import MemberDashboard from './pages/dashboard/MemberDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
@@ -635,29 +632,6 @@ const Footer = () => {
   );
 };
 
-const MainLayout = ({ children }) => (
-  <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-indigo-600 selection:text-white flex flex-col justify-between">
-    {/* Global Grid Overlay */}
-    <div className="fixed inset-0 pointer-events-none z-0">
-      <div className="absolute inset-0 grid-overlay opacity-30" />
-      <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-4 border-x border-slate-900 divide-x divide-slate-900 opacity-50">
-        <div />
-        <div className="hidden md:block" />
-        <div className="hidden md:block" />
-        <div className="hidden md:block" />
-      </div>
-    </div>
-
-    <div className="relative z-10 flex flex-col min-h-screen justify-between">
-      <Navbar />
-      <main className="flex-grow">
-        {children}
-      </main>
-      <Footer />
-    </div>
-  </div>
-);
-
 const DashboardRouter = () => {
   const user = authService.getStoredUser();
   const role = user?.role || 'member';
@@ -693,23 +667,9 @@ export default function App() {
         } />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<Register />} />
-        <Route
-          path="/membership"
-          element={
-            <ProtectedRoute>
-              <MainLayout><Membership /></MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/membership/pass"
-          element={
-            <ProtectedRoute>
-              <MainLayout><MembershipPass /></MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/announcements" element={<MainLayout><Announcements /></MainLayout>} />
+        <Route path="/membership" element={<Navigate to="/dashboard/member" replace />} />
+        <Route path="/membership/pass" element={<Navigate to="/dashboard/member" replace />} />
+        <Route path="/announcements" element={<Navigate to="/dashboard/member" replace />} />
         
         {/* Dashboard Routes */}
         <Route
