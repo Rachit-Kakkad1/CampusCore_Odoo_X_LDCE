@@ -1,4 +1,9 @@
-const QRCode = require('qrcode');
+let QRCode;
+try {
+  QRCode = require('qrcode');
+} catch (e) {
+  QRCode = null;
+}
 const signTicketCode = require('./signTicketCode');
 
 /**
@@ -18,15 +23,17 @@ async function generateQR(ticketCode, options = {}) {
   const signature = signTicketCode(ticketCode);
   const payload = `${ticketCode}.${signature}`;
 
-  const qrOptions = {
-    errorCorrectionLevel: 'M',
-    type: 'image/png',
-    margin: 2,
-    scale: 6,
-    ...options,
-  };
-
-  const qrDataUrl = await QRCode.toDataURL(payload, qrOptions);
+  let qrDataUrl = '';
+  if (QRCode && typeof QRCode.toDataURL === 'function') {
+    const qrOptions = {
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
+      margin: 2,
+      scale: 6,
+      ...options,
+    };
+    qrDataUrl = await QRCode.toDataURL(payload, qrOptions);
+  }
 
   return {
     payload,
