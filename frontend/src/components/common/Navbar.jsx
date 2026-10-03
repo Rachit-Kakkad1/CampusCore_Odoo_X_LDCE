@@ -63,6 +63,14 @@ export const Navbar = () => {
               >
                 Member Pass
               </Link>
+              <Link
+                to="/announcements"
+                className={`px-3 py-1.5 rounded-md transition-colors ${
+                  location.pathname === '/announcements' ? 'text-white bg-slate-800' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Announcements
+              </Link>
             </div>
           </div>
 

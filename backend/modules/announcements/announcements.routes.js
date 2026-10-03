@@ -3,8 +3,13 @@ const express = require('express');
 const router = express.Router();
 const announcementsController = require('./announcements.controller');
 
-router.get('/', (req, res) => {
-  res.json({ module: 'announcements', status: 'ready' });
-});
+// List all announcements (newest first)
+router.get('/', announcementsController.getAll);
+
+// Get single announcement by ID
+router.get('/:id', announcementsController.getById);
+
+// Create new announcement
+router.post('/', announcementsController.create);
 
 module.exports = router;

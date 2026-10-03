@@ -10,6 +10,7 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
+import Announcements from './pages/announcements/Announcements';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -621,6 +622,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/announcements" element={<Announcements />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
