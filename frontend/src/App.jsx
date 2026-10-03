@@ -19,6 +19,9 @@ import VolunteerDashboard from './pages/dashboard/VolunteerDashboard';
 import MerchandisePage from './pages/merchandise/MerchandisePage';
 import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
 import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
+import MembershipPage from './pages/membership/MembershipPage';
+import MembershipCheckoutPage from './pages/membership/MembershipCheckoutPage';
+import MembershipSuccessPage from './pages/membership/MembershipSuccessPage';
 import authService from './services/auth.service';
 
 function cn(...inputs) {
@@ -64,7 +67,7 @@ const LandingPage = () => {
           <div className="hidden md:flex items-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
             <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
             <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
-            <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
+            <Link to="/membership" className="hover:text-primary transition-colors">Membership</Link>
             <a href="#store" className="hover:text-primary transition-colors">Store</a>
             <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
           </div>
@@ -687,7 +690,7 @@ const Footer = () => {
         </div>
 
         <div className="flex flex-wrap justify-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
-          <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
+          <Link to="/membership" className="hover:text-primary transition-colors">Membership</Link>
           <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
           <a href="#store" className="hover:text-primary transition-colors">Store</a>
           <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
@@ -737,8 +740,9 @@ export default function App() {
         <Route path="/events" element={<PublicEvents />} />
         <Route path="/events/:id" element={<PublicEventDetails />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/membership" element={<Navigate to="/dashboard/member" replace />} />
+        <Route path="/membership" element={<MembershipPage />} />
+        <Route path="/membership/checkout" element={<MembershipCheckoutPage />} />
+        <Route path="/membership/success" element={<MembershipSuccessPage />} />
         <Route path="/membership/pass" element={<Navigate to="/dashboard/member" replace />} />
         <Route path="/announcements" element={<Navigate to="/dashboard/member" replace />} />
         

@@ -11,7 +11,14 @@ const {
 const { syncMembershipStatuses } = require('../../shared/membership/syncMembershipStatuses');
 const createTransaction = require('../../shared/transactions/createTransaction');
 
+const { MEMBERSHIP_PLANS, resolvePlan } = require('./membership.plans');
+const authRepository = require('../auth/auth.repository');
+
 class MembershipService {
+  getPlans() {
+    return Object.values(MEMBERSHIP_PLANS);
+  }
+
   generateMemberCode(userId) {
     const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
     const idPart = userId ? String(userId).padStart(3, '0') : '000';
@@ -107,7 +114,7 @@ class MembershipService {
     return this.getMembership(userId);
   }
 
-  async createMembership(userId, { dues_amount = 500.00 } = {}) {
+  async createMembership(userId, { dues_amount = null, plan = null } = {}) {
     if (!userId) {
       const err = new Error('User ID is required');
       err.status = 400;
@@ -121,12 +128,15 @@ class MembershipService {
       throw err;
     }
 
+    const resolvedPlan = plan ? resolvePlan(plan) : null;
+    const finalDuesAmount = resolvedPlan ? resolvedPlan.price : (dues_amount !== null && dues_amount !== undefined ? dues_amount : 500.00);
+
     const memberCode = this.generateMemberCode(numericUserId);
 
     const created = await membershipRepository.createMembership({
       user_id: numericUserId,
       member_code: memberCode,
-      dues_amount,
+      dues_amount: finalDuesAmount,
       dues_status: 'pending',
     });
 
@@ -134,7 +144,7 @@ class MembershipService {
     return this.formatMembership(full || created);
   }
 
-  async payMembership(membershipId, { payment_mode = 'online' } = {}) {
+  async payMembership(membershipId, { payment_mode = 'online', plan = null } = {}) {
     if (!membershipId) {
       const err = new Error('Membership ID is required');
       err.status = 400;
@@ -162,10 +172,17 @@ class MembershipService {
       throw err;
     }
 
+    const resolvedPlan = plan ? resolvePlan(plan) : null;
+    const interval = resolvedPlan ? resolvedPlan.interval : '12 months';
+    const finalAmount = resolvedPlan ? resolvedPlan.price : existing.dues_amount;
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const activated = await membershipRepository.activateMembership(id, client);
+      const activated = await membershipRepository.activateMembership(id, client, {
+        interval,
+        duesAmount: finalAmount,
+      });
 
       const transaction = await createTransaction(
         {
@@ -202,7 +219,7 @@ class MembershipService {
     }
   }
 
-  async payDues(userId, paymentMode = 'online') {
+  async payDues(userId, paymentMode = 'online', plan = null) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -226,6 +243,10 @@ class MembershipService {
         }
       }
 
+      const resolvedPlan = plan ? resolvePlan(plan) : null;
+      const interval = resolvedPlan ? resolvedPlan.interval : '12 months';
+      const finalAmount = resolvedPlan ? resolvedPlan.price : (membership.dues_amount || 500.00);
+
       let activeMembership;
       if (membership.status === 'expired' || membership.status === 'cancelled') {
         const currentYear = new Date().getFullYear();
@@ -235,15 +256,21 @@ class MembershipService {
           {
             user_id: userId,
             member_code: memberCode,
-            dues_amount: 500.00,
+            dues_amount: finalAmount,
             dues_status: 'pending',
             renewed_from_membership_id: membership.id,
           },
           client
         );
-        activeMembership = await membershipRepository.activateMembership(newPeriod.id, client);
+        activeMembership = await membershipRepository.activateMembership(newPeriod.id, client, {
+          interval,
+          duesAmount: finalAmount,
+        });
       } else {
-        activeMembership = await membershipRepository.activateMembership(membership.id, client);
+        activeMembership = await membershipRepository.activateMembership(membership.id, client, {
+          interval,
+          duesAmount: finalAmount,
+        });
       }
 
       const transaction = await createTransaction(
@@ -273,6 +300,127 @@ class MembershipService {
         membership: formatted,
         transaction,
         status: 'ACTIVE',
+        data: formatted,
+        ...formatted,
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Complete Membership Checkout
+   * Server determines plan duration, price, and dynamic PostgreSQL interval expiry.
+   */
+  async checkout({ userId = null, plan = '12_months', payment_mode = 'online', name = '', email = '', mobile = '' } = {}) {
+    const resolvedPlan = resolvePlan(plan);
+    let targetUserId = userId ? parseInt(userId, 10) : null;
+    let targetUser = null;
+
+    if (targetUserId) {
+      targetUser = await authRepository.getUserById(targetUserId);
+    }
+
+    if (!targetUser) {
+      if (!email || !email.trim()) {
+        const err = new Error('Email address is required for membership registration');
+        err.status = 400;
+        err.code = 'EMAIL_REQUIRED';
+        throw err;
+      }
+      const cleanEmail = email.trim().toLowerCase();
+      targetUser = await authRepository.getUserByEmail(cleanEmail);
+      if (!targetUser) {
+        const randomPass = crypto.randomBytes(8).toString('hex');
+        targetUser = await authRepository.createUser({
+          name: (name && name.trim()) || 'Member',
+          email: cleanEmail,
+          password_hash: randomPass,
+          role: 'member',
+        });
+      }
+      targetUserId = targetUser.id;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check current membership status
+      const existing = await membershipRepository.getMembershipByUserIdForUpdate(targetUserId, client);
+      if (existing && existing.status === 'active' && existing.dues_status === 'paid' && existing.expiry_date && new Date(existing.expiry_date) > new Date()) {
+        const err = new Error('You already have an active membership');
+        err.code = 'MEMBERSHIP_ALREADY_ACTIVE';
+        err.status = 409;
+        err.expiry_date = existing.expiry_date;
+        throw err;
+      }
+
+      let membershipToActivateId;
+      if (existing && existing.status === 'pending') {
+        membershipToActivateId = existing.id;
+      } else {
+        const currentYear = new Date().getFullYear();
+        const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const memberCode = `MEM-${currentYear}-${randomSuffix}`;
+        const newMem = await membershipRepository.createMembership(
+          {
+            user_id: targetUserId,
+            member_code: memberCode,
+            dues_amount: resolvedPlan.price,
+            dues_status: 'pending',
+            renewed_from_membership_id: existing ? existing.id : null,
+          },
+          client
+        );
+        membershipToActivateId = newMem.id;
+      }
+
+      const activated = await membershipRepository.activateMembership(membershipToActivateId, client, {
+        interval: resolvedPlan.interval,
+        duesAmount: resolvedPlan.price,
+      });
+
+      const allowedModes = ['cash', 'online', 'upi', 'card'];
+      const normalizedPaymentMode = allowedModes.includes(payment_mode) ? payment_mode : 'online';
+
+      const transaction = await createTransaction(
+        {
+          source_type: 'dues',
+          source_id: activated.id,
+          user_id: targetUserId,
+          amount: activated.dues_amount,
+          direction: 'in',
+          payment_mode: normalizedPaymentMode,
+          status: 'paid',
+        },
+        client
+      );
+
+      await client.query(
+        "UPDATE users SET role = 'member' WHERE id = $1 AND role NOT IN ('admin', 'treasurer', 'event_manager', 'volunteer');",
+        [targetUserId]
+      );
+
+      await client.query('COMMIT');
+
+      const full = await membershipRepository.findById(activated.id);
+      const formatted = this.formatMembership(full || activated);
+
+      return {
+        success: true,
+        message: 'Membership activated successfully',
+        plan: resolvedPlan,
+        membership: formatted,
+        transaction,
+        user: {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+        },
         data: formatted,
         ...formatted,
       };

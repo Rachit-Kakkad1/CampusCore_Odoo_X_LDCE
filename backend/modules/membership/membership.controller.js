@@ -4,6 +4,59 @@ const getCurrentUser = require('../../shared/auth/getCurrentUser');
 
 const membershipController = {
   /**
+   * GET /api/membership/plans
+   * Retrieve official membership plans and pricing
+   */
+  async getPlans(req, res, next) {
+    try {
+      const plans = membershipService.getPlans();
+      return res.status(200).json({
+        success: true,
+        count: plans.length,
+        plans,
+        data: plans,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * POST /api/membership/checkout
+   * Server determines plan duration, price, and dynamic PostgreSQL interval expiry.
+   */
+  async checkout(req, res, next) {
+    try {
+      const authUser = getCurrentUser(req);
+      const userId = req.body?.user_id || authUser?.id || authUser?.userId || req.user?.id || req.user?.userId;
+      const { plan, payment_mode = 'online', name, email, mobile } = req.body || {};
+
+      const result = await membershipService.checkout({
+        userId,
+        plan,
+        payment_mode,
+        name,
+        email,
+        mobile,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Membership activated successfully',
+        ...result,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({
+        error: err.code || 'MEMBERSHIP_CHECKOUT_ERROR',
+        code: err.code || 'MEMBERSHIP_CHECKOUT_ERROR',
+        message: err.message,
+        expiry_date: err.expiry_date || undefined,
+      });
+    }
+  },
+
+  /**
    * GET /api/membership/dashboard
    * Aggregated membership metrics
    */
@@ -184,8 +237,8 @@ const membershipController = {
         });
       }
 
-      const duesAmount = req.body?.dues_amount || 500.00;
-      const data = await membershipService.createMembership(userId, { dues_amount: duesAmount });
+      const { dues_amount, plan } = req.body || {};
+      const data = await membershipService.createMembership(userId, { dues_amount, plan });
 
       return res.status(201).json({
         success: true,
@@ -205,8 +258,8 @@ const membershipController = {
   async pay(req, res, next) {
     try {
       const { id } = req.params;
-      const { payment_mode = 'online' } = req.body || {};
-      const result = await membershipService.payMembership(id, { payment_mode });
+      const { payment_mode = 'online', plan } = req.body || {};
+      const result = await membershipService.payMembership(id, { payment_mode, plan });
       return res.status(200).json({
         success: true,
         message: 'Membership dues paid successfully. Membership is now active.',
@@ -228,8 +281,8 @@ const membershipController = {
       const authUser = getCurrentUser(req);
       const userId =
         req.body?.user_id || authUser?.id || authUser?.userId || req.user?.id || req.user?.userId || req.headers['x-user-id'] || 1;
-      const { payment_mode = 'online' } = req.body || {};
-      const data = await membershipService.payDues(userId, payment_mode);
+      const { payment_mode = 'online', plan } = req.body || {};
+      const data = await membershipService.payDues(userId, payment_mode, plan);
       return res.status(200).json({
         success: true,
         message: 'Membership dues paid successfully. Membership is now active.',

@@ -136,21 +136,27 @@ const membershipRepository = {
 
   /**
    * Activate membership upon successful payment.
+   * Calculates expiry_date using dynamic PostgreSQL interval arithmetic.
    */
-  async activateMembership(id, client = null) {
+  async activateMembership(id, client = null, options = {}) {
+    const interval = options?.interval || '12 months';
+    const duesAmount = options?.duesAmount !== undefined && options?.duesAmount !== null ? options.duesAmount : null;
+
     const sql = `
       UPDATE memberships
       SET
         status = 'active',
         dues_status = 'paid',
+        dues_amount = COALESCE($2, dues_amount),
         started_at = NOW(),
-        expiry_date = NOW() + INTERVAL '1 year',
+        expiry_date = NOW() + ($3)::INTERVAL,
         payment_timestamp = NOW(),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *;
     `;
-    const res = client ? await client.query(sql, [id]) : await query(sql, [id]);
+    const params = [id, duesAmount, interval];
+    const res = client ? await client.query(sql, params) : await query(sql, params);
     return res.rows[0] || null;
   },
 
