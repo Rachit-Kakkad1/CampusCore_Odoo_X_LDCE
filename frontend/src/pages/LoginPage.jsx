@@ -20,8 +20,8 @@ export default function LoginPage() {
   return (
     <div className="h-screen w-full bg-background flex overflow-hidden selection:bg-primary selection:text-white">
       {/* Left Panel - 50% */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col justify-center px-12 sm:px-16 lg:px-24">
-        <div className="w-full max-w-lg mx-auto flex flex-col justify-center">
+      <div className="w-full lg:w-1/2 h-full flex flex-col justify-center overflow-y-auto py-8 px-12 sm:px-16 lg:px-24">
+        <div className="w-full max-w-lg mx-auto flex flex-col justify-center my-auto">
           <LoginHeader mode={mode} />
           <LoginForm mode={mode} setMode={setMode} />
         </div>

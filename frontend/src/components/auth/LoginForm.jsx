@@ -8,13 +8,15 @@ import AuthErrorMessage from './AuthErrorMessage';
 import LoginButton from './LoginButton';
 import authService from '../../services/auth.service';
 
-const DEMO_ACCOUNTS = [
-  { label: 'Admin', email: 'admin@skyline.org' },
-  { label: 'Treasurer', email: 'tara@skyline.org' },
-  { label: 'Event Mgr', email: 'ethan@skyline.org' },
-  { label: 'Volunteer', email: 'vik@skyline.org' },
-  { label: 'Active Member', email: 'maya@skyline.org' },
-  { label: 'Expired Member', email: 'eddie@skyline.org' },
+const DB_ACCOUNTS = [
+  { role: 'Admin', email: 'admin@odoo-ldce.org', desc: 'Full Admin Privileges' },
+  { role: 'Treasurer', email: 'tara@odoo-ldce.org', desc: 'Finance & Ledger' },
+  { role: 'Event Mgr', email: 'ethan@odoo-ldce.org', desc: 'Events & Tickets' },
+  { role: 'Volunteer', email: 'vik@odoo-ldce.org', desc: 'Tasks & Check-in' },
+  { role: 'Active Member', email: 'maya@odoo-ldce.org', desc: 'Active Dues & Pass' },
+  { role: 'Expired Member', email: 'eddie@odoo-ldce.org', desc: 'Past Dues Expired' },
+  { role: 'Cancelled Member', email: 'greg@odoo-ldce.org', desc: 'Cancelled Record' },
+  { role: 'Pending Member', email: 'pia@odoo-ldce.org', desc: 'Pending Payment' },
 ];
 
 export default function LoginForm({ mode, setMode }) {
@@ -30,7 +32,7 @@ export default function LoginForm({ mode, setMode }) {
 
   const fillDemoAccount = (acc) => {
     setEmail(acc.email);
-    setPassword('password123'); // Default password from backend seeds
+    setPassword('password123'); // Default password from database seeds
     setError('');
   };
 
@@ -59,21 +61,46 @@ export default function LoginForm({ mode, setMode }) {
 
   return (
     <div className="w-full">
-      {/* Role Switcher for Hackathon Demo */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <span className="w-full font-mono text-[9px] uppercase tracking-widest text-muted">
-          Quick Demo Accounts:
-        </span>
-        {DEMO_ACCOUNTS.map((acc) => (
-          <button
-            key={acc.label}
-            type="button"
-            onClick={() => fillDemoAccount(acc)}
-            className="font-mono text-[9px] uppercase tracking-wider px-2.5 py-1 border border-border bg-background hover:bg-hover hover:border-primary text-muted hover:text-foreground transition-all duration-700 focus:outline-none"
-          >
-            {acc.label}
-          </button>
-        ))}
+      {/* Database Seed Accounts Selector */}
+      <div className="space-y-3 mb-6 p-4 border border-border bg-card/60 rounded-[2px]">
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[10px] uppercase font-bold tracking-wider text-muted">
+            Database Seed Accounts
+          </span>
+          <span className="font-mono text-[9px] text-primary font-bold bg-primary/10 px-2 py-0.5 border border-primary/20">
+            Pass: password123
+          </span>
+        </div>
+
+        {/* Account chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {DB_ACCOUNTS.map((acc) => {
+            const isSelected = email === acc.email;
+            return (
+              <button
+                key={acc.role}
+                type="button"
+                onClick={() => fillDemoAccount(acc)}
+                className={`font-mono text-[9px] uppercase tracking-wider px-2 py-1 border transition-all ${
+                  isSelected
+                    ? 'bg-primary text-white border-primary shadow-sm font-bold'
+                    : 'bg-background hover:bg-hover border-border text-muted hover:text-foreground hover:border-primary/50'
+                }`}
+                title={`${acc.email} — ${acc.desc}`}
+              >
+                {acc.role}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Selected or Hovered Account Info */}
+        <div className="pt-2 border-t border-border/60 flex items-center justify-between font-mono text-[10px]">
+          <span className="text-muted">Account Email:</span>
+          <span className="text-foreground font-semibold select-all">
+            {email || 'Click any role above to autofill'}
+          </span>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="w-full space-y-4">

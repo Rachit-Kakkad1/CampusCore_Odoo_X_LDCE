@@ -57,14 +57,14 @@ export const Navbar = () => {
               <Link to="/store" className={navLinkClass('/store')}>
                 Store
               </Link>
+              <Link to="/membership" className={navLinkClass('/membership')}>
+                Membership
+              </Link>
               <Link to="/announcements" className={navLinkClass('/announcements')}>
                 Announcements
               </Link>
               {isAuthenticated && (
                 <>
-                  <Link to="/membership" className={navLinkClass('/membership')}>
-                    Membership
-                  </Link>
                   <Link to="/dashboard" className={navLinkClass('/dashboard')}>
                     Workspace
                   </Link>

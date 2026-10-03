@@ -80,7 +80,24 @@ export const membershipService = {
   async getHistory(userId) {
     const res = await api.get(`/membership/${userId}/history`);
     return res.data;
-  }
+  },
+
+  /**
+   * Fetch official membership plans from the backend.
+   */
+  async getPlans() {
+    const res = await api.get('/membership/plans');
+    return res.data?.plans || [];
+  },
+
+  /**
+   * Checkout membership with plan and personal details.
+   */
+  async checkout(payload) {
+    const res = await api.post('/membership/checkout', payload);
+    return res.data;
+  },
 };
 
+export { membershipApi } from './membership/membershipApi.js';
 export default membershipService;

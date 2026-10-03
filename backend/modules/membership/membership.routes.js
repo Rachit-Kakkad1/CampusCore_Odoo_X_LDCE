@@ -6,6 +6,8 @@ const router = express.Router();
 
 // 1. Static and Dashboard endpoints (Must precede /:userId to prevent param collision)
 router.get('/dashboard', (req, res, next) => membershipController.getDashboard(req, res, next));
+router.get('/plans', (req, res, next) => membershipController.getPlans(req, res, next));
+router.post('/checkout', (req, res, next) => membershipController.checkout(req, res, next));
 router.get('/me', (req, res, next) => membershipController.getMe(req, res, next));
 router.get('/pass', (req, res, next) => membershipController.getPass(req, res, next));
 router.get('/all', (req, res, next) => membershipController.getAll(req, res, next));
