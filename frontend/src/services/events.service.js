@@ -36,6 +36,7 @@ export const eventsService = {
 
   /**
    * Reserve / Checkout a ticket for an event
+   * Endpoint: POST /events/:id/tickets
    * @param {number|string} eventId
    * @param {object} [attendeeData] - { name, email, mobile, checkout_session_id }
    */
@@ -46,21 +47,25 @@ export const eventsService = {
 
   /**
    * Process payment for a reserved ticket
+   * Endpoint: POST /tickets/:id/pay
    * @param {number|string} ticketId
    * @param {object|string} [paymentData] - { payment_mode, email } or paymentMode string
    */
   async payTicket(ticketId, paymentData = 'online') {
     const body = typeof paymentData === 'string'
       ? { payment_mode: paymentData }
-      : { payment_mode: paymentData.payment_mode || paymentData.paymentMode || 'online', email: paymentData.email };
+      : {
+          payment_mode: paymentData.payment_mode || paymentData.paymentMode || 'online',
+          email: paymentData.email,
+        };
     const res = await api.post(`/tickets/${ticketId}/pay`, body);
     return res.data;
   },
 
   /**
-   * Complete end-to-end purchase flow:
-   * 1. Checkout/reserve seat
-   * 2. Process payment, generate HMAC signed QR, and trigger email delivery
+   * Complete purchase flow using existing backend endpoints:
+   * 1. POST /events/:id/tickets
+   * 2. POST /tickets/:id/pay
    *
    * @param {number|string} eventId
    * @param {object|string} [options] - { name, email, mobile, paymentMode } or paymentMode string

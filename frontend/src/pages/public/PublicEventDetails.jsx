@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import eventsService from '../../services/events.service';
+import authService from '../../services/auth.service';
+import membershipService from '../../services/membership.service';
 import GuestTicketPurchase from './GuestTicketPurchase';
-import { Calendar, MapPin, Users, ArrowLeft, ShieldCheck, Ticket } from 'lucide-react';
+import { Calendar, MapPin, Users, ArrowLeft, ShieldCheck, Ticket, Sparkles, AlertCircle } from 'lucide-react';
 
 export const PublicEventDetails = () => {
   const { id } = useParams();
@@ -14,6 +16,10 @@ export const PublicEventDetails = () => {
   const [error, setError] = useState(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
+  // Membership status for dynamic member pricing
+  const [currentUser, setCurrentUser] = useState(authService.getStoredUser());
+  const [membership, setMembership] = useState(null);
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
@@ -21,6 +27,16 @@ export const PublicEventDetails = () => {
         const data = await eventsService.getEventById(id);
         const item = data?.data || data;
         setEvent(item);
+
+        if (authService.isAuthenticated()) {
+          try {
+            const memRes = await membershipService.getMembership();
+            const mem = memRes?.membership || memRes?.data || memRes;
+            setMembership(mem);
+          } catch (e) {
+            setMembership(null);
+          }
+        }
       } catch (err) {
         console.error('Error fetching event details:', err);
         setError('Event not found or unavailable.');
@@ -30,6 +46,20 @@ export const PublicEventDetails = () => {
     };
     if (id) fetchEvent();
   }, [id]);
+
+  // Membership state
+  const isActiveMember = Boolean(
+    membership &&
+    membership.status === 'active' &&
+    membership.dues_status === 'paid' &&
+    (!membership.expiry_date || new Date(membership.expiry_date) > new Date())
+  );
+
+  const isExpiredMember = Boolean(
+    membership &&
+    (membership.status === 'expired' ||
+      (membership.expiry_date && new Date(membership.expiry_date) <= new Date()))
+  );
 
   if (loading) {
     return (
@@ -67,18 +97,27 @@ export const PublicEventDetails = () => {
     );
   }
 
-  const nonMemberPrice = Number(event.non_member_price || 0).toFixed(2);
-  const isSoldOut = Number(event.seats_remaining || 0) <= 0;
-  const eventDate = event.starts_at
+  const regularPrice = Number(event.non_member_price || 0).toFixed(2);
+  const memberPrice = Number(event.member_price || 0).toFixed(2);
+  const savings = (Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2);
+  const seatsRemaining = Number(event.seats_remaining || 0);
+  const isSoldOut = seatsRemaining <= 0;
+
+  const eventDateFormatted = event.starts_at
     ? new Date(event.starts_at).toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
         year: 'numeric',
+      })
+    : 'Date to be announced';
+
+  const eventTimeFormatted = event.starts_at
+    ? new Date(event.starts_at).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
       })
-    : 'Date to be announced';
+    : 'Time TBA';
 
   return (
     <div className="min-h-screen bg-[#f7f6f2] text-[#1c1c1c] flex flex-col justify-between selection:bg-[#5F3F56] selection:text-white">
@@ -107,7 +146,7 @@ export const PublicEventDetails = () => {
                     ? 'bg-red-50 text-red-800 border-red-200'
                     : 'bg-white text-[#5F3F56] border-[#e5e4de]'
                 }`}>
-                  {isSoldOut ? 'Sold Out' : `${event.seats_remaining} seats remaining`}
+                  {isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats remaining`}
                 </span>
                 <span className="font-mono text-xs text-[#1c1c1c]/60">
                   Event ID: EVT-00{event.id}
@@ -127,7 +166,7 @@ export const PublicEventDetails = () => {
                   <span>Scheduled Date & Time</span>
                 </div>
                 <div className="font-mono text-sm font-medium text-[#1c1c1c] pt-1">
-                  {eventDate}
+                  {eventDateFormatted} · {eventTimeFormatted}
                 </div>
               </div>
 
@@ -152,45 +191,90 @@ export const PublicEventDetails = () => {
               </p>
             </div>
 
-            {/* Pricing & Ticket Action Box */}
-            <div className="p-6 bg-white/70 border border-[#e5e4de] flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
-                      Member Pass
-                    </span>
-                    <div className="font-mono text-2xl font-bold text-[#5F3F56]">
-                      ₹{Number(event.member_price || 0).toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="h-8 border-r border-[#e5e4de]"></div>
-                  <div>
-                    <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
-                      Guest / Regular
-                    </span>
-                    <div className="font-mono text-2xl font-bold text-[#1c1c1c]">
-                      ₹{nonMemberPrice}
-                    </div>
-                  </div>
-                </div>
-                <span className="font-mono text-xs text-[#1c1c1c]/60 block pt-1">
-                  Active members save ₹{(Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2)} on this event.
+            {/* SECTION 4: CLEAR PRICING & TICKET ACTION BOX */}
+            <div className="p-6 bg-white/80 border border-[#e5e4de] space-y-6">
+              <div className="border-b border-[#e5e4de] pb-4">
+                <span className="font-mono text-xs uppercase tracking-widest text-[#5F3F56] font-bold block mb-1">
+                  TICKET PRICE
                 </span>
+                
+                {/* Active Member Pricing View */}
+                {isActiveMember ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="grid grid-cols-2 gap-4 font-mono">
+                      <div className="p-3 bg-gray-50 border border-gray-200">
+                        <span className="text-[10px] uppercase text-[#1c1c1c]/50 block">Non-member</span>
+                        <span className="text-xl line-through text-[#1c1c1c]/60">₹{regularPrice}</span>
+                      </div>
+                      <div className="p-3 bg-green-50 border border-green-300">
+                        <span className="text-[10px] uppercase font-bold text-green-900 block flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-green-700" />
+                          ACTIVE MEMBER
+                        </span>
+                        <span className="text-2xl font-bold text-green-950">₹{memberPrice}</span>
+                      </div>
+                    </div>
+                    <div className="p-2.5 bg-green-100/60 border border-green-300 text-green-900 font-mono text-xs font-semibold flex items-center justify-between">
+                      <span>✓ Your member discount is automatically unlocked</span>
+                      <span className="text-sm">You save ₹{savings}</span>
+                    </div>
+                  </div>
+                ) : isExpiredMember ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between font-mono">
+                      <div>
+                        <span className="text-[10px] uppercase text-[#1c1c1c]/50 block">Ticket Price</span>
+                        <span className="text-3xl font-bold text-[#1c1c1c]">₹{regularPrice}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase text-amber-800 font-bold block">Membership: EXPIRED</span>
+                        <span className="text-xs text-amber-900">Member rate: ₹{memberPrice}</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 font-mono text-xs">
+                      Renew your membership to unlock member pricing and save ₹{savings}.
+                    </div>
+                  </div>
+                ) : (
+                  /* Non-member / Guest View */
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-baseline justify-between font-mono">
+                      <div>
+                        <span className="text-[10px] uppercase text-[#1c1c1c]/50 block">Non-member Price</span>
+                        <span className="text-3xl font-bold text-[#1c1c1c]">₹{regularPrice}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase text-[#5F3F56] font-semibold block">Member Rate</span>
+                        <span className="text-xl font-bold text-[#5F3F56]">₹{memberPrice}</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-white border border-[#e5e4de] text-[#1c1c1c]/70 font-mono text-xs flex items-center justify-between">
+                      <span>Become a member to unlock member pricing.</span>
+                      <span className="text-[#5F3F56] font-bold">Save ₹{savings}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <button
-                onClick={() => setShowPurchaseModal(true)}
-                disabled={isSoldOut}
-                className={`font-mono text-xs uppercase tracking-widest px-8 py-4 border transition-all flex items-center justify-center gap-2 ${
-                  isSoldOut
-                    ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
-                    : 'bg-[#5F3F56] text-white border-[#5F3F56] hover:bg-[#5F3F56]/90 shadow-sm'
-                }`}
-              >
-                <Ticket className="w-4 h-4" />
-                <span>{isSoldOut ? 'Event Sold Out' : 'Get Event Ticket'}</span>
-              </button>
+              {/* Purchase Button Action */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <span className="font-mono text-xs text-[#1c1c1c]/60">
+                  {isSoldOut ? 'Capacity reached · No tickets available' : 'Includes instant signed QR admission pass & email delivery'}
+                </span>
+
+                <button
+                  onClick={() => setShowPurchaseModal(true)}
+                  disabled={isSoldOut}
+                  className={`font-mono text-xs uppercase tracking-widest px-8 py-4 border transition-all flex items-center justify-center gap-2 ${
+                    isSoldOut
+                      ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+                      : 'bg-[#5F3F56] text-white border-[#5F3F56] hover:bg-[#5F3F56]/90 shadow-md'
+                  }`}
+                >
+                  <Ticket className="w-4 h-4" />
+                  <span>{isSoldOut ? 'SOLD OUT' : 'GET TICKET'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
