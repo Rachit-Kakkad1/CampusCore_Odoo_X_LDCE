@@ -4,7 +4,7 @@ import PasswordField from './PasswordField';
 import LoginOptions from './LoginOptions';
 import AuthErrorMessage from './AuthErrorMessage';
 import LoginButton from './LoginButton';
-import { loginUser } from '../../services/authService';
+import authService from '../../services/auth.service';
 
 const DEMO_ACCOUNTS = [
   { label: 'Admin', email: 'admin@example.com' },
@@ -14,7 +14,9 @@ const DEMO_ACCOUNTS = [
   { label: 'Member', email: 'member@example.com' },
 ];
 
-export default function LoginForm() {
+export default function LoginForm({ mode, setMode }) {
+  const isRegister = mode === 'register';
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -32,11 +34,20 @@ export default function LoginForm() {
     setError('');
 
     try {
-      const data = await loginUser({ email, password });
-      console.log("Logged in successfully", data);
-      // Store token and navigate here in the future
+      let data;
+      if (isRegister) {
+        if (!name) {
+          throw new Error("Please provide your name.");
+        }
+        data = await authService.register({ name, email, password });
+        console.log("Registered successfully", data);
+      } else {
+        data = await authService.login({ email, password });
+        console.log("Logged in successfully", data);
+      }
+      // TODO: navigate to dashboard/membership after successful auth
     } catch (err) {
-      setError(err.message || 'Invalid email or password.');
+      setError(err.message || (isRegister ? 'Registration failed.' : 'Invalid email or password.'));
     } finally {
       setIsLoading(false);
     }
@@ -62,11 +73,41 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="w-full">
         <AuthErrorMessage message={error} />
         
+        {isRegister && (
+          <div className="mb-3">
+            <label className="block font-mono text-[10px] md:text-xs uppercase tracking-[0.3em] text-muted mb-2">
+              FULL NAME
+            </label>
+            <input
+              type="text"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full bg-transparent border-b border-border py-2 text-base text-foreground font-sans outline-none focus:border-primary transition-colors placeholder:text-border"
+              placeholder="Maya Sharma"
+            />
+          </div>
+        )}
+
         <EmailField value={email} onChange={setEmail} />
         <PasswordField value={password} onChange={setPassword} />
-        <LoginOptions rememberMe={rememberMe} setRememberMe={setRememberMe} />
+        {!isRegister && <LoginOptions rememberMe={rememberMe} setRememberMe={setRememberMe} />}
         
         <LoginButton isLoading={isLoading} />
+        
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setMode(isRegister ? 'login' : 'register');
+              setError('');
+            }}
+            className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted hover:text-primary transition-colors"
+          >
+            {isRegister ? "Already have an account? Sign In" : "Don't have an account? Register"}
+          </button>
+        </div>
       </form>
     </div>
   );

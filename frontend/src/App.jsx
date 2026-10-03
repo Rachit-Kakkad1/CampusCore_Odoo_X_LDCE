@@ -11,6 +11,7 @@ import Register from './pages/auth/Register';
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
 import Announcements from './pages/announcements/Announcements';
+import heroVideo from './assests/login/1003.mp4';
 import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
@@ -62,10 +63,10 @@ const LandingPage = () => {
 
           <div className="flex items-center gap-6">
             <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.3em] hidden sm:block hover:text-primary transition-colors">Sign In</Link>
-            <button className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em]">
+            <Link to="/login?mode=register" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em] inline-block">
               <span className="relative z-10 flex items-center gap-2">Join Organization <ArrowRight className="w-3 h-3" /></span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
@@ -75,8 +76,10 @@ const LandingPage = () => {
       <ConnectedPlatform />
       <WorkflowSection />
       <Capabilities />
-      <FinanceSpotlight />
+      <MembershipSpotlight />
       <EventSpotlight />
+      <StoreSpotlight />
+      <FinanceSpotlight />
       <FinalCTA />
     </>
   );
@@ -84,32 +87,37 @@ const LandingPage = () => {
 
 const Hero = () => {
   return (
-    <section className="relative pt-48 pb-24 md:pt-64 md:pb-32 px-6 overflow-hidden">
-      <div className="max-w-7xl mx-auto flex flex-col items-center text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 border border-border mb-12">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em]">Built for student communities</span>
-        </div>
+    <section id="overview" className="relative pt-24 pb-12 overflow-hidden">
+      <div className="w-full px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-0 items-start relative">
+        
+        {/* Left Side: Content */}
+        <div className="flex flex-col items-start text-left order-2 lg:order-1 lg:col-start-1 lg:col-end-7 lg:row-start-1 lg:pt-12 xl:pt-24 relative z-10">
+          <h1 className="font-serif text-4xl lg:text-5xl xl:text-6xl leading-[1.1] tracking-tight mb-6">
+            Comprehensive Management for Student Communities.
+          </h1>
 
-        <h1 className="font-serif text-5xl sm:text-7xl md:text-[clamp(64px,9vw,140px)] leading-[0.95] tracking-tight uppercase max-w-5xl mx-auto mb-10">
-          Run your <br />
-          <span className="italic text-ghost">organization.</span><br />
-          Not your <br />spreadsheets.
-        </h1>
+          <p className="font-sans text-lg text-muted max-w-sm mb-10">
+            A unified platform to seamlessly manage memberships, events, and organizational finances.
+          </p>
 
-        <p className="font-sans text-lg md:text-xl text-muted max-w-2xl mx-auto mb-12">
-          Memberships, events, ticketing, merchandise, volunteers and finances — connected through one system.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <button className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-8 py-4 transition-all duration-700 hover:tracking-[0.4em] w-full sm:w-auto">
-            <span className="relative z-10 flex items-center gap-2">Explore Platform <ArrowRight className="w-3 h-3" /></span>
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
-          </button>
-          <button className="font-mono text-[10px] uppercase tracking-[0.2em] px-8 py-4 border border-border hover:bg-white transition-colors duration-700 w-full sm:w-auto flex items-center justify-center gap-2">
-            View Events <ArrowRight className="w-3 h-3 -rotate-45" />
+          <button className="bg-primary text-white font-mono text-xs uppercase tracking-widest px-8 py-4 hover:opacity-90 transition-opacity">
+            Explore Platform
           </button>
         </div>
+
+        {/* Right Side: Video */}
+        <div className="w-full flex justify-end order-1 lg:order-2 lg:col-start-5 lg:col-end-13 lg:row-start-1 relative z-0">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-auto bg-[#F7F6F2]"
+          >
+            <source src={heroVideo} type="video/mp4" />
+          </video>
+        </div>
+
       </div>
     </section>
   );
@@ -144,7 +152,7 @@ const ProblemStatement = () => {
     offset: ["start center", "end center"]
   });
 
-  const text1 = "Student organizations shouldn't need spreadsheets for members, WhatsApp for announcements, paper lists for events, notebooks for finances and scattered receipts for expenses.";
+  const text1 = "Student organizations shouldn't need scattered apps and spreadsheets.";
   const text2 = "One organization deserves one system.";
 
   const words1 = text1.split(' ');
@@ -448,9 +456,74 @@ const Capabilities = () => {
   );
 };
 
+const MembershipSpotlight = () => {
+  return (
+    <section id="membership" className="py-32 px-6 border-b border-border bg-white/40">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.3em] mb-8 text-muted">Membership / 004</div>
+          <h2 className="font-serif text-5xl md:text-7xl mb-12 uppercase leading-tight">
+            One identity.<br />
+            <span className="text-primary italic">Everywhere.</span>
+          </h2>
+          <p className="font-sans text-xl text-muted max-w-md">
+            Seamlessly onboard students, issue digital passes, and instantly distinguish active members from guests for pricing and access.
+          </p>
+        </div>
+        <div className="border border-border bg-card p-8 relative">
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-6">Digital Member Pass</div>
+          <div className="text-4xl font-serif mb-4">MAYA SHARMA</div>
+          <div className="flex items-center gap-4 font-mono text-sm">
+            <span className="text-primary flex items-center gap-2"><div className="w-2 h-2 bg-primary rounded-full" /> ACTIVE</span>
+            <span className="text-muted">MEMBER / MBR-1024</span>
+          </div>
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="flex justify-between text-xs tracking-widest text-muted mb-2">
+              <span>EXPIRY</span>
+              <span>31 MAY 2027</span>
+            </div>
+          </div>
+          <div className="absolute top-1/2 left-0 w-full -translate-y-1/2">
+            <ScanLine />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const StoreSpotlight = () => {
+  return (
+    <section id="store" className="py-32 px-6 border-b border-border">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+        <div className="order-2 lg:order-1 border border-border bg-card p-8">
+          <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-6">Store Order Preview</div>
+          <div className="text-4xl font-serif mb-2">DEPT HOODIE</div>
+          <div className="font-mono text-sm mb-6 text-muted">SIZE: LARGE • QTY: 1</div>
+          <div className="flex justify-between items-end border-t border-border pt-6 font-mono text-sm">
+            <span className="text-muted">TOTAL (MEMBER DISCOUNT)</span>
+            <span className="text-xl text-primary">₹1,080</span>
+          </div>
+          <div className="mt-6 inline-block px-3 py-1 border border-primary text-primary text-xs tracking-widest">PAID / READY FOR PICKUP</div>
+        </div>
+        <div className="order-1 lg:order-2">
+          <div className="font-mono text-[10px] uppercase tracking-[0.3em] mb-8 text-muted">Merchandise / 005</div>
+          <h2 className="font-serif text-5xl md:text-7xl mb-12 uppercase leading-tight">
+            Inventory.<br />
+            <span className="text-primary italic">Without spreadsheets.</span>
+          </h2>
+          <p className="font-sans text-xl text-muted max-w-md">
+            Manage stock independently by size, automatically apply member discounts, and track orders from purchase to collection.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const FinanceSpotlight = () => {
   return (
-    <section className="py-32 px-6 border-b border-border bg-white/40">
+    <section id="finance" className="py-32 px-6 border-b border-border bg-white/40">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
 
         <div>
@@ -510,7 +583,7 @@ const FinanceSpotlight = () => {
 
 const EventSpotlight = () => {
   return (
-    <section className="py-32 px-6 border-b border-border">
+    <section id="events" className="py-32 px-6 border-b border-border">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
 
         <div className="order-2 lg:order-1 flex justify-center">
