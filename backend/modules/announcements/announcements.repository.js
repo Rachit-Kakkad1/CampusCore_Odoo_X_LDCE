@@ -26,6 +26,18 @@ class AnnouncementsRepository {
     const result = await pool.query(queryText);
     return result.rows;
   }
+
+  async getAnnouncementById(id) {
+    const queryText = `
+      SELECT a.id, a.title, a.body, a.created_at,
+             u.id as author_id, u.name as author_name, u.email as author_email
+      FROM announcements a
+      LEFT JOIN users u ON a.created_by = u.id
+      WHERE a.id = $1;
+    `;
+    const result = await pool.query(queryText, [id]);
+    return result.rows[0] || null;
+  }
 }
 
 module.exports = new AnnouncementsRepository();

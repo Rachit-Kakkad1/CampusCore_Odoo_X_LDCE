@@ -25,20 +25,30 @@ ON CONFLICT (id) DO UPDATE SET
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
 -- 2. MEMBERSHIPS
-INSERT INTO memberships (id, user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at) VALUES
-(1, 5, 'MEM-2026-MAYA', 500.00, 'paid', '2026-01-01', '2027-12-31', '2026-01-01 10:00:00+00'),
-(2, 6, 'MEM-2025-EDDIE', 500.00, 'paid', '2025-01-01', '2025-12-31', '2025-01-01 10:00:00+00'),
-(3, 8, 'MEM-2026-PIA', 500.00, 'pending', NULL, NULL, NULL)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, cancelled_at, cancellation_reason, payment_timestamp, renewed_from_membership_id, created_at, updated_at) VALUES
+(1, 5, 'SKY-MEM-005-MAYA', 'active', 'paid', 500.00, NOW() - INTERVAL '3 months', NOW() + INTERVAL '9 months', NULL, NULL, NOW() - INTERVAL '3 months', NULL, NOW() - INTERVAL '3 months', NOW() - INTERVAL '3 months'),
+(2, 6, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00, NOW() - INTERVAL '14 months', NOW() - INTERVAL '2 months', NULL, NULL, NOW() - INTERVAL '14 months', NULL, NOW() - INTERVAL '14 months', NOW() - INTERVAL '2 months'),
+(3, 6, 'SKY-MEM-006-EDDIE-2026', 'active', 'paid', 500.00, NOW() - INTERVAL '2 months', NOW() + INTERVAL '10 months', NULL, NULL, NOW() - INTERVAL '2 months', 2, NOW() - INTERVAL '2 months', NOW() - INTERVAL '2 months'),
+(4, 8, 'SKY-MEM-008-PIA', 'pending', 'pending', 500.00, NULL, NULL, NULL, NULL, NULL, NULL, NOW() - INTERVAL '5 days', NOW() - INTERVAL '5 days'),
+(5, 4, 'SKY-MEM-004-VIK', 'expired', 'paid', 500.00, NOW() - INTERVAL '13 months', NOW() - INTERVAL '1 month', NULL, NULL, NOW() - INTERVAL '13 months', NULL, NOW() - INTERVAL '13 months', NOW() - INTERVAL '1 month'),
+(6, 7, 'SKY-MEM-007-GREG', 'cancelled', 'paid', 500.00, NOW() - INTERVAL '4 months', NOW() + INTERVAL '8 months', NOW() - INTERVAL '10 days', 'Member requested cancellation due to transfer to another campus', NOW() - INTERVAL '4 months', NULL, NOW() - INTERVAL '4 months', NOW() - INTERVAL '10 days'),
+(7, 2, 'SKY-MEM-002-TARA', 'active', 'paid', 500.00, NOW() - INTERVAL '360 days', NOW() + INTERVAL '5 days', NULL, NULL, NOW() - INTERVAL '360 days', NULL, NOW() - INTERVAL '360 days', NOW() - INTERVAL '360 days')
 ON CONFLICT (id) DO UPDATE SET
   user_id = EXCLUDED.user_id,
   member_code = EXCLUDED.member_code,
-  dues_amount = EXCLUDED.dues_amount,
+  status = EXCLUDED.status,
   dues_status = EXCLUDED.dues_status,
-  start_date = EXCLUDED.start_date,
+  dues_amount = EXCLUDED.dues_amount,
+  started_at = EXCLUDED.started_at,
   expiry_date = EXCLUDED.expiry_date,
-  paid_at = EXCLUDED.paid_at;
+  cancelled_at = EXCLUDED.cancelled_at,
+  cancellation_reason = EXCLUDED.cancellation_reason,
+  payment_timestamp = EXCLUDED.payment_timestamp,
+  renewed_from_membership_id = EXCLUDED.renewed_from_membership_id,
+  updated_at = EXCLUDED.updated_at;
 
 SELECT setval('memberships_id_seq', (SELECT MAX(id) FROM memberships));
+
 
 -- 3. ANNOUNCEMENTS
 INSERT INTO announcements (id, title, body, created_by) VALUES

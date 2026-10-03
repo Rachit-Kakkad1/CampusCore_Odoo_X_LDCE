@@ -12,6 +12,8 @@ DROP TABLE IF EXISTS tickets CASCADE;
 DROP TABLE IF EXISTS event_attendees CASCADE;
 DROP TABLE IF EXISTS events CASCADE;
 DROP TABLE IF EXISTS announcements CASCADE;
+
+
 DROP TABLE IF EXISTS memberships CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -67,6 +69,7 @@ CREATE TABLE memberships (
 -- while allowing historical records (expired/cancelled) for renewal audit trails.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_memberships_active_user
   ON memberships(user_id) WHERE status IN ('active', 'pending');
+
 
 
 -- -----------------------------------------------------------------------------

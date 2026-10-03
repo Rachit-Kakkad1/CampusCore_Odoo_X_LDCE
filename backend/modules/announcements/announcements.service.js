@@ -30,6 +30,10 @@ class AnnouncementsService {
   async getAllAnnouncements() {
     return await announcementsRepository.getAllAnnouncements();
   }
+
+  async getAnnouncementById(id) {
+    return await announcementsRepository.getAnnouncementById(id);
+  }
 }
 
 module.exports = new AnnouncementsService();

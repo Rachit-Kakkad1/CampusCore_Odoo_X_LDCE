@@ -52,8 +52,10 @@ app.use('/api/finance', financeRoutes);
 
 // Centralized 404 & Error Handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled application error:', err);
   const status = err.status || 500;
+  if (status >= 500) {
+    console.error('Server error:', err);
+  }
   res.status(status).json({
     error: err.code || 'INTERNAL_ERROR',
     message: err.message || 'An internal server error occurred',

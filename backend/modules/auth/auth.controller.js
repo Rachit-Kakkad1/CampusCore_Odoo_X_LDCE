@@ -8,7 +8,7 @@ class AuthController {
   async register(req, res) {
     try {
       const result = await authService.register(req.body);
-      return res.status(201).json(result);
+      return res.status(201).json({ success: true, ...result });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -18,7 +18,7 @@ class AuthController {
   async login(req, res) {
     try {
       const result = await authService.login(req.body);
-      return res.status(200).json(result);
+      return res.status(200).json({ success: true, ...result });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -27,13 +27,15 @@ class AuthController {
 
   async getMe(req, res) {
     try {
-      const user = await authService.getMe(req.user.id);
-      return res.status(200).json({ user });
+      const userId = req.user ? (req.user.id || req.user.userId) : null;
+      const user = await authService.getMe(userId);
+      return res.status(200).json({ success: true, user });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
   }
 }
+
 
 module.exports = new AuthController();

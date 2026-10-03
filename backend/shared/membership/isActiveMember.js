@@ -139,7 +139,7 @@ async function getMembershipStatus(userId, client = pool) {
   };
 }
 
-module.exports = {
-  isActiveMember,
-  getMembershipStatus,
-};
+isActiveMember.isActiveMember = isActiveMember;
+isActiveMember.getMembershipStatus = getMembershipStatus;
+
+module.exports = isActiveMember;

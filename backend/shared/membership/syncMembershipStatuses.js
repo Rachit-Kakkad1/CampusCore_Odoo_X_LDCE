@@ -27,4 +27,5 @@ async function syncMembershipStatuses(client = pool) {
   return { updatedCount: result.rowCount };
 }
 
+syncMembershipStatuses.syncMembershipStatuses = syncMembershipStatuses;
 module.exports = syncMembershipStatuses;

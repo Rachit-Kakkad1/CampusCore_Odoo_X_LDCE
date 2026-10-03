@@ -12,12 +12,14 @@ const env = require('../../config/env');
  */
 function getCurrentUser(req) {
   if (req && req.user && req.user.id) {
-    return {
-      id: req.user.id,
+    const user = {
+      id: req.user.id || req.user.userId,
+      userId: req.user.id || req.user.userId,
       name: req.user.name,
       email: req.user.email,
       role: req.user.role,
     };
+    return user;
   }
 
   const authHeader = req && req.headers ? req.headers.authorization : null;
@@ -28,8 +30,10 @@ function getCurrentUser(req) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);
+    const id = decoded.id || decoded.userId;
     return {
-      id: decoded.id,
+      id,
+      userId: id,
       name: decoded.name,
       email: decoded.email,
       role: decoded.role,
@@ -39,4 +43,6 @@ function getCurrentUser(req) {
   }
 }
 
+getCurrentUser.getCurrentUser = getCurrentUser;
 module.exports = getCurrentUser;
+

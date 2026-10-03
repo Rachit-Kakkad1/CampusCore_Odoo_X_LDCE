@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import { ArrowRight, Activity, CreditCard, LayoutDashboard, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import Navbar from './components/common/Navbar';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
+import Register from './pages/auth/Register';
+import Membership from './pages/membership/Membership';
+import MembershipPass from './pages/membership/MembershipPass';
+import Announcements from './pages/announcements/Announcements';
+import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -17,48 +26,59 @@ const ScanLine = () => (
 
 // --- Sections ---
 
-const Navbar = () => {
+const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
-    <nav className={cn(
-      "fixed top-0 w-full z-50 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
-      scrolled ? "bg-background/85 backdrop-blur-md border-b border-border py-4" : "py-8 bg-transparent"
-    )}>
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col gap-[8px]">
-            <div className="h-[1px] w-6 bg-foreground" />
-            <div className="h-[1px] w-8 bg-foreground" />
+    <>
+      <nav className={cn(
+        "fixed top-0 w-full z-50 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        scrolled ? "bg-background/85 backdrop-blur-md border-b border-border py-4" : "py-8 bg-transparent"
+      )}>
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-[8px]">
+              <div className="h-[1px] w-6 bg-foreground" />
+              <div className="h-[1px] w-8 bg-foreground" />
+            </div>
+            <span className="font-serif text-xl tracking-tight leading-none uppercase">
+              Student<br />Organization
+            </span>
           </div>
-          <span className="font-serif text-xl tracking-tight leading-none uppercase">
-            Student<br />Organization
-          </span>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
-          <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
-          <a href="#events" className="hover:text-primary transition-colors">Events</a>
-          <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
-          <a href="#store" className="hover:text-primary transition-colors">Store</a>
-          <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
-        </div>
 
-        <div className="flex items-center gap-6">
-          <a href="#signin" className="font-mono text-[10px] uppercase tracking-[0.3em] hidden sm:block hover:text-primary transition-colors">Sign In</a>
-          <button className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em]">
-            <span className="relative z-10 flex items-center gap-2">Join Organization <ArrowRight className="w-3 h-3" /></span>
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
-          </button>
+          <div className="hidden md:flex items-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
+            <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
+            <a href="#events" className="hover:text-primary transition-colors">Events</a>
+            <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
+            <a href="#store" className="hover:text-primary transition-colors">Store</a>
+            <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.3em] hidden sm:block hover:text-primary transition-colors">Sign In</Link>
+            <button className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em]">
+              <span className="relative z-10 flex items-center gap-2">Join Organization <ArrowRight className="w-3 h-3" /></span>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
+            </button>
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      <Hero />
+      <Statistics />
+      <ProblemStatement />
+      <ConnectedPlatform />
+      <WorkflowSection />
+      <Capabilities />
+      <FinanceSpotlight />
+      <EventSpotlight />
+      <FinalCTA />
+    </>
   );
 };
 
@@ -126,7 +146,7 @@ const ProblemStatement = () => {
 
   const text1 = "Student organizations shouldn't need spreadsheets for members, WhatsApp for announcements, paper lists for events, notebooks for finances and scattered receipts for expenses.";
   const text2 = "One organization deserves one system.";
-  
+
   const words1 = text1.split(' ');
   const words2 = text2.split(' ');
 
@@ -151,8 +171,8 @@ const ProblemStatement = () => {
             const opacity = useTransform(scrollYProgress, [start, end], [0.15, 1]);
             const isHighlight = word.toLowerCase().includes("one") || word.toLowerCase().includes("system.");
             return (
-              <motion.span 
-                key={i} 
+              <motion.span
+                key={i}
                 style={{ opacity }}
                 className={isHighlight ? "text-primary italic" : ""}
               >
@@ -173,9 +193,9 @@ const ConnectedPlatform = () => {
         <h2 className="font-serif text-4xl md:text-6xl mb-24 uppercase">
           One System.<br />Every Operation.
         </h2>
-        
+
         <div className="flex flex-col md:flex-row justify-center items-start gap-12 font-mono text-xs tracking-widest text-muted">
-          
+
           <div className="flex flex-col items-center gap-4">
             <span className="text-foreground">MEMBER</span>
             <span>↓</span>
@@ -232,10 +252,10 @@ const WorkflowSection = () => {
   return (
     <section className="py-32 px-6 border-b border-border">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24">
-        
+
         <div className="flex flex-col gap-12">
           {steps.map((step, i) => (
-            <div 
+            <div
               key={i}
               className={cn("cursor-pointer transition-opacity duration-700", activeStep === i ? "opacity-100" : "opacity-35")}
               onClick={() => setActiveStep(i)}
@@ -246,7 +266,7 @@ const WorkflowSection = () => {
                 {step.title}
               </div>
               {activeStep === i && (
-                <motion.p 
+                <motion.p
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="font-sans text-xl text-muted pl-16"
@@ -261,7 +281,7 @@ const WorkflowSection = () => {
         <div className="relative sticky top-32 self-start">
           <div className="border border-border bg-card p-8 min-h-[300px] flex flex-col justify-center">
             {activeStep === 0 && (
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="font-mono text-[10px] tracking-widest text-muted uppercase">Member Pass</div>
                 <div className="text-4xl font-serif">MAYA</div>
                 <div className="flex items-center gap-4 font-mono text-sm">
@@ -271,7 +291,7 @@ const WorkflowSection = () => {
               </motion.div>
             )}
             {activeStep === 1 && (
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="font-mono text-[10px] tracking-widest text-muted uppercase">Ticket Preview</div>
                 <div className="text-4xl font-serif">SPRING GALA</div>
                 <div className="grid grid-cols-2 gap-8 font-mono text-sm">
@@ -290,7 +310,7 @@ const WorkflowSection = () => {
               </motion.div>
             )}
             {activeStep === 2 && (
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="font-mono text-[10px] tracking-widest text-muted uppercase">Fundraiser Progress</div>
                 <div className="text-4xl font-serif">BAKE SALE</div>
                 <div className="space-y-4">
@@ -305,7 +325,7 @@ const WorkflowSection = () => {
               </motion.div>
             )}
             {activeStep === 3 && (
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-8">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
                 <div className="font-mono text-[10px] tracking-widest text-muted uppercase">Financial Summary</div>
                 <div className="grid grid-cols-1 gap-6 font-mono text-sm">
                   <div className="flex justify-between items-end border-b border-border pb-2">
@@ -384,7 +404,7 @@ const Capabilities = () => {
     <section className="py-32 px-6 border-b border-border">
       <div className="max-w-5xl mx-auto">
         <h2 className="font-mono text-xs uppercase tracking-[0.3em] text-center mb-16">Built for the whole organization</h2>
-        
+
         <div className="flex flex-wrap justify-center gap-2 mb-12">
           {tabs.map((tab, i) => (
             <button
@@ -404,7 +424,7 @@ const Capabilities = () => {
           <div className="absolute -right-8 -bottom-16 text-[240px] font-serif leading-none opacity-[0.04] text-foreground pointer-events-none select-none">
             0{activeTab + 1}
           </div>
-          
+
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}
@@ -432,7 +452,7 @@ const FinanceSpotlight = () => {
   return (
     <section className="py-32 px-6 border-b border-border bg-white/40">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-        
+
         <div>
           <div className="font-mono text-[10px] uppercase tracking-[0.3em] mb-8 text-muted">Financial Control / 006</div>
           <h2 className="font-serif text-5xl md:text-7xl mb-8 uppercase leading-tight">
@@ -446,7 +466,7 @@ const FinanceSpotlight = () => {
 
         <div className="border border-border bg-card p-8 shadow-sm">
           <div className="font-mono text-xs uppercase tracking-widest mb-12 border-b border-border pb-4">Financial Overview</div>
-          
+
           <div className="grid grid-cols-3 gap-8 mb-12 font-mono text-sm">
             <div>
               <div className="text-muted mb-2">TOTAL INCOME</div>
@@ -492,7 +512,7 @@ const EventSpotlight = () => {
   return (
     <section className="py-32 px-6 border-b border-border">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-        
+
         <div className="order-2 lg:order-1 flex justify-center">
           <div className="relative w-full max-w-sm">
             <div className="border border-border bg-card p-8">
@@ -505,7 +525,7 @@ const EventSpotlight = () => {
                   QR PREVIEW
                 </div>
               </div>
-              
+
               <div className="space-y-6 font-mono text-sm">
                 <div>
                   <div className="text-muted mb-1 text-xs">HOLDER</div>
@@ -530,7 +550,7 @@ const EventSpotlight = () => {
             From purchase<br />
             to check-in.
           </h2>
-          
+
           <div className="grid grid-cols-2 gap-8 font-mono text-sm border-l border-border pl-8">
             <div>
               <div className="text-muted mb-2 text-xs tracking-widest">MEMBER PRICE</div>
@@ -570,9 +590,9 @@ const FinalCTA = () => {
             <span className="relative z-10 flex items-center gap-2">Join The Organization <ArrowRight className="w-4 h-4" /></span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
           </button>
-          <button className="font-mono text-[10px] uppercase tracking-[0.2em] px-10 py-5 border border-border hover:bg-white transition-colors duration-700 w-full sm:w-auto">
+          <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.2em] px-10 py-5 border border-border hover:bg-white transition-colors duration-700 w-full sm:w-auto inline-block text-center">
             Sign In
-          </button>
+          </Link>
         </div>
       </div>
     </section>
@@ -586,7 +606,7 @@ const Footer = () => {
         <div className="font-serif text-sm uppercase leading-tight text-center md:text-left">
           Student<br />Organization<br />System
         </div>
-        
+
         <div className="flex flex-wrap justify-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
           <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
           <a href="#events" className="hover:text-primary transition-colors">Events</a>
@@ -605,35 +625,60 @@ const Footer = () => {
   );
 };
 
-export default function App() {
-  return (
-    <div className="min-h-screen bg-background relative selection:bg-primary selection:text-white">
-      {/* Global Grid Overlay */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 grid-overlay opacity-30" />
-        <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-4 border-x border-border divide-x divide-border opacity-50">
-          <div />
-          <div className="hidden md:block" />
-          <div className="hidden md:block" />
-          <div className="hidden md:block" />
-        </div>
-      </div>
-
-      <div className="relative z-10">
-        <Navbar />
-        <main>
-          <Hero />
-          <Statistics />
-          <ProblemStatement />
-          <ConnectedPlatform />
-          <WorkflowSection />
-          <Capabilities />
-          <FinanceSpotlight />
-          <EventSpotlight />
-          <FinalCTA />
-        </main>
-        <Footer />
+const MainLayout = ({ children }) => (
+  <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-indigo-600 selection:text-white flex flex-col justify-between">
+    {/* Global Grid Overlay */}
+    <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="absolute inset-0 grid-overlay opacity-30" />
+      <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-4 border-x border-slate-900 divide-x divide-slate-900 opacity-50">
+        <div />
+        <div className="hidden md:block" />
+        <div className="hidden md:block" />
+        <div className="hidden md:block" />
       </div>
     </div>
+
+    <div className="relative z-10 flex flex-col min-h-screen justify-between">
+      <Navbar />
+      <main className="flex-grow">
+        {children}
+      </main>
+      <Footer />
+    </div>
+  </div>
+);
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen flex flex-col">
+            <LandingPage />
+            <Footer />
+          </div>
+        } />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
+        <Route
+          path="/membership"
+          element={
+            <ProtectedRoute>
+              <MainLayout><Membership /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/membership/pass"
+          element={
+            <ProtectedRoute>
+              <MainLayout><MembershipPass /></MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/announcements" element={<MainLayout><Announcements /></MainLayout>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

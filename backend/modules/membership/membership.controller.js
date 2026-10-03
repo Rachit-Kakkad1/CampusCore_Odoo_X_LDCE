@@ -129,6 +129,18 @@ class MembershipController {
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
   }
+
+  // Aliases for compatibility
+  getMe(req, res) { return this.getMyMembership(req, res); }
+  getPass(req, res) { return this.getMemberPass(req, res); }
+  getAll(req, res) { return this.getAllMembers(req, res); }
+  pay(req, res) { return this.payDues(req, res); }
+  cancel(req, res) { return this.cancelMembership(req, res); }
+  renew(req, res) { return this.renewMembership(req, res); }
+  getDashboard(req, res) { return this.getExpiryDashboard(req, res); }
+  getHistory(req, res) { return this.getRenewalHistory(req, res); }
+  getByUserId(req, res) { return this.getMyMembership(req, res); }
 }
 
 module.exports = new MembershipController();
+

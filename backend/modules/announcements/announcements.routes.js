@@ -5,6 +5,8 @@ const requireRole = require('../../shared/auth/requireRole');
 const announcementsRouter = express.Router();
 
 announcementsRouter.get('/', (req, res) => announcementsController.getAllAnnouncements(req, res));
+announcementsRouter.get('/:id', (req, res) => announcementsController.getAnnouncementById(req, res));
 announcementsRouter.post('/', requireRole('admin', 'event_manager'), (req, res) => announcementsController.createAnnouncement(req, res));
 
 module.exports = announcementsRouter;
+

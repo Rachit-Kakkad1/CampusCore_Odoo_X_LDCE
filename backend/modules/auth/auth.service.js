@@ -177,6 +177,11 @@ class AuthService {
     }
     return user;
   }
+
+  async getCurrentUserProfile(userId) {
+    return this.getMe(userId);
+  }
 }
+
 
 module.exports = new AuthService();
