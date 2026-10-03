@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.log
+.DS_Store
+pg_local_data/
