@@ -111,6 +111,98 @@ export const eventsService = {
 
     const paidTicket = payRes?.ticket || payRes?.data || payRes;
     return paidTicket;
+  },
+
+  /**
+   * Scan or validate ticket for event admission
+   * Accepts signed QR payload or manual fallback ticket code (e.g. TCK-...)
+   * Endpoint: POST /checkin/scan
+   */
+  async scanCheckIn(payload, eventId = null) {
+    try {
+      const res = await api.post('/checkin/scan', {
+        payload: payload?.trim(),
+        event_id: eventId ? parseInt(eventId, 10) : undefined,
+      });
+      return res;
+    } catch (err) {
+      if (err.data) {
+        return err.data; // Return backend payload (e.g. ALREADY_USED, INVALID)
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * Fetch cryptographic QR code for a paid ticket
+   * Endpoint: GET /tickets/:id/qr
+   */
+  async getTicketQR(ticketId) {
+    const res = await api.get(`/tickets/${ticketId}/qr`);
+    return res;
+  },
+
+  /**
+   * Apply as a volunteer for an event
+   * Endpoint: POST /events/:id/volunteers/apply
+   */
+  async applyVolunteer(eventId) {
+    const res = await api.post(`/events/${eventId}/volunteers/apply`);
+    return res.data;
+  },
+
+  /**
+   * Fetch all volunteer applications for an event (Admin / Event Manager)
+   * Endpoint: GET /events/:id/volunteers
+   */
+  async getEventVolunteers(eventId) {
+    const res = await api.get(`/events/${eventId}/volunteers`);
+    return res.data;
+  },
+
+  /**
+   * Update volunteer application status (approved, rejected)
+   * Endpoint: PATCH /events/:id/volunteers/:applicationId
+   */
+  async updateVolunteerStatus(eventId, applicationId, status) {
+    const res = await api.patch(`/events/${eventId}/volunteers/${applicationId}`, { status });
+    return res.data;
+  },
+
+  /**
+   * Remove volunteer from event
+   * Endpoint: POST /events/:id/volunteers/:applicationId/remove
+   */
+  async removeVolunteer(eventId, applicationId) {
+    const res = await api.post(`/events/${eventId}/volunteers/${applicationId}/remove`);
+    return res.data;
+  },
+
+  /**
+   * Fetch volunteer opportunities (events requiring volunteers)
+   * Endpoint: GET /volunteer/events
+   */
+  async getVolunteerOpportunities() {
+    const res = await api.get('/volunteer/events');
+    return res.data;
+  },
+
+  /**
+   * Fetch current volunteer's applications
+   * Endpoint: GET /volunteer/mine
+   */
+  async getMyVolunteerApplications() {
+    const res = await api.get('/volunteer/mine');
+    return res.data;
+  },
+
+  /**
+   * Update an existing event (Admin / Event Manager)
+   * Endpoint: PATCH /events/:id
+   */
+  async updateEvent(eventId, updateData) {
+    const res = await api.patch(`/events/${eventId}`, updateData);
+    return res.data;
   }
 };
 

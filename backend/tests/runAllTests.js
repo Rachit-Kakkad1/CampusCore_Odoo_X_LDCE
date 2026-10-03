@@ -15,6 +15,8 @@ const suites = [
   { name: '5. Events, Tickets & Check-in Tests', cmd: 'node tests/events.test.js' },
   { name: '6. Merchandise & Orders Tests', cmd: 'node scripts/test_merchandise.js' },
   { name: '7. QR & Email Delivery Tests', cmd: 'node tests/qr_email.test.js' },
+  { name: '8. Fallback Codes, Volunteers & Cancellation Tests', cmd: 'node tests/volunteers_and_cancellation.test.js' },
+  { name: '9. Security, Sessions & Concurrency Tests', cmd: 'node tests/security_and_concurrency.test.js' },
 ];
 
 let allPassed = true;

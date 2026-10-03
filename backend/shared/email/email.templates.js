@@ -44,12 +44,14 @@ function renderTicketEmail({
   eventDate = null,
   venue = 'Campus Center',
   ticketCode = 'TCK-0000',
+  fallbackCode = null,
   price = '0.00',
   priceType = 'General',
   qrDataUrl = null,
 }) {
+  const displayFallbackCode = fallbackCode || ticketCode;
   const formattedDate = formatDate(eventDate);
-  const subject = `Your Ticket for ${eventName} [${ticketCode}]`;
+  const subject = `Your Ticket for ${eventName} [${displayFallbackCode}]`;
 
   const html = `
 <!DOCTYPE html>
@@ -189,8 +191,9 @@ function renderTicketEmail({
       <div class="qr-section">
         ${qrDataUrl ? `<img src="cid:ticket_qr_code" data-qr="${qrDataUrl}" alt="Check-in QR Code" class="qr-image" style="width: 180px; height: 180px; display: block; margin: 0 auto 12px auto;" />` : '<p style="color: #e53e3e;">QR Code generation pending</p>'}
         <div class="fallback-code-box">
-          <span>Manual Fallback Ticket Code:</span>
-          <span class="fallback-code">${ticketCode}</span>
+          <span>Manual Entry Code:</span>
+          <span class="fallback-code">${displayFallbackCode}</span>
+          <div style="font-size: 11px; opacity: 0.75; margin-top: 4px;">Ticket Ref: ${ticketCode}</div>
         </div>
       </div>
 
@@ -213,6 +216,14 @@ function renderTicketEmail({
           <td class="details-value">${venue}</td>
         </tr>
         <tr>
+          <td class="details-label">Ticket Code</td>
+          <td class="details-value">${ticketCode}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Manual Code</td>
+          <td class="details-value">${displayFallbackCode}</td>
+        </tr>
+        <tr>
           <td class="details-label">Ticket Type</td>
           <td class="details-value" style="text-transform: capitalize;">${priceType}</td>
         </tr>
@@ -228,7 +239,7 @@ function renderTicketEmail({
         <ol>
           <li>Have this QR code displayed on your screen at full brightness when approaching the entrance.</li>
           <li>Our staff or volunteers will scan your code to grant admission.</li>
-          <li>If your phone battery is low or the scanner fails, show the <strong>Manual Fallback Code</strong> above to the gate manager.</li>
+          <li>If your phone battery is low or the scanner fails, show the <strong>Manual Entry Code: ${displayFallbackCode}</strong> above to the gate manager.</li>
         </ol>
       </div>
     </div>
@@ -259,14 +270,16 @@ Amount Paid:      ₹${parseFloat(price).toFixed(2)}
 
 ------------------------------------------------------------
 INSTRUCTION: Show this QR code at the entrance.
-MANUAL FALLBACK CODE: ${ticketCode}
+Manual Entry Code: ${displayFallbackCode}
+MANUAL FALLBACK CODE: ${displayFallbackCode}
+Ticket Ref: ${ticketCode}
 ------------------------------------------------------------
 
 
 CHECK-IN INSTRUCTIONS:
 1. Present your signed QR code at the door for entry.
 2. If your phone screen is damaged or the scanner fails, show the
-   Manual Fallback Code [${ticketCode}] to the gate staff.
+   Manual Entry Code [${displayFallbackCode}] to the gate staff.
 3. Each ticket may only be checked in once.
 
 Odoo x LDCE Student Organization System

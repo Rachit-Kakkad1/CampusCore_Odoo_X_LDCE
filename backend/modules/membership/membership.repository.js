@@ -163,18 +163,37 @@ const membershipRepository = {
   /**
    * Cancels a membership while preserving row history for auditability.
    */
-  async cancelMembership(membershipId, cancellationReason = 'Member requested cancellation', client = null) {
+  async cancelMembership(membershipId, options = 'Admin manual cancellation', client = null) {
+    let cancellationReason = 'Admin manual cancellation';
+    let cancelledBy = null;
+    let actualClient = client;
+
+    if (typeof options === 'string') {
+      cancellationReason = options;
+      if (typeof client === 'number') {
+        cancelledBy = client;
+        actualClient = null;
+      }
+    } else if (typeof options === 'object' && options !== null) {
+      cancellationReason = options.reason || options.cancellationReason || 'Admin manual cancellation';
+      cancelledBy = options.cancelled_by || options.cancelledBy || null;
+      actualClient = options.client || client;
+    }
+
     const sql = `
       UPDATE memberships
       SET
         status = 'cancelled',
         cancelled_at = NOW(),
+        cancelled_by = $3,
         cancellation_reason = $2,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *;
     `;
-    const res = client ? await client.query(sql, [membershipId, cancellationReason]) : await query(sql, [membershipId, cancellationReason]);
+    const res = actualClient
+      ? await actualClient.query(sql, [membershipId, cancellationReason, cancelledBy])
+      : await query(sql, [membershipId, cancellationReason, cancelledBy]);
     return res.rows[0] || null;
   },
 

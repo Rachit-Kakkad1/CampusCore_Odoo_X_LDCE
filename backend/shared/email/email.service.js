@@ -43,6 +43,7 @@ class EmailService {
         eventDate: event.starts_at,
         venue: event.venue || 'Campus Center',
         ticketCode: ticket.ticket_code || 'TCK-UNKNOWN',
+        fallbackCode: ticket.fallback_code || ticket.fallbackCode || null,
         price: ticket.price || '0.00',
         priceType: ticket.price_type || 'regular',
         qrDataUrl,
@@ -79,6 +80,28 @@ class EmailService {
         message: err.message,
         recipient: recipientEmail,
       };
+    }
+  }
+
+  /**
+   * Generic transactional email dispatcher (e.g. for password resets, security alerts).
+   */
+  async sendMail({ to, subject, text, html, metadata = {} }) {
+    if (!to) return { success: false, error: 'MISSING_RECIPIENT' };
+    try {
+      const provider = getEmailProvider();
+      const sendResult = await provider.sendMail({
+        to,
+        from: env.EMAIL_FROM,
+        subject,
+        text,
+        html,
+        metadata,
+      });
+      return { success: true, messageId: sendResult.messageId };
+    } catch (err) {
+      console.warn(`[EMAIL DELIVERY FAILURE] Failed sending email to ${to}:`, err.message);
+      return { success: false, error: 'DELIVERY_FAILED', message: err.message };
     }
   }
 }

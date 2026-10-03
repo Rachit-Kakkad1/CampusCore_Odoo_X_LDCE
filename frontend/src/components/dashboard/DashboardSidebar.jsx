@@ -85,21 +85,25 @@ export const DashboardSidebar = ({ currentRole }) => {
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Organization
               </div>
-              <NavLink to="/dashboard/admin/events" className={navItemClass}>
-                <Calendar className="w-4 h-4" />
-                <span>Events Admin</span>
-              </NavLink>
               <NavLink to="/dashboard/admin/users" className={navItemClass}>
                 <Users className="w-4 h-4" />
                 <span>User Accounts</span>
+              </NavLink>
+              <NavLink to="/dashboard/admin/members" className={navItemClass}>
+                <CreditCard className="w-4 h-4" />
+                <span>Membership Roster</span>
+              </NavLink>
+              <NavLink to="/dashboard/admin/events" className={navItemClass}>
+                <Calendar className="w-4 h-4" />
+                <span>Events Admin</span>
               </NavLink>
               <NavLink to="/dashboard/admin/store" className={navItemClass}>
                 <ShoppingBag className="w-4 h-4" />
                 <span>Catalog & Stock</span>
               </NavLink>
-              <NavLink to="/dashboard/admin/members" className={navItemClass}>
-                <CreditCard className="w-4 h-4" />
-                <span>Membership Roster</span>
+              <NavLink to="/dashboard/admin/fundraisers" className={navItemClass}>
+                <FileText className="w-4 h-4" />
+                <span>Fundraisers</span>
               </NavLink>
               <NavLink to="/dashboard/finance" className={navItemClass}>
                 <DollarSign className="w-4 h-4" />
@@ -192,7 +196,10 @@ export const DashboardSidebar = ({ currentRole }) => {
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
             Broadcasts
           </div>
-          <NavLink to="/dashboard" className={navItemClass}>
+          <NavLink
+            to={effectiveRole === 'admin' ? '/dashboard/admin/announcements' : '/announcements'}
+            className={navItemClass}
+          >
             <Megaphone className="w-4 h-4" />
             <span>Announcements</span>
           </NavLink>

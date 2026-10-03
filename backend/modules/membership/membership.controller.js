@@ -301,20 +301,29 @@ const membershipController = {
   async cancel(req, res, next) {
     try {
       const authUser = getCurrentUser(req);
+      if (authUser && authUser.role !== 'admin') {
+        return res.status(403).json({
+          error: 'FORBIDDEN',
+          message: 'Admin privilege required to cancel membership',
+        });
+      }
+
       const targetId =
         req.params?.id || req.body?.id || req.body?.user_id || authUser?.id || authUser?.userId || req.user?.id || req.user?.userId;
 
-      const reason = req.body?.reason || req.body?.cancellation_reason;
-      if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      if (!targetId) {
         return res.status(400).json({
           error: {
-            message: 'Cancellation reason is required',
+            message: 'Membership ID or User ID is required',
             status: 400,
           },
         });
       }
 
-      const data = await membershipService.cancelMembership(targetId, reason.trim());
+      const reason = (req.body?.reason || req.body?.cancellation_reason || 'Admin manual cancellation').trim();
+      const adminUserId = authUser?.id || req.user?.id || null;
+
+      const data = await membershipService.cancelMembership(targetId, reason, adminUserId);
       return res.status(200).json({
         success: true,
         message: 'Membership cancelled successfully',

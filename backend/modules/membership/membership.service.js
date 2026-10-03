@@ -432,12 +432,10 @@ class MembershipService {
     }
   }
 
-  async cancelMembership(idOrUserId, reasonArg = 'Member requested cancellation') {
-    let reason = typeof reasonArg === 'string' ? reasonArg : (reasonArg?.reason || 'Member requested cancellation');
+  async cancelMembership(idOrUserId, reasonArg = 'Admin manual cancellation', adminUserId = null) {
+    let reason = typeof reasonArg === 'string' ? reasonArg : (reasonArg?.reason || 'Admin manual cancellation');
     if (!reason || !reason.trim()) {
-      const err = new Error('Cancellation reason is required');
-      err.status = 400;
-      throw err;
+      reason = 'Admin manual cancellation';
     }
     reason = reason.trim();
 
@@ -460,23 +458,33 @@ class MembershipService {
       throw err;
     }
 
+    // Idempotent cancellation: if already cancelled, return cleanly without data corruption
     if (membership.status === 'cancelled') {
-      const err = new Error('Membership is already cancelled');
-      err.code = 'MEMBERSHIP_ALREADY_CANCELLED';
-      err.status = 400;
-      throw err;
+      const full = await membershipRepository.findById(membership.id);
+      const formatted = this.formatMembership(full || membership);
+      return {
+        message: 'Membership is already cancelled',
+        status: 'CANCELLED',
+        already_cancelled: true,
+        membership: formatted,
+        data: formatted,
+        ...formatted,
+      };
     }
 
-    const cancelled = await membershipRepository.cancelMembership(membership.id, reason);
+    const cancelled = await membershipRepository.cancelMembership(membership.id, {
+      cancellationReason: reason,
+      cancelled_by: adminUserId,
+    });
     const full = await membershipRepository.findById(cancelled.id);
     const formatted = this.formatMembership(full || cancelled);
 
     return {
       message: 'Membership cancelled successfully',
-      status: 'CANCELLED',
       membership: formatted,
       data: formatted,
       ...formatted,
+      status: 'CANCELLED',
     };
   }
 

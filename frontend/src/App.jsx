@@ -7,6 +7,7 @@ import { twMerge } from 'tailwind-merge';
 import Navbar from './components/common/Navbar';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleGuard from './components/dashboard/RoleGuard';
+import ScrollRestoration from './components/common/ScrollRestoration';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
 import heroVideo from './assests/login/1003.mp4';
@@ -729,6 +730,7 @@ const DashboardRouter = () => {
 export default function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ScrollRestoration />
       <Routes>
         <Route path="/" element={
           <div className="min-h-screen flex flex-col">

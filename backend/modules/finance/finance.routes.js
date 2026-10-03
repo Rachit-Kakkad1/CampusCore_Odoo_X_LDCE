@@ -12,4 +12,12 @@ router.post('/fundraisers', requireAuth, requireRole('admin', 'treasurer'), fina
 // Ledger overview
 router.get('/overview', requireAuth, requireRole('admin', 'treasurer'), financeController.getOverview);
 
+// Transactions ledger
+router.get('/transactions', requireAuth, requireRole('admin', 'treasurer'), financeController.getTransactions);
+
+// Expense claims
+router.get('/expenses', requireAuth, requireRole('admin', 'treasurer'), financeController.getExpenses);
+router.post('/expenses', requireAuth, financeController.createExpense);
+router.patch('/expenses/:id/approve', requireAuth, requireRole('admin', 'treasurer'), financeController.approveExpense);
+
 module.exports = router;

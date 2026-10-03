@@ -59,13 +59,40 @@ export const PublicEvents = () => {
       (membership.expiry_date && new Date(membership.expiry_date) <= new Date()))
   );
 
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Dynamic event status computation (derived from timestamps / backend single-source-of-truth)
+  const getEventStatus = (event) => {
+    if (event.computed_status) {
+      return event.computed_status.toUpperCase();
+    }
+    const now = new Date();
+    const startsAt = new Date(event.starts_at);
+    const endsAt = event.ends_at
+      ? new Date(event.ends_at)
+      : new Date(startsAt.getTime() + 3 * 60 * 60 * 1000);
+
+    if (now < startsAt) return 'UPCOMING';
+    if (now >= startsAt && now <= endsAt) return 'LIVE';
+    return 'PAST';
+  };
+
+  const allCount = events.length;
+  const upcomingCount = events.filter((e) => getEventStatus(e) === 'UPCOMING').length;
+  const liveCount = events.filter((e) => getEventStatus(e) === 'LIVE').length;
+  const pastCount = events.filter((e) => getEventStatus(e) === 'PAST').length;
+
   const filteredEvents = events.filter((ev) => {
+    const status = getEventStatus(ev);
+    const matchesStatus = statusFilter === 'ALL' || status === statusFilter;
     const q = search.toLowerCase();
-    return (
+    const matchesSearch =
+      !q ||
       (ev.title && ev.title.toLowerCase().includes(q)) ||
       (ev.venue && ev.venue.toLowerCase().includes(q)) ||
-      (ev.description && ev.description.toLowerCase().includes(q))
-    );
+      (ev.description && ev.description.toLowerCase().includes(q));
+
+    return matchesStatus && matchesSearch;
   });
 
   return (
@@ -73,7 +100,7 @@ export const PublicEvents = () => {
       <Navbar />
 
       <main className="flex-grow py-16 px-6">
-        <div className="max-w-6xl mx-auto space-y-10">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Header */}
           <div className="border-b border-[#e5e4de] pb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
@@ -105,6 +132,38 @@ export const PublicEvents = () => {
             </div>
           </div>
 
+          {/* Dynamic Filter Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { id: 'ALL', label: 'All', count: allCount },
+              { id: 'UPCOMING', label: 'Upcoming', count: upcomingCount },
+              { id: 'LIVE', label: 'Live', count: liveCount },
+              { id: 'PAST', label: 'Past', count: pastCount },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-3.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-2 ${
+                  statusFilter === tab.id
+                    ? 'bg-[#5F3F56] text-white border-[#5F3F56] shadow-xs'
+                    : 'bg-white/80 text-[#1c1c1c]/70 border-[#e5e4de] hover:bg-white hover:text-[#1c1c1c]'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    statusFilter === tab.id
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-200/80 text-slate-700'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
           {/* Events Grid */}
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -117,8 +176,17 @@ export const PublicEvents = () => {
               {error}
             </div>
           ) : filteredEvents.length === 0 ? (
-            <div className="p-16 border border-[#e5e4de] text-center font-mono text-xs text-[#1c1c1c]/60">
-              No matching events found. Please check your search keyword or return later.
+            <div className="p-16 border border-[#e5e4de] text-center font-mono text-xs text-[#1c1c1c]/60 space-y-3">
+              <p>No {statusFilter !== 'ALL' ? statusFilter.toLowerCase() : ''} events found matching your filter criteria.</p>
+              {statusFilter !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className="px-4 py-1.5 bg-[#5F3F56] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#5F3F56]/90 transition-colors cursor-pointer"
+                >
+                  View All Events ({allCount})
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -128,6 +196,7 @@ export const PublicEvents = () => {
                 const savings = (Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2);
                 const seatsRemaining = Number(event.seats_remaining || 0);
                 const isSoldOut = seatsRemaining <= 0;
+                const status = getEventStatus(event);
 
                 const eventDateFormatted = event.starts_at
                   ? new Date(event.starts_at).toLocaleDateString('en-US', {
@@ -153,13 +222,30 @@ export const PublicEvents = () => {
                     <div className="space-y-3">
                       {/* Top Badges */}
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`font-mono text-[10px] uppercase tracking-wider font-semibold px-2.5 py-0.5 border ${
-                          isSoldOut
-                            ? 'bg-red-50 text-red-800 border-red-200'
-                            : 'bg-white/80 text-[#5F3F56] border-[#e5e4de]'
-                        }`}>
-                          {isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats remaining`}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {status === 'LIVE' && (
+                            <span className="font-mono text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 bg-rose-600 text-white animate-pulse">
+                              ● LIVE NOW
+                            </span>
+                          )}
+                          {status === 'UPCOMING' && (
+                            <span className="font-mono text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              Upcoming
+                            </span>
+                          )}
+                          {status === 'PAST' && (
+                            <span className="font-mono text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 border border-slate-300">
+                              Past Session
+                            </span>
+                          )}
+                          <span className={`font-mono text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 border ${
+                            isSoldOut
+                              ? 'bg-red-50 text-red-800 border-red-200'
+                              : 'bg-white/80 text-[#5F3F56] border-[#e5e4de]'
+                          }`}>
+                            {isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats left`}
+                          </span>
+                        </div>
                         <span className="font-mono text-xs text-[#1c1c1c]/50">
                           Capacity: {event.capacity}
                         </span>

@@ -103,7 +103,7 @@ export const MembershipCheckoutPage = () => {
               setEmail={setEmail}
               mobile={mobile}
               setMobile={setMobile}
-              onBack={() => navigate('/membership')}
+              onBack={() => (window.history.length > 1 ? navigate(-1) : navigate('/membership'))}
               error={error}
               user={storedUser}
             />
