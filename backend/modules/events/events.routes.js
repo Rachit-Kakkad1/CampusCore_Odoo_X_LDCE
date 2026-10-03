@@ -19,12 +19,7 @@ eventsRouter.get('/:id', (req, res) => eventsController.getEventById(req, res));
 eventsRouter.get('/:id/stats', requireRole('admin', 'event_manager', 'treasurer'), (req, res) => eventsController.getEventStats(req, res));
 
 // Ticket checkout / purchase under event
-eventsRouter.post('/:id/tickets', optionalAuth, (req, res) => {
-  if (req.user) {
-    return eventsController.purchaseTicket(req, res);
-  }
-  return eventsController.checkoutTicket(req, res);
-});
+eventsRouter.post('/:id/tickets', optionalAuth, (req, res) => eventsController.checkoutTicket(req, res));
 eventsRouter.post('/:id/purchase', requireAuth, (req, res) => eventsController.purchaseTicket(req, res));
 eventsRouter.post('/:id/register', optionalAuth, (req, res) => eventsController.checkoutTicket(req, res));
 

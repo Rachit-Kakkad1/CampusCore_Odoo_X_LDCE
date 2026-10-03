@@ -58,12 +58,12 @@ async function testMerchandiseModule() {
     assert(sizeLAfterPending.stock === sizeL.stock, 'Stock is NOT reduced for pending order');
 
     const nonMemberOrder = await merchandiseService.createPendingOrder({
-      userId: users['eddie@odoo-ldce.org'].id,
+      userId: users['vik@odoo-ldce.org'].id,
       items: [{ product_size_id: sizeL.id, quantity: 1 }],
       checkout_session_id: `sess_nonmember_${Date.now()}`,
     });
-    assert(parseFloat(nonMemberOrder.discount) === 0.00, 'Eddie (Non-active member) receives 0.00 discount');
-    assert(parseFloat(nonMemberOrder.total) === 1200.00, 'Eddie total is full price 1200.00');
+    assert(parseFloat(nonMemberOrder.discount) === 0.00, 'Non-active member receives 0.00 discount');
+    assert(parseFloat(nonMemberOrder.total) === 1200.00, 'Non-active member total is full price 1200.00');
     console.log();
 
     // 4. Test Payment Simulation & Atomic Stock Decrement
@@ -99,7 +99,7 @@ async function testMerchandiseModule() {
     try {
       await merchandiseService.payOrder({
         orderId: nonMemberOrder.id,
-        userId: users['eddie@odoo-ldce.org'].id,
+        userId: users['vik@odoo-ldce.org'].id,
         payment_mode: 'card',
       });
     } catch (err) {

@@ -1,313 +1,709 @@
 // frontend/src/pages/public/GuestTicketPurchase.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import eventsService from '../../services/events.service';
 import authService from '../../services/auth.service';
+import membershipService from '../../services/membership.service';
 import { ActionButton } from '../../components/dashboard/ActionButton';
 import { StatusBadge } from '../../components/dashboard/StatusBadge';
-import { CheckCircle2, Ticket, X, AlertCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  Ticket,
+  X,
+  AlertCircle,
+  Copy,
+  Check,
+  Mail,
+  Phone,
+  User,
+  CreditCard,
+  Printer,
+  Sparkles,
+  ShieldCheck,
+  Lock,
+  ArrowRight,
+  Inbox
+} from 'lucide-react';
 
 export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(authService.getStoredUser());
   const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
 
-  // Quick Auth State (if not logged in)
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [authError, setAuthError] = useState(null);
-  const [authLoading, setAuthLoading] = useState(false);
+  // Attendee Information (Required for ticket delivery & admission)
+  const [name, setName] = useState(currentUser?.name || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
+  const [mobile, setMobile] = useState('');
 
-  // Purchase State
+  // Flow Stage: 'form' | 'payment_done' | 'confirmation'
+  const [stage, setStage] = useState('form');
+
+  // Membership & Pricing State
+  const [isActiveMember, setIsActiveMember] = useState(false);
+  const [checkingMembership, setCheckingMembership] = useState(false);
+
+  // Optional Inline Sign-In (for existing members to unlock member discount)
+  const [showMemberSignIn, setShowMemberSignIn] = useState(false);
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
+  const [signInError, setSignInError] = useState(null);
+  const [signInLoading, setSignInLoading] = useState(false);
+
+  // Purchase & Confirmation State
   const [paymentMode, setPaymentMode] = useState('online');
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [purchaseError, setPurchaseError] = useState(null);
   const [confirmedTicket, setConfirmedTicket] = useState(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
-  const nonMemberPrice = Number(event?.non_member_price || 0).toFixed(2);
+  // Check seat status
+  const seatsRemaining = Number(event?.seats_remaining || 0);
+  const isSoldOut = seatsRemaining <= 0;
 
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError(null);
-    setAuthLoading(true);
+  // Auto-advance from 'payment_done' to 'confirmation' after animation
+  useEffect(() => {
+    let timer;
+    if (stage === 'payment_done') {
+      timer = setTimeout(() => {
+        setStage('confirmation');
+      }, 2400);
+    }
+    return () => clearTimeout(timer);
+  }, [stage]);
 
-    try {
-      if (authMode === 'login') {
-        const res = await authService.login(email, password);
-        setCurrentUser(res.user);
-        setIsAuthenticated(true);
-      } else {
-        const res = await authService.register({ name, email, password, role: 'guest' });
-        setCurrentUser(res.user);
-        setIsAuthenticated(true);
+  // Check membership on mount or auth change
+  useEffect(() => {
+    const checkMemberStatus = async () => {
+      if (!authService.isAuthenticated()) {
+        setIsActiveMember(false);
+        return;
       }
+      try {
+        setCheckingMembership(true);
+        const memData = await membershipService.getMembership();
+        const mem = memData?.membership || memData?.data || memData;
+        const active =
+          mem &&
+          mem.status === 'active' &&
+          mem.dues_status === 'paid' &&
+          (!mem.expiry_date || new Date(mem.expiry_date) > new Date());
+        setIsActiveMember(Boolean(active));
+      } catch (err) {
+        setIsActiveMember(false);
+      } finally {
+        setCheckingMembership(false);
+      }
+    };
+    checkMemberStatus();
+  }, [isAuthenticated]);
+
+  // Compute pricing
+  const memberPrice = Number(event?.member_price || 0);
+  const nonMemberPrice = Number(event?.non_member_price || 0);
+  const applicablePrice = (isActiveMember ? memberPrice : nonMemberPrice).toFixed(2);
+  const savings = (nonMemberPrice - memberPrice).toFixed(2);
+
+  // Handle Inline Member Login
+  const handleMemberLogin = async (e) => {
+    e.preventDefault();
+    setSignInError(null);
+    setSignInLoading(true);
+    try {
+      const res = await authService.login(signInEmail, signInPassword);
+      setCurrentUser(res.user);
+      setIsAuthenticated(true);
+      if (!name) setName(res.user?.name || '');
+      if (!email) setEmail(res.user?.email || '');
+      setShowMemberSignIn(false);
     } catch (err) {
-      setAuthError(err.response?.data?.error?.message || err.message || 'Authentication failed');
+      setSignInError(err.response?.data?.error?.message || err.message || 'Login failed. Please verify credentials.');
     } finally {
-      setAuthLoading(false);
+      setSignInLoading(false);
     }
   };
 
-  const handleConfirmPurchase = async () => {
-    if (!isAuthenticated) {
-      setPurchaseError('Please sign in or register to complete ticket reservation.');
+  // Handle Ticket Purchase Confirmation
+  const handleConfirmPurchase = async (e) => {
+    if (e) e.preventDefault();
+    setPurchaseError(null);
+
+    // Validation
+    if (isSoldOut) {
+      setPurchaseError('This event is currently sold out. No seats available.');
+      return;
+    }
+
+    if (!name.trim()) {
+      setPurchaseError('Please enter attendee Full Name.');
+      return;
+    }
+    if (!email.trim() || !email.includes('@') || !email.includes('.')) {
+      setPurchaseError('Please provide a valid Email Address for ticket delivery.');
+      return;
+    }
+    if (!mobile.trim() || mobile.trim().length < 7) {
+      setPurchaseError('Please provide a valid Mobile Number for entry verification.');
       return;
     }
 
     setPurchaseLoading(true);
-    setPurchaseError(null);
 
     try {
-      const res = await eventsService.purchaseTicket(event.id, paymentMode);
-      const ticket = res?.data || res;
+      const res = await eventsService.purchaseTicket(event.id, {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        mobile: mobile.trim(),
+        paymentMode,
+      });
+
+      const ticket = res?.ticket || res?.data || res;
       setConfirmedTicket(ticket);
       onSuccess?.(ticket);
+      // Transition to the Payment Done animation screen
+      setStage('payment_done');
     } catch (err) {
       console.error('Purchase error:', err);
-      setPurchaseError(err.response?.data?.error?.message || err.message || 'Ticket purchase failed');
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message || 'Ticket reservation failed';
+      setPurchaseError(msg);
     } finally {
       setPurchaseLoading(false);
     }
   };
 
+  const copyTicketCode = (code) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const formattedEventDate = event?.starts_at
+    ? new Date(event.starts_at).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Date TBA';
+
   return (
-    <div className="fixed inset-0 z-50 bg-[#1c1c1c]/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-[#f7f6f2] border border-[#e5e4de] w-full max-w-lg p-6 sm:p-8 shadow-2xl relative my-8">
+    <div className="fixed inset-0 z-50 bg-[#1c1c1c]/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="bg-[#f7f6f2] border border-[#e5e4de] w-full max-w-lg p-6 sm:p-8 shadow-2xl relative my-6 text-[#1c1c1c] transition-all">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 text-[#1c1c1c]/50 hover:text-[#1c1c1c] p-1 transition-colors"
+          className="absolute top-5 right-5 text-[#1c1c1c]/50 hover:text-[#1c1c1c] p-1.5 transition-colors z-10"
+          aria-label="Close modal"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Confirmation State */}
-        {confirmedTicket ? (
-          <div className="text-center space-y-6 py-4">
-            <div className="w-14 h-14 bg-green-100 border border-green-300 text-green-700 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
+        <AnimatePresence mode="wait">
+          {/* ============================================================ */}
+          {/* STAGE 1: ANIMATED GREEN TICK — PAYMENT DONE                  */}
+          {/* ============================================================ */}
+          {stage === 'payment_done' && (
+            <motion.div
+              key="payment_done_screen"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="py-8 text-center space-y-6"
+            >
+              {/* Outer pulsing ring with animated checkmark */}
+              <div className="relative inline-flex items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0.6 }}
+                  animate={{ scale: [0.8, 1.25, 1.1], opacity: [0.6, 0.2, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                  className="absolute w-28 h-28 rounded-full bg-green-500/20"
+                />
 
-            <div>
-              <span className="font-mono text-xs uppercase tracking-widest text-[#5F3F56] font-semibold block mb-1">
-                Reservation Confirmed
-              </span>
-              <h3 className="font-serif text-3xl text-[#1c1c1c]">
-                Ticket Code: {confirmedTicket.ticket_code}
-              </h3>
-              <p className="font-sans text-sm text-[#1c1c1c]/70 mt-2">
-                Your guest ticket for <strong>{event.title}</strong> has been issued.
-              </p>
-            </div>
-
-            {/* Ticket Card Summary */}
-            <div className="bg-white/80 border border-[#e5e4de] p-5 text-left font-mono text-xs space-y-2">
-              <div className="flex justify-between border-b border-[#e5e4de] pb-2">
-                <span className="text-[#1c1c1c]/50">EVENT:</span>
-                <span className="font-bold text-[#1c1c1c]">{event.title}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#e5e4de] pb-2">
-                <span className="text-[#1c1c1c]/50">VENUE:</span>
-                <span className="text-[#1c1c1c]">{event.venue}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#e5e4de] pb-2">
-                <span className="text-[#1c1c1c]/50">TIER:</span>
-                <span className="text-[#1c1c1c] uppercase">{confirmedTicket.price_type || 'non_member'}</span>
-              </div>
-              <div className="flex justify-between pt-1 font-bold text-sm">
-                <span>AMOUNT PAID:</span>
-                <span className="text-[#5F3F56]">₹{Number(confirmedTicket.price).toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <ActionButton
-                variant="primary"
-                className="w-full"
-                onClick={() => {
-                  onClose();
-                  navigate('/dashboard');
-                }}
-              >
-                View in Workspace
-              </ActionButton>
-              <ActionButton
-                variant="secondary"
-                className="w-full"
-                onClick={onClose}
-              >
-                Done
-              </ActionButton>
-            </div>
-          </div>
-        ) : (
-          /* Checkout Step */
-          <div className="space-y-6">
-            <div>
-              <span className="font-mono text-xs uppercase tracking-widest text-[#5F3F56] font-semibold block mb-1">
-                Guest Ticket Checkout
-              </span>
-              <h3 className="font-serif text-2xl sm:text-3xl text-[#1c1c1c]">
-                {event.title}
-              </h3>
-            </div>
-
-            {/* Error Callout */}
-            {purchaseError && (
-              <div className="p-3.5 bg-red-50 border border-red-200 text-red-900 font-mono text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{purchaseError}</span>
-              </div>
-            )}
-
-            {/* Order Price Summary */}
-            <div className="p-4 bg-white/70 border border-[#e5e4de] space-y-2">
-              <div className="flex items-center justify-between font-mono text-xs text-[#1c1c1c]/70">
-                <span>Standard Guest Pass</span>
-                <span>₹{nonMemberPrice}</span>
-              </div>
-              <div className="flex items-center justify-between font-mono text-xs text-[#1c1c1c]/70">
-                <span>Processing & Entry Fee</span>
-                <span>₹0.00</span>
-              </div>
-              <div className="flex items-center justify-between font-mono text-base font-bold text-[#1c1c1c] pt-2 border-t border-[#e5e4de]">
-                <span>Total Due:</span>
-                <span className="text-[#5F3F56]">₹{nonMemberPrice}</span>
-              </div>
-            </div>
-
-            {/* If user is NOT authenticated: inline login / register */}
-            {!isAuthenticated ? (
-              <div className="p-5 border border-[#e5e4de] bg-white/40 space-y-4">
-                <div className="flex items-center justify-between border-b border-[#e5e4de] pb-3">
-                  <span className="font-mono text-xs uppercase font-semibold text-[#1c1c1c]">
-                    {authMode === 'login' ? 'Sign In to Proceed' : 'Register Guest Account'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode(authMode === 'login' ? 'register' : 'login');
-                      setAuthError(null);
-                    }}
-                    className="font-mono text-[10px] uppercase text-[#5F3F56] underline"
+                <motion.div
+                  initial={{ scale: 0, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', damping: 14, stiffness: 180, delay: 0.1 }}
+                  className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-600/30 relative z-10"
+                >
+                  <motion.svg
+                    className="w-10 h-10 text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    {authMode === 'login' ? 'Create Account' : 'Existing User?'}
-                  </button>
+                    <motion.path
+                      d="M5 13l4 4L19 7"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.5, delay: 0.3, ease: 'easeOut' }}
+                    />
+                  </motion.svg>
+                </motion.div>
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.4 }}
+                className="space-y-2"
+              >
+                <span className="font-mono text-xs uppercase tracking-widest text-emerald-700 font-bold block">
+                  Payment Received ✓
+                </span>
+                <h3 className="font-serif text-3xl text-[#1c1c1c] tracking-tight">
+                  Payment Done!
+                </h3>
+                <p className="font-mono text-base font-semibold text-[#5F3F56]">
+                  ₹{applicablePrice} Paid Successfully
+                </p>
+                <p className="font-sans text-xs text-[#1c1c1c]/70 max-w-sm mx-auto pt-1">
+                  Your seat has been reserved. Generating official pass and sending confirmation email...
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="pt-2"
+              >
+                <ActionButton
+                  variant="primary"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => setStage('confirmation')}
+                >
+                  <span>View Ticket & Confirmation</span>
+                  <ArrowRight className="w-4 h-4" />
+                </ActionButton>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* ============================================================ */}
+          {/* STAGE 2: CONFIRMATION SCREEN — "CHECK YOUR MAIL" + QR PASS    */}
+          {/* ============================================================ */}
+          {stage === 'confirmation' && confirmedTicket && (
+            <motion.div
+              key="confirmation_screen"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.35 }}
+              className="space-y-6 text-center py-1"
+            >
+              {/* TOP HERO CALLOUT: CHECK YOUR MAIL FOR THE TICKET */}
+              <div className="p-4 sm:p-5 bg-emerald-50 border-2 border-emerald-500/40 text-emerald-950 text-left shadow-sm">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-mono text-[11px] uppercase tracking-wider text-emerald-800 font-bold block">
+                      Delivery Confirmation
+                    </span>
+                    <h4 className="font-serif text-lg sm:text-xl font-bold text-emerald-950 leading-snug">
+                      Check your mail for the ticket and other details!
+                    </h4>
+                    <p className="font-sans text-xs text-emerald-900/80 leading-relaxed pt-0.5">
+                      Your entry ticket, signed QR pass, and event schedule have been sent to{' '}
+                      <strong className="underline underline-offset-2 font-mono text-emerald-950">{email}</strong>.
+                    </p>
+                    <p className="font-mono text-[10px] text-emerald-800/70 pt-1">
+                      Tip: Please check your Inbox (as well as Spam/Promotions folder).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-[#5F3F56] font-bold block mb-1">
+                  Official Admission Pass
+                </span>
+                <h3 className="font-serif text-2xl text-[#1c1c1c] tracking-tight">
+                  Reservation Confirmed
+                </h3>
+              </div>
+
+              {/* Ticket Reference Code Box */}
+              <div className="bg-white border border-[#e5e4de] p-3.5 flex items-center justify-between font-mono text-xs max-w-md mx-auto">
+                <div className="text-left">
+                  <span className="text-[10px] text-[#1c1c1c]/50 block uppercase tracking-wider">
+                    Ticket Reference Code
+                  </span>
+                  <span className="font-bold text-sm text-[#1c1c1c] tracking-wider select-all">
+                    {confirmedTicket.ticket_code}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyTicketCode(confirmedTicket.ticket_code)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e4de] bg-[#f7f6f2] hover:bg-[#e5e4de] text-[#1c1c1c] transition-colors text-[11px]"
+                >
+                  {copiedCode ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-green-600" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-[#1c1c1c]/60" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* ACTUAL RENDERED SIGNED QR CODE */}
+              {confirmedTicket.qr_data_url ? (
+                <div className="bg-white border-2 border-[#1c1c1c] p-4 text-center mx-auto shadow-md max-w-xs">
+                  <img
+                    src={confirmedTicket.qr_data_url}
+                    alt="Official Signed Ticket QR Code"
+                    className="w-48 h-48 mx-auto object-contain"
+                  />
+                  <div className="mt-2.5 font-mono text-[10px] tracking-wider uppercase text-[#1c1c1c]/80 font-semibold border-t border-[#e5e4de] pt-2">
+                    Show this QR at the venue entrance
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 font-mono text-xs max-w-md mx-auto">
+                  Digital Pass: Present ticket code <strong>{confirmedTicket.ticket_code}</strong> at the check-in desk for entry.
+                </div>
+              )}
+
+              {/* Ticket Card Details Summary */}
+              <div className="bg-white/90 border border-[#e5e4de] p-4 text-left font-mono text-xs space-y-2 max-w-md mx-auto">
+                <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
+                  <span className="text-[#1c1c1c]/50">EVENT:</span>
+                  <span className="font-semibold text-[#1c1c1c] text-right truncate ml-2">{event.title}</span>
+                </div>
+                <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
+                  <span className="text-[#1c1c1c]/50">VENUE:</span>
+                  <span className="text-[#1c1c1c] text-right">{event.venue}</span>
+                </div>
+                <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
+                  <span className="text-[#1c1c1c]/50">SCHEDULE:</span>
+                  <span className="text-[#1c1c1c] text-right">{formattedEventDate}</span>
+                </div>
+                <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
+                  <span className="text-[#1c1c1c]/50">ATTENDEE:</span>
+                  <span className="text-[#1c1c1c] text-right font-medium">{name} ({email})</span>
+                </div>
+                <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
+                  <span className="text-[#1c1c1c]/50">CONTACT:</span>
+                  <span className="text-[#1c1c1c] text-right">{mobile || confirmedTicket.attendee_mobile || '—'}</span>
+                </div>
+                <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
+                  <span className="text-[#1c1c1c]/50">TIER:</span>
+                  <span className="text-[#1c1c1c] uppercase font-bold">
+                    {confirmedTicket.price_type === 'member' ? 'Active Member Pass' : 'Standard Guest Pass'}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 font-bold text-sm">
+                  <span>TOTAL PAID:</span>
+                  <span className="text-[#5F3F56]">₹{Number(confirmedTicket.price || 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2 max-w-md mx-auto">
+                <ActionButton
+                  variant="secondary"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={handlePrint}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print / Save Pass</span>
+                </ActionButton>
+                <ActionButton
+                  variant="primary"
+                  className="w-full"
+                  onClick={() => {
+                    onClose();
+                    if (isAuthenticated) {
+                      navigate('/dashboard');
+                    }
+                  }}
+                >
+                  Done
+                </ActionButton>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ============================================================ */}
+          {/* STAGE 0: CHECKOUT & ATTENDEE FORM                            */}
+          {/* ============================================================ */}
+          {stage === 'form' && (
+            <motion.div
+              key="form_screen"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-6"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-xs uppercase tracking-widest text-[#5F3F56] font-semibold">
+                    Confirm Ticket Reservation
+                  </span>
+                  {isSoldOut ? (
+                    <span className="bg-red-100 text-red-800 text-[10px] font-mono uppercase px-2 py-0.5 font-bold border border-red-300">
+                      Sold Out
+                    </span>
+                  ) : (
+                    <span className="bg-green-50 text-green-800 text-[10px] font-mono uppercase px-2 py-0.5 font-semibold border border-green-200">
+                      {seatsRemaining} Seats Remaining
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-serif text-2xl sm:text-3xl text-[#1c1c1c] tracking-tight">
+                  {event.title}
+                </h3>
+                <div className="font-mono text-xs text-[#1c1c1c]/60 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>📍 {event.venue}</span>
+                  <span>📅 {formattedEventDate}</span>
+                </div>
+              </div>
+
+              {/* Sold Out Banner */}
+              {isSoldOut && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-900 font-mono text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-700" />
+                  <span>This event has reached full capacity. No further seats are available.</span>
+                </div>
+              )}
+
+              {/* Error Callout */}
+              {purchaseError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-900 font-mono text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-700" />
+                  <span>{purchaseError}</span>
+                </div>
+              )}
+
+              {/* Pricing Breakdown Card */}
+              <div className="p-4 bg-white/80 border border-[#e5e4de] space-y-2.5">
+                <div className="flex items-center justify-between font-mono text-xs text-[#1c1c1c]/70">
+                  <span>Base Admission Tier</span>
+                  <span>{isActiveMember ? 'Active Member Pass' : 'Standard Guest Pass'}</span>
                 </div>
 
-                {authError && (
-                  <div className="p-2.5 bg-red-50 border border-red-200 text-red-800 font-mono text-xs">
-                    {authError}
+                {isActiveMember ? (
+                  <div className="p-2.5 bg-green-50 border border-green-200 font-mono text-xs text-green-900 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-semibold">
+                      <ShieldCheck className="w-4 h-4 text-green-700" />
+                      Member Discount Applied
+                    </span>
+                    <span className="font-bold text-green-800">- ₹{savings}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#1c1c1c]/60 border-t border-[#e5e4de]/60 pt-1.5">
+                    <span>Active Member Price: ₹{memberPrice.toFixed(2)}</span>
+                    {!isAuthenticated ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowMemberSignIn(!showMemberSignIn)}
+                        className="text-[#5F3F56] underline font-semibold hover:text-[#4A3244]"
+                      >
+                        {showMemberSignIn ? 'Close Sign In' : 'Member? Sign In to Save ₹' + savings}
+                      </button>
+                    ) : (
+                      <span className="text-amber-800">Standard rate (Membership inactive)</span>
+                    )}
                   </div>
                 )}
 
-                <form onSubmit={handleAuthSubmit} className="space-y-3">
-                  {authMode === 'register' && (
-                    <div>
-                      <label className="block font-mono text-[10px] uppercase text-[#1c1c1c]/60 mb-1">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Greg Guest"
-                        className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
-                      />
+                <div className="flex items-center justify-between font-mono text-base font-bold text-[#1c1c1c] pt-2 border-t border-[#e5e4de]">
+                  <span>Total Due:</span>
+                  <span className="text-[#5F3F56] text-xl">₹{applicablePrice}</span>
+                </div>
+              </div>
+
+              {/* Inline Member Sign-In (Optional) */}
+              {showMemberSignIn && !isAuthenticated && (
+                <div className="p-4 border border-[#5F3F56]/30 bg-[#5F3F56]/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs uppercase font-bold text-[#5F3F56] flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" />
+                      Sign In for Member Pricing (₹{memberPrice.toFixed(2)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberSignIn(false)}
+                      className="font-mono text-[10px] text-[#1c1c1c]/60 uppercase underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {signInError && (
+                    <div className="p-2 bg-red-50 border border-red-200 text-red-800 font-mono text-xs">
+                      {signInError}
                     </div>
                   )}
 
+                  <form onSubmit={handleMemberLogin} className="space-y-2.5">
+                    <input
+                      type="email"
+                      required
+                      value={signInEmail}
+                      onChange={(e) => setSignInEmail(e.target.value)}
+                      placeholder="member@odoo-ldce.org"
+                      className="w-full p-2 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
+                    />
+                    <input
+                      type="password"
+                      required
+                      value={signInPassword}
+                      onChange={(e) => setSignInPassword(e.target.value)}
+                      placeholder="Password"
+                      className="w-full p-2 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
+                    />
+                    <ActionButton
+                      type="submit"
+                      variant="secondary"
+                      className="w-full text-xs"
+                      disabled={signInLoading}
+                    >
+                      {signInLoading ? 'Verifying...' : 'Sign In & Apply Member Rate'}
+                    </ActionButton>
+                  </form>
+                </div>
+              )}
+
+              {/* ATTENDEE CONTACT DETAILS FORM */}
+              <form onSubmit={handleConfirmPurchase} className="space-y-4">
+                <div className="space-y-3">
+                  <div className="border-b border-[#e5e4de] pb-1">
+                    <span className="font-mono text-xs uppercase tracking-wider font-semibold text-[#1c1c1c]">
+                      Attendee Confirmation Details
+                    </span>
+                    <p className="font-sans text-[11px] text-[#1c1c1c]/60 mt-0.5">
+                      Please provide your contact information. The ticket and entry QR code will be sent to this email.
+                    </p>
+                  </div>
+
+                  {/* Full Name */}
                   <div>
-                    <label className="block font-mono text-[10px] uppercase text-[#1c1c1c]/60 mb-1">
-                      Email Address
+                    <label className="block font-mono text-[10px] uppercase font-semibold text-[#1c1c1c]/70 mb-1 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-[#5F3F56]" />
+                      <span>Full Name *</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Rachit Hiren Kakkad"
+                      className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs text-[#1c1c1c] focus:outline-none focus:border-[#5F3F56]"
+                    />
+                  </div>
+
+                  {/* Email Address */}
+                  <div>
+                    <label className="block font-mono text-[10px] uppercase font-semibold text-[#1c1c1c]/70 mb-1 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-[#5F3F56]" />
+                      <span>Email Address (Ticket & QR Delivery) *</span>
                     </label>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="guest@example.com"
-                      className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
+                      placeholder="e.g. kakkadrachit1@gmail.com"
+                      className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs text-[#1c1c1c] focus:outline-none focus:border-[#5F3F56]"
                     />
+                    <span className="font-mono text-[10px] text-[#1c1c1c]/50 mt-1 block">
+                      Important: Ensure this email is correct. The entry QR pass will be delivered here.
+                    </span>
                   </div>
 
+                  {/* Mobile Number */}
                   <div>
-                    <label className="block font-mono text-[10px] uppercase text-[#1c1c1c]/60 mb-1">
-                      Password
+                    <label className="block font-mono text-[10px] uppercase font-semibold text-[#1c1c1c]/70 mb-1 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-[#5F3F56]" />
+                      <span>Mobile Number (Verification & SMS) *</span>
                     </label>
                     <input
-                      type="password"
+                      type="tel"
                       required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      placeholder="e.g. 8200250915"
+                      className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs text-[#1c1c1c] focus:outline-none focus:border-[#5F3F56]"
                     />
                   </div>
-
-                  <ActionButton
-                    type="submit"
-                    variant="secondary"
-                    className="w-full"
-                    disabled={authLoading}
-                  >
-                    {authLoading ? 'Authenticating...' : authMode === 'login' ? 'Sign In & Continue' : 'Create & Continue'}
-                  </ActionButton>
-                </form>
-              </div>
-            ) : (
-              /* Authenticated user: Payment selection */
-              <div className="space-y-4">
-                <div className="p-3 bg-white/60 border border-[#e5e4de] flex items-center justify-between font-mono text-xs">
-                  <span className="text-[#1c1c1c]/60">Ticket Holder:</span>
-                  <span className="font-semibold text-[#1c1c1c]">{currentUser?.name} ({currentUser?.email})</span>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="block font-mono text-xs uppercase text-[#1c1c1c]/70">
-                    Payment Method
+                {/* Payment Mode Selection */}
+                <div className="space-y-2 pt-2 border-t border-[#e5e4de]">
+                  <label className="block font-mono text-[10px] uppercase font-semibold text-[#1c1c1c]/70 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-[#5F3F56]" />
+                    <span>Select Payment Method</span>
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {['online', 'upi', 'card', 'cash'].map((mode) => (
+                    {[
+                      { id: 'online', label: 'Online / Gateway' },
+                      { id: 'upi', label: 'UPI Instant' },
+                      { id: 'card', label: 'Card Payment' },
+                      { id: 'cash', label: 'Pay at Desk' },
+                    ].map((m) => (
                       <button
-                        key={mode}
+                        key={m.id}
                         type="button"
-                        onClick={() => setPaymentMode(mode)}
-                        className={`p-3 border text-left font-mono text-xs uppercase tracking-wider transition-all ${
-                          paymentMode === mode
+                        onClick={() => setPaymentMode(m.id)}
+                        className={`p-2.5 border text-left font-mono text-xs transition-all ${
+                          paymentMode === m.id
                             ? 'border-[#5F3F56] bg-[#5F3F56]/10 text-[#5F3F56] font-bold'
-                            : 'border-[#e5e4de] bg-white/60 text-[#1c1c1c]'
+                            : 'border-[#e5e4de] bg-white text-[#1c1c1c] hover:border-[#1c1c1c]/40'
                         }`}
                       >
-                        {mode}
+                        <div className="text-[11px] uppercase tracking-wide">{m.label}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[#e5e4de] flex justify-end gap-3">
+                {/* Modal Action Buttons */}
+                <div className="pt-4 border-t border-[#e5e4de] flex items-center justify-end gap-3">
                   <ActionButton
+                    type="button"
                     variant="secondary"
                     onClick={onClose}
                     disabled={purchaseLoading}
                   >
                     Cancel
                   </ActionButton>
+
                   <ActionButton
+                    type="submit"
                     variant="primary"
-                    onClick={handleConfirmPurchase}
-                    disabled={purchaseLoading}
+                    disabled={purchaseLoading || isSoldOut}
+                    className="min-w-[180px]"
                   >
-                    {purchaseLoading ? 'Processing Ticket...' : `Pay ₹${nonMemberPrice} & Confirm`}
+                    {purchaseLoading
+                      ? 'Issuing Ticket...'
+                      : isSoldOut
+                      ? 'Sold Out'
+                      : `Confirm & Pay ₹${applicablePrice}`}
                   </ActionButton>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
