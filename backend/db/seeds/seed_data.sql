@@ -14,8 +14,8 @@ INSERT INTO users (id, name, email, password_hash, role) VALUES
 (4, 'Vik Volunteer', 'vik@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'volunteer'),
 (5, 'Maya Member', 'maya@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member'),
 (6, 'Eddie Expired', 'eddie@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member'),
-(7, 'Greg Guest', 'greg@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'guest'),
-(8, 'Pia Pending', 'pia@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'guest')
+(7, 'Greg Guest', 'greg@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member'),
+(8, 'Pia Pending', 'pia@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   email = EXCLUDED.email,

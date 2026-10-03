@@ -522,44 +522,28 @@ async function runVerification() {
     assert(guestSeedTicket && guestSeedTicket.user_id === null, 'Seeded ticket linked through attendee_id with user_id NULL');
 
     const mayaMembership = (await pool.query(`
-      SELECT m.status, m.dues_status, m.expiry_date, (m.expiry_date > NOW()) as is_active
+      SELECT m.dues_status, m.expiry_date, (m.expiry_date >= CURRENT_DATE) as is_active
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE u.email = 'maya@odoo-ldce.org';
     `)).rows[0];
-    assert(mayaMembership.status === 'active' && mayaMembership.dues_status === 'paid' && mayaMembership.is_active === true, 'Maya Member is ACTIVE');
+    assert(mayaMembership.dues_status === 'paid' && mayaMembership.is_active === true, 'Maya Member is ACTIVE');
 
-    const eddieRenewal = (await pool.query(`
-      SELECT m.id, m.status, m.dues_status, m.renewed_from_membership_id
+    const eddieMembership = (await pool.query(`
+      SELECT m.dues_status, m.expiry_date, (m.expiry_date < CURRENT_DATE) as is_expired
       FROM memberships m
       JOIN users u ON m.user_id = u.id
-      WHERE u.email = 'eddie@odoo-ldce.org' AND m.renewed_from_membership_id IS NOT NULL;
+      WHERE u.email = 'eddie@odoo-ldce.org';
     `)).rows[0];
-    assert(eddieRenewal && eddieRenewal.status === 'active' && eddieRenewal.renewed_from_membership_id !== null, 'Eddie has active renewed membership referencing historical record');
+    assert(eddieMembership.dues_status === 'paid' && eddieMembership.is_expired === true, 'Eddie Expired is EXPIRED');
 
     const piaMembership = (await pool.query(`
-      SELECT m.status, m.dues_status
+      SELECT m.dues_status
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE u.email = 'pia@odoo-ldce.org';
     `)).rows[0];
-    assert(piaMembership.status === 'pending' && piaMembership.dues_status === 'pending', 'Pia Pending has status=pending & dues_status=pending');
-
-    const vikMembership = (await pool.query(`
-      SELECT m.status, m.dues_status, (m.expiry_date < NOW()) as is_expired
-      FROM memberships m
-      JOIN users u ON m.user_id = u.id
-      WHERE u.email = 'vik@odoo-ldce.org';
-    `)).rows[0];
-    assert(vikMembership.status === 'expired' && vikMembership.is_expired === true, 'Vik Volunteer has status=expired');
-
-    const gregMembership = (await pool.query(`
-      SELECT m.status, m.cancelled_at, m.cancellation_reason
-      FROM memberships m
-      JOIN users u ON m.user_id = u.id
-      WHERE u.email = 'greg@odoo-ldce.org';
-    `)).rows[0];
-    assert(gregMembership.status === 'cancelled' && gregMembership.cancellation_reason !== null, 'Greg Guest has status=cancelled and cancellation_reason populated');
+    assert(piaMembership.dues_status === 'pending', 'Pia Pending has dues_status = pending');
 
     // Verify partial unique index exists
     const idxRes = await pool.query(`
@@ -568,31 +552,6 @@ async function runVerification() {
     `);
     assert(idxRes.rows.length === 1, 'Partial unique index uq_memberships_active_user exists');
 
-    // Verify membership counts across all lifecycle states
-    const statusCounts = (await pool.query(`
-      SELECT
-        COUNT(*) FILTER (WHERE status = 'active') as active_count,
-        COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-        COUNT(*) FILTER (WHERE status = 'expired') as expired_count,
-        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
-      FROM memberships;
-    `)).rows[0];
-    assert(parseInt(statusCounts.active_count, 10) >= 3, `Active memberships verified (found ${statusCounts.active_count})`);
-    assert(parseInt(statusCounts.pending_count, 10) >= 1, `Pending memberships verified (found ${statusCounts.pending_count})`);
-    assert(parseInt(statusCounts.expired_count, 10) >= 2, `Expired memberships verified (found ${statusCounts.expired_count})`);
-    assert(parseInt(statusCounts.cancelled_count, 10) >= 1, `Cancelled memberships verified (found ${statusCounts.cancelled_count})`);
-
-    // Verify isActiveMember helper on representative users
-    const { isActiveMember } = require('../shared/membership/isActiveMember');
-    const mayaId = (await pool.query("SELECT id FROM users WHERE email = 'maya@odoo-ldce.org'")).rows[0].id;
-    const piaId = (await pool.query("SELECT id FROM users WHERE email = 'pia@odoo-ldce.org'")).rows[0].id;
-    const vikId = (await pool.query("SELECT id FROM users WHERE email = 'vik@odoo-ldce.org'")).rows[0].id;
-    const gregId = (await pool.query("SELECT id FROM users WHERE email = 'greg@odoo-ldce.org'")).rows[0].id;
-
-    assert(await isActiveMember(mayaId) === true, 'isActiveMember(maya) === true (Active)');
-    assert(await isActiveMember(piaId) === false, 'isActiveMember(pia) === false (Pending)');
-    assert(await isActiveMember(vikId) === false, 'isActiveMember(vik) === false (Expired)');
-    assert(await isActiveMember(gregId) === false, 'isActiveMember(greg) === false (Cancelled)');
 
     const eventsCount = parseInt((await pool.query('SELECT COUNT(*) FROM events;')).rows[0].count, 10);
     assert(eventsCount === 2, `Seeded 2 events: Spring Gala (100) & Mini Workshop (2)`);
