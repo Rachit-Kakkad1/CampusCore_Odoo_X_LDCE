@@ -102,7 +102,8 @@ export const PublicEventDetails = () => {
   const memberPrice = Number(event.member_price || 0).toFixed(2);
   const savings = (Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2);
   const seatsRemaining = Number(event.seats_remaining || 0);
-  const isSoldOut = seatsRemaining <= 0;
+  const isPast = Boolean(event.starts_at && new Date(event.starts_at) < new Date());
+  const isSoldOut = !isPast && seatsRemaining <= 0;
 
   const eventDateFormatted = event.starts_at
     ? new Date(event.starts_at).toLocaleDateString('en-US', {
@@ -140,15 +141,27 @@ export const PublicEventDetails = () => {
 
           {/* Event Article / Details Card */}
           <div className="border border-[#e5e4de] bg-[#f7f6f2] p-8 sm:p-12 space-y-8">
+            {/* Past Event Notice Banner */}
+            {isPast && (
+              <div className="p-4 bg-amber-50 border border-amber-300 text-amber-950 font-mono text-xs flex items-center gap-3">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>
+                  <strong>Event Concluded:</strong> This session was scheduled for {eventDateFormatted}. Ticket registration is closed.
+                </span>
+              </div>
+            )}
+
             {/* Header Area */}
             <div className="border-b border-[#e5e4de] pb-8 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className={`font-mono text-xs uppercase tracking-wider px-2.5 py-1 border font-semibold ${
-                  isSoldOut
+                  isPast
+                    ? 'bg-gray-100 text-gray-700 border-gray-300'
+                    : isSoldOut
                     ? 'bg-red-50 text-red-800 border-red-200'
                     : 'bg-white text-[#5F3F56] border-[#e5e4de]'
                 }`}>
-                  {isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats remaining`}
+                  {isPast ? 'EVENT CONCLUDED' : isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats remaining`}
                 </span>
                 <span className="font-mono text-xs text-[#1c1c1c]/60">
                   Event ID: EVT-00{event.id}
@@ -261,20 +274,26 @@ export const PublicEventDetails = () => {
               {/* Purchase Button Action */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <span className="font-mono text-xs text-[#1c1c1c]/60">
-                  {isSoldOut ? 'Capacity reached · No tickets available' : 'Includes instant signed QR admission pass & email delivery'}
+                  {isPast
+                    ? 'Registration closed · Event has concluded'
+                    : isSoldOut
+                    ? 'Capacity reached · No tickets available'
+                    : 'Includes instant signed QR admission pass & email delivery'}
                 </span>
 
                 <button
-                  onClick={() => setShowPurchaseModal(true)}
-                  disabled={isSoldOut}
+                  onClick={() => !isPast && setShowPurchaseModal(true)}
+                  disabled={isSoldOut || isPast}
                   className={`font-mono text-xs uppercase tracking-widest px-8 py-4 border transition-all flex items-center justify-center gap-2 ${
-                    isSoldOut
+                    isPast
+                      ? 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed'
+                      : isSoldOut
                       ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
-                      : 'bg-[#5F3F56] text-white border-[#5F3F56] hover:bg-[#5F3F56]/90 shadow-md'
+                      : 'bg-[#5F3F56] text-white border-[#5F3F56] hover:bg-[#5F3F56]/90 shadow-md cursor-pointer'
                   }`}
                 >
                   <Ticket className="w-4 h-4" />
-                  <span>{isSoldOut ? 'SOLD OUT' : 'GET TICKET'}</span>
+                  <span>{isPast ? 'EVENT CONCLUDED' : isSoldOut ? 'SOLD OUT' : 'GET TICKET'}</span>
                 </button>
               </div>
             </div>

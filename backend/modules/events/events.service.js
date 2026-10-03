@@ -184,6 +184,13 @@ class EventsService {
         throw err;
       }
 
+      if (event.starts_at && new Date(event.starts_at) < new Date()) {
+        const err = new Error('This event has already taken place and ticket registration is closed');
+        err.code = 'EVENT_PAST';
+        err.status = 400;
+        throw err;
+      }
+
       if (event.seats_remaining <= 0) {
         const err = new Error('Sorry, this event is sold out');
         err.status = 400;

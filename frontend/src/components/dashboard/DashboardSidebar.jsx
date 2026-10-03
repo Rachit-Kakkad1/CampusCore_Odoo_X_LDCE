@@ -14,7 +14,8 @@ import {
   FileText,
   Ticket,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 import authService from '../../services/auth.service';
 import AnnouncementsModal from './AnnouncementsModal';
@@ -111,6 +112,13 @@ export const DashboardSidebar = ({ currentRole }) => {
               <NavLink to="/dashboard/finance" className={navItemClass}>
                 <DollarSign className="w-4 h-4" />
                 <span>Financial Ledger</span>
+              </NavLink>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
+                System
+              </div>
+              <NavLink to="/dashboard/admin/security" className={navItemClass}>
+                <Lock className="w-4 h-4" />
+                <span>Security &amp; Audit</span>
               </NavLink>
             </>
           )}

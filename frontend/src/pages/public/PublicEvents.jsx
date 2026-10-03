@@ -205,7 +205,8 @@ export const PublicEvents = () => {
                 const memberPrice = Number(event.member_price || 0).toFixed(2);
                 const savings = (Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2);
                 const seatsRemaining = Number(event.seats_remaining || 0);
-                const isSoldOut = seatsRemaining <= 0;
+                const isPast = Boolean(event.starts_at && new Date(event.starts_at) < new Date());
+                const isSoldOut = !isPast && seatsRemaining <= 0;
                 const status = getEventStatus(event);
 
                 const eventDateFormatted = event.starts_at
@@ -227,7 +228,9 @@ export const PublicEvents = () => {
                 return (
                   <div
                     key={event.id}
-                    className="border border-[#e5e4de] bg-[#f7f6f2] p-6 flex flex-col justify-between hover:border-[#5F3F56]/60 transition-all space-y-6"
+                    className={`border border-[#e5e4de] bg-[#f7f6f2] p-6 flex flex-col justify-between transition-all space-y-6 ${
+                      isPast ? 'opacity-85' : 'hover:border-[#5F3F56]/60'
+                    }`}
                   >
                     <div className="space-y-3">
                       {/* Top Badges */}
@@ -243,17 +246,19 @@ export const PublicEvents = () => {
                               Upcoming
                             </span>
                           )}
-                          {status === 'PAST' && (
-                            <span className="font-mono text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 border border-slate-300">
+                          {isPast && (
+                            <span className="font-mono text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 bg-slate-200 text-slate-800 border border-slate-300">
                               Past Session
                             </span>
                           )}
                           <span className={`font-mono text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 border ${
-                            isSoldOut
+                            isPast
+                              ? 'bg-gray-100 text-gray-700 border-gray-300'
+                              : isSoldOut
                               ? 'bg-red-50 text-red-800 border-red-200'
                               : 'bg-white/80 text-[#5F3F56] border-[#e5e4de]'
                           }`}>
-                            {isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats left`}
+                            {isPast ? 'Registration Closed' : isSoldOut ? 'SOLD OUT' : `${seatsRemaining} seats left`}
                           </span>
                         </div>
                         <span className="font-mono text-xs text-[#1c1c1c]/50">
@@ -337,16 +342,18 @@ export const PublicEvents = () => {
 
                       {/* GET TICKET Button */}
                       <button
-                        onClick={() => navigate(`/events/${event.id}`)}
-                        disabled={isSoldOut}
+                        onClick={() => !isPast && navigate(`/events/${event.id}`)}
+                        disabled={isSoldOut || isPast}
                         className={`w-full font-mono text-xs uppercase tracking-widest py-3 border transition-all flex items-center justify-center gap-2 ${
-                          isSoldOut
+                          isPast
+                            ? 'bg-gray-200 text-gray-600 border-gray-300 cursor-not-allowed'
+                            : isSoldOut
                             ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
-                            : 'bg-[#1c1c1c] text-white border-[#1c1c1c] hover:bg-[#5F3F56] hover:border-[#5F3F56] shadow-sm'
+                            : 'bg-[#1c1c1c] text-white border-[#1c1c1c] hover:bg-[#5F3F56] hover:border-[#5F3F56] shadow-sm cursor-pointer'
                         }`}
                       >
                         <Ticket className="w-3.5 h-3.5" />
-                        <span>{isSoldOut ? 'SOLD OUT' : 'GET TICKET'}</span>
+                        <span>{isPast ? 'EVENT CONCLUDED' : isSoldOut ? 'SOLD OUT' : 'GET TICKET'}</span>
                       </button>
                     </div>
                   </div>

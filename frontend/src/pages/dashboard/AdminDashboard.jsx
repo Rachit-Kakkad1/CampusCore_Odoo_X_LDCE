@@ -260,16 +260,7 @@ export const AdminDashboard = () => {
     loadAllData();
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'users', label: `Users (${users.length})` },
-    { id: 'members', label: `Members (${members.length})` },
-    { id: 'events', label: `Events (${events.length})` },
-    { id: 'merchandise', label: `Merchandise (${products.length})` },
-    { id: 'fundraisers', label: `Fundraisers (${fundraisers.length})` },
-    { id: 'announcements', label: `Announcements (${announcements.length})` },
-    { id: 'security', label: 'Security & Audit' },
-  ];
+
 
   return (
     <DashboardShell activeRole="admin">
@@ -307,14 +298,6 @@ export const AdminDashboard = () => {
         />
       )}
 
-      {/* Top Workspace Navigation Tabs */}
-      <div className="mb-8">
-        <PageTabs
-          tabs={tabs}
-          activeTab={activeTab}
-          onChange={handleTabChange}
-        />
-      </div>
       {/* Dynamic Tab Views */}
       {activeTab === 'overview' && (
         <AdminOverview

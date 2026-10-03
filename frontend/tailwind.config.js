@@ -8,11 +8,11 @@ export default {
     extend: {
       colors: {
         background: '#f7f6f2',
-        foreground: '#0f172a',
+        foreground: '#000000',
         primary: '#5F3F56',
         'primary-hover': '#4a2f42',
-        muted: '#475569',
-        ghost: '#64748b',
+        muted: '#000000',
+        ghost: '#000000',
         border: '#dcdbd5',
         card: '#ffffff',
         hover: '#f1f5f9',

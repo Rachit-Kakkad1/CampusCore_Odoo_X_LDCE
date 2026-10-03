@@ -9,7 +9,6 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleGuard from './components/dashboard/RoleGuard';
 import ScrollRestoration from './components/common/ScrollRestoration';
 import LoginPage from './pages/LoginPage';
-import Register from './pages/auth/Register';
 import heroVideo from './assests/login/1003.mp4';
 import logoEmblem from './assests/CampusCore Academic Emblem.png';
 import MemberDashboard from './pages/dashboard/MemberDashboard';
@@ -24,6 +23,8 @@ import MembershipPage from './pages/membership/MembershipPage';
 import MembershipCheckoutPage from './pages/membership/MembershipCheckoutPage';
 import MembershipSuccessPage from './pages/membership/MembershipSuccessPage';
 import authService from './services/auth.service';
+import eventsService from './services/events.service';
+import financeService from './services/finance.service';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -68,7 +69,6 @@ const LandingPage = () => {
           <div className="hidden md:flex items-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
             <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
             <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
-            <Link to="/membership" className="hover:text-primary transition-colors">Membership</Link>
             <Link to="/store" className="hover:text-primary transition-colors">Store</Link>
             <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
           </div>
@@ -246,12 +246,37 @@ const ConnectedPlatform = () => {
 
 const WorkflowSection = () => {
   const [activeStep, setActiveStep] = useState(0);
+  const [galaEvent, setGalaEvent] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveEvent = async () => {
+      try {
+        const res = await eventsService.getEvents();
+        const list = res?.events || res?.data || (Array.isArray(res) ? res : []);
+        const gala = list.find((e) => e.title && e.title.toLowerCase().includes('spring gala')) || list[0];
+        if (isMounted && gala) {
+          setGalaEvent(gala);
+        }
+      } catch (err) {
+        console.error('Failed to load landing page event stats:', err);
+      }
+    };
+    fetchLiveEvent();
+    return () => { isMounted = false; };
+  }, []);
+
   const steps = [
     { title: "JOIN", desc: "Register, pay dues and receive an active digital membership." },
     { title: "PARTICIPATE", desc: "Discover events, receive member pricing and purchase digital tickets." },
     { title: "OPERATE", desc: "Check in attendees, manage merchandise, fundraisers and volunteer tasks." },
     { title: "UNDERSTAND", desc: "See income, expenses, reimbursements and outstanding payments in one financial view." }
   ];
+
+  const seatsLeft = galaEvent?.seats_remaining !== undefined ? Number(galaEvent.seats_remaining) : 180;
+  const memberPrice = galaEvent?.member_price ? Number(galaEvent.member_price) : 300;
+  const totalCapacity = galaEvent?.capacity ? Number(galaEvent.capacity) : 180;
+  const isSoldOut = seatsLeft <= 0;
 
   return (
     <section className="py-32 px-6 border-b border-border">
@@ -297,19 +322,23 @@ const WorkflowSection = () => {
             {activeStep === 1 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="font-mono text-[10px] tracking-widest text-muted uppercase">Ticket Preview</div>
-                <div className="text-4xl font-serif">SPRING GALA</div>
+                <div className="text-4xl font-serif">{galaEvent?.title ? galaEvent.title.toUpperCase() : "SPRING GALA"}</div>
                 <div className="grid grid-cols-2 gap-8 font-mono text-sm">
                   <div>
-                    <div className="text-muted mb-1">MEMBER PRICE</div>
-                    <div>₹500</div>
+                    <div className="text-muted mb-1 font-bold">MEMBER PRICE</div>
+                    <div className="text-lg font-bold">₹{memberPrice.toLocaleString('en-IN')}</div>
                   </div>
                   <div>
-                    <div className="text-muted mb-1">CAPACITY</div>
-                    <div>42 SEATS LEFT</div>
+                    <div className="text-muted mb-1 font-bold">CAPACITY</div>
+                    <div className={cn("text-lg font-bold", isSoldOut ? "text-red-600" : "text-black")}>
+                      {isSoldOut ? "SOLD OUT" : `${seatsLeft} SEATS LEFT`}
+                    </div>
                   </div>
                 </div>
-                <div className="inline-block border border-primary text-primary px-4 py-1.5 font-mono text-xs uppercase tracking-wider mt-4">
-                  Ticket Verified
+                <div className="flex items-center gap-2 mt-4">
+                  <div className="inline-block border border-primary text-primary px-4 py-1.5 font-mono text-xs uppercase tracking-wider">
+                    {isSoldOut ? "REGISTRATION CLOSED" : `Live Inventory · ${seatsLeft} / ${totalCapacity} Available`}
+                  </div>
                 </div>
               </motion.div>
             )}

@@ -3,9 +3,40 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 18px; /* Increased base font size by 12.5% across the whole application */
+  }
+
   body {
     @apply bg-background text-foreground font-sans selection:bg-primary selection:text-white;
     overflow-x: hidden;
+    color: #000000;
+  }
+
+  /* Force all muted, gray, slate, and zinc text across the whole app to solid high-contrast black */
+  .text-muted,
+  .text-ghost,
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600,
+  .text-gray-700,
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600,
+  .text-slate-700,
+  .text-zinc-400,
+  .text-zinc-500,
+  .text-zinc-600,
+  .text-neutral-400,
+  .text-neutral-500,
+  .text-neutral-600 {
+    color: #000000 !important;
+  }
+
+  /* Transform all semi-transparent dark text to solid black */
+  [class*="text-[#1c1c1c]"],
+  [class*="text-black/"] {
+    color: #000000 !important;
   }
 }
 

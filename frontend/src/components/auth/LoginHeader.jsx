@@ -18,19 +18,15 @@ export default function LoginHeader({ mode }) {
         <span className="text-muted font-sans text-xs font-normal">/ 2026</span>
       </div>
       
-      <div className="font-mono text-[10px] md:text-xs uppercase tracking-[0.3em] text-muted mb-2">
-        Member Access / {isRegister ? 'NEW' : '001'}
-      </div>
-      
-      <h1 className="font-serif text-5xl lg:text-6xl uppercase leading-none mb-2">
+      <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight leading-tight mb-2">
         {isRegister ? (
-          <>Join<br /><span className="italic text-primary">organization.</span></>
+          <>Join <span className="italic text-primary">organization.</span></>
         ) : (
-          <>Welcome<br /><span className="italic text-primary">back.</span></>
+          <>Welcome <span className="italic text-primary">back.</span></>
         )}
       </h1>
       
-      <p className="font-sans text-sm md:text-base text-muted max-w-sm">
+      <p className="font-sans text-xs sm:text-sm text-muted max-w-sm leading-relaxed">
         {isRegister 
           ? "Create your student account to activate membership."
           : "Sign in to continue managing your organization."}

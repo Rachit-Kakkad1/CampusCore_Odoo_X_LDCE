@@ -52,15 +52,23 @@ export const MemberEventSection = ({
                 })
               : 'TBA';
 
+            const isPast = Boolean(event.starts_at && new Date(event.starts_at) < new Date());
+            const seatsRemaining = Number(event.seats_remaining || 0);
+            const isSoldOut = !isPast && seatsRemaining <= 0;
+
             return (
               <div
                 key={event.id}
-                className="bg-[#f7f6f2] border border-[#e5e4de] p-5 flex flex-col justify-between hover:border-[#5F3F56]/40 transition-colors"
+                className={`bg-[#f7f6f2] border border-[#e5e4de] p-5 flex flex-col justify-between transition-colors ${
+                  isPast ? 'opacity-85' : 'hover:border-[#5F3F56]/40'
+                }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="font-mono text-[11px] uppercase tracking-wider text-[#5F3F56] font-semibold">
-                      {event.seats_remaining} seats remaining / {event.capacity} total
+                    <span className={`font-mono text-[11px] uppercase tracking-wider font-semibold ${
+                      isPast ? 'text-gray-600' : 'text-[#5F3F56]'
+                    }`}>
+                      {isPast ? 'Session Concluded' : isSoldOut ? 'Sold Out' : `${seatsRemaining} seats remaining / ${event.capacity} total`}
                     </span>
                   </div>
 
@@ -119,11 +127,12 @@ export const MemberEventSection = ({
                   </div>
 
                   <ActionButton
-                    variant={isActiveMember ? 'primary' : 'secondary'}
+                    variant={isPast ? 'secondary' : isActiveMember ? 'primary' : 'secondary'}
                     size="sm"
-                    onClick={() => onRegisterEvent?.(event)}
+                    disabled={isPast || isSoldOut}
+                    onClick={() => !isPast && onRegisterEvent?.(event)}
                   >
-                    View Details
+                    {isPast ? 'Event Concluded' : isSoldOut ? 'Sold Out' : 'View Details'}
                   </ActionButton>
                 </div>
               </div>

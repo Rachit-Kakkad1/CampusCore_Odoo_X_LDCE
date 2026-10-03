@@ -151,52 +151,67 @@ export const GuestHome = () => {
                       })
                     : 'TBA';
 
+                  const isPast = Boolean(event.starts_at && new Date(event.starts_at) < new Date());
+                  const seatsRemaining = Number(event.seats_remaining || 0);
+                  const isSoldOut = !isPast && seatsRemaining <= 0;
+
                   return (
-                    <div
-                      key={event.id}
-                      className="border border-[#e5e4de] bg-[#f7f6f2] p-6 flex flex-col justify-between hover:border-[#5F3F56]/40 transition-colors"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-3">
-                          <span className="font-mono text-[10px] uppercase tracking-wider text-[#5F3F56] font-semibold">
-                            {event.seats_remaining} seats remaining
-                          </span>
-                          <span className="font-mono text-xs text-[#1c1c1c]/60">
-                            {eventDate}
-                          </span>
-                        </div>
-
-                        <h3 className="font-serif text-2xl mb-2 text-[#1c1c1c]">
-                          {event.title}
-                        </h3>
-                        <p className="font-sans text-xs text-[#1c1c1c]/70 line-clamp-2 mb-6">
-                          {event.description}
-                        </p>
-
-                        <div className="font-mono text-xs text-[#1c1c1c]/70 pb-4 border-b border-[#e5e4de] mb-4">
-                          Venue: {event.venue}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
+                      <div
+                        key={event.id}
+                        className={`border border-[#e5e4de] bg-[#f7f6f2] p-6 flex flex-col justify-between transition-colors ${
+                          isPast ? 'opacity-85' : 'hover:border-[#5F3F56]/40'
+                        }`}
+                      >
                         <div>
-                          <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
-                            Guest Ticket Price
-                          </span>
-                          <span className="font-mono text-xl font-bold text-[#1c1c1c]">
-                            ₹{nonMemberPrice}
-                          </span>
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <span className={`font-mono text-[10px] uppercase tracking-wider font-semibold ${
+                              isPast ? 'text-gray-600' : 'text-[#5F3F56]'
+                            }`}>
+                              {isPast ? 'Registration Closed' : isSoldOut ? 'Sold Out' : `${seatsRemaining} seats remaining`}
+                            </span>
+                            <span className="font-mono text-xs text-[#1c1c1c]/60">
+                              {eventDate}
+                            </span>
+                          </div>
+
+                          <h3 className="font-serif text-2xl mb-2 text-[#1c1c1c]">
+                            {event.title}
+                          </h3>
+                          <p className="font-sans text-xs text-[#1c1c1c]/70 line-clamp-2 mb-6">
+                            {event.description}
+                          </p>
+
+                          <div className="font-mono text-xs text-[#1c1c1c]/70 pb-4 border-b border-[#e5e4de] mb-4">
+                            Venue: {event.venue}
+                          </div>
                         </div>
 
-                        <button
-                          onClick={() => navigate(`/events/${event.id}`)}
-                          className="font-mono text-xs uppercase tracking-wider px-4 py-2.5 bg-[#1c1c1c] text-white hover:bg-[#5F3F56] transition-colors"
-                        >
-                          View Details & Buy
-                        </button>
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
+                              Guest Ticket Price
+                            </span>
+                            <span className="font-mono text-xl font-bold text-[#1c1c1c]">
+                              ₹{nonMemberPrice}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => !isPast && navigate(`/events/${event.id}`)}
+                            disabled={isPast || isSoldOut}
+                            className={`font-mono text-xs uppercase tracking-wider px-4 py-2.5 transition-colors ${
+                              isPast
+                                ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                                : isSoldOut
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-[#1c1c1c] text-white hover:bg-[#5F3F56] cursor-pointer'
+                            }`}
+                          >
+                            {isPast ? 'Event Concluded' : isSoldOut ? 'Sold Out' : 'View Details & Buy'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
+                    );
                 })}
               </div>
             )}
