@@ -315,16 +315,16 @@ async function runVerification() {
     console.log('--- 8h. Testing Member vs Non-Member vs Guest Pricing ---');
     const { isActiveMember } = require('../shared/membership/isActiveMember');
     const mayaUser = (await pool.query("SELECT id FROM users WHERE email = 'maya@odoo-ldce.org';")).rows[0];
-    const eddieUser = (await pool.query("SELECT id FROM users WHERE email = 'eddie@odoo-ldce.org';")).rows[0];
+    const vikUser = (await pool.query("SELECT id FROM users WHERE email = 'vik@odoo-ldce.org';")).rows[0];
     const eventRow = (await pool.query("SELECT member_price, non_member_price FROM events WHERE title = 'Spring Gala 2026';")).rows[0];
 
     const mayaIsActive = await isActiveMember(mayaUser.id);
     const mayaPrice = mayaIsActive ? eventRow.member_price : eventRow.non_member_price;
     assert(mayaIsActive === true && parseFloat(mayaPrice) === 300.00, 'Active member receives member price (₹300.00)');
 
-    const eddieIsActive = await isActiveMember(eddieUser.id);
-    const eddiePrice = eddieIsActive ? eventRow.member_price : eventRow.non_member_price;
-    assert(eddieIsActive === false && parseFloat(eddiePrice) === 500.00, 'Expired member receives non-member price (₹500.00)');
+    const vikIsActive = await isActiveMember(vikUser.id);
+    const vikPrice = vikIsActive ? eventRow.member_price : eventRow.non_member_price;
+    assert(vikIsActive === false && parseFloat(vikPrice) === 500.00, 'Expired member receives non-member price (₹500.00)');
 
     const guestAttendeeIsActive = await isActiveMember(null);
     const guestAttendeePrice = guestAttendeeIsActive ? eventRow.member_price : eventRow.non_member_price;
@@ -507,7 +507,7 @@ async function runVerification() {
     // 9. Verify Seed Data
     console.log('--- 9. Verifying Seeded Records ---');
     const userCount = parseInt((await pool.query('SELECT COUNT(*) FROM users;')).rows[0].count, 10);
-    assert(userCount === 7, `Seeded exactly 7 registered users without guest role (found ${userCount})`);
+    assert(userCount === 8, `Seeded exactly 8 registered users without guest role (found ${userCount})`);
 
     const attendeeCount = parseInt((await pool.query('SELECT COUNT(*) FROM event_attendees;')).rows[0].count, 10);
     assert(attendeeCount === 1, `Seeded exactly 1 event attendee (found ${attendeeCount})`);
@@ -567,8 +567,6 @@ async function runVerification() {
     assert(parseInt(statusCounts.cancelled_count, 10) >= 1, `Cancelled memberships verified (found ${statusCounts.cancelled_count})`);
 
     // Verify isActiveMember helper on representative users
-    const { isActiveMember } = require('../shared/membership/isActiveMember');
-    const { syncMembershipStatuses } = require('../shared/membership/syncMembershipStatuses');
     const membershipRepository = require('../modules/membership/membership.repository');
     const announcementsRepository = require('../modules/announcements/announcements.repository');
     const announcementsService = require('../modules/announcements/announcements.service');
@@ -599,13 +597,15 @@ async function runVerification() {
 
     // Expiry sync idempotence verification
     console.log('--- 8. Verifying Membership Expiry Synchronization ---');
-    const sync1 = await syncMembershipStatuses();
-    const sync2 = await syncMembershipStatuses();
-    assert(sync2 === 0, 'syncMembershipStatuses is idempotent (second run modifies 0 records)');
+    const syncIdemp1 = await syncMembershipStatuses();
+    const syncIdemp2 = await syncMembershipStatuses();
+    const syncCountFinal = typeof syncIdemp2 === 'number' ? syncIdemp2 : (syncIdemp2.updatedCount ?? Number(syncIdemp2));
+    assert(syncCountFinal === 0, 'syncMembershipStatuses is idempotent (second run modifies 0 records)');
 
     // Renewal chain verification
     console.log('--- 9. Verifying Renewal History Model ---');
-    const eddieHistory = await membershipRepository.findHistoryByUserId(eddieRenewal.id ? 6 : 6);
+    const eddieUser = (await pool.query("SELECT id FROM users WHERE email = 'eddie@odoo-ldce.org'")).rows[0];
+    const eddieHistory = await membershipRepository.findHistoryByUserId(eddieUser.id);
     assert(eddieHistory.length >= 2, 'Eddie history preserves both historical expired and renewed active records');
     assert(eddieHistory[0].renewed_from_membership_id === eddieHistory[1].id, 'Newest record contains renewed_from_membership_id pointing to previous membership');
 
