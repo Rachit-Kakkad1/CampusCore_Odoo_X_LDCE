@@ -12,6 +12,8 @@ const env = {
   DB_NAME: process.env.DB_NAME || 'student_org',
   DB_USER: process.env.DB_USER || 'postgres',
   DB_PASSWORD: process.env.DB_PASSWORD || '',
+  JWT_SECRET: process.env.JWT_SECRET || 'student_org_jwt_secret_ldce_2026',
+  QR_SECRET: process.env.QR_SECRET || 'student_org_qr_hmac_secret_ldce_2026',
 };
 
 module.exports = env;

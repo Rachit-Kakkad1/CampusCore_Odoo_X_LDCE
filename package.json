@@ -4,7 +4,7 @@
   "description": "> **Corrected Build Specification & AI Coding Agent README**   > **24-Hour Hackathon — Odoo × LDCE**   > *Implementation-ready specification derived from the Hackathon requirements with transaction and reservation concurrency issues corrected.*",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node backend/tests/events.test.js",
     "db:test": "node backend/config/database.js",
     "db:verify": "node backend/db/verify.js"
   },
@@ -23,6 +23,9 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "dotenv": "^18.0.5",
-    "pg": "^8.23.1"
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4"
   }
 }
