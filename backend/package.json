@@ -1,0 +1,31 @@
+{
+  "name": "skyline-org-backend",
+  "version": "1.0.0",
+  "description": "Student Organization System Backend - Odoo x LDCE Hackathon",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "verify": "node scripts/verify_phase1.js"
+  },
+  "keywords": [
+    "odoo",
+    "student-organization",
+    "express",
+    "postgres"
+  ],
+  "author": "Nishit",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.2",
+    "pg": "^8.13.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

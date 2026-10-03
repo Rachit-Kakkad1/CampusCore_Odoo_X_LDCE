@@ -1,28 +1,36 @@
 {
   "name": "odoo_x_ldce",
   "version": "1.0.0",
-  "description": "> **Corrected Build Specification & AI Coding Agent README**   > **24-Hour Hackathon — Odoo × LDCE**   > *Implementation-ready specification derived from the Hackathon requirements with transaction and reservation concurrency issues corrected.*",
-  "main": "index.js",
+  "description": "Student Organization System - 24-Hour Hackathon — Odoo x LDCE",
+  "main": "backend/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
     "db:test": "node backend/config/database.js",
-    "db:verify": "node backend/db/verify.js"
+    "db:verify": "node backend/db/verify.js",
+    "migrate": "node backend/scripts/migrate.js",
+    "seed": "node backend/scripts/seed.js",
+    "verify": "node backend/scripts/verify_phase1.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Rachit-Kakkad1/Odoo_X_LDCE.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "odoo",
+    "student-organization"
+  ],
+  "author": "Nishit",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/Rachit-Kakkad1/Odoo_X_LDCE/issues"
-  },
-  "homepage": "https://github.com/Rachit-Kakkad1/Odoo_X_LDCE#readme",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
     "dotenv": "^18.0.5",
+    "express": "^4.21.2",
     "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }
