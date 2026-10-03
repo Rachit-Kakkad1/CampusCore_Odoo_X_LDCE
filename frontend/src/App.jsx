@@ -17,7 +17,6 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
 import EventManagerDashboard from './pages/dashboard/EventManagerDashboard';
 import VolunteerDashboard from './pages/dashboard/VolunteerDashboard';
-import MerchandiseDashboard from './pages/dashboard/MerchandiseDashboard';
 import MerchandisePage from './pages/merchandise/MerchandisePage';
 import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
 import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
@@ -693,7 +692,7 @@ export default function App() {
           </div>
         } />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
+        <Route path="/register" element={<Register />} />
         <Route
           path="/membership"
           element={

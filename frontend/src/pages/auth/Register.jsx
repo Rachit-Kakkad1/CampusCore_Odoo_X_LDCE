@@ -1,6 +1,7 @@
 // frontend/src/pages/auth/Register.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, UserPlus, ShieldCheck } from 'lucide-react';
 import authService from '../../services/auth.service';
 
 export const Register = () => {
@@ -35,7 +36,7 @@ export const Register = () => {
       setLoading(true);
       setError('');
       await authService.register(formData);
-      navigate('/membership', { replace: true });
+      navigate('/dashboard/member', { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -44,22 +45,32 @@ export const Register = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 bg-slate-950 text-slate-100">
-      <div className="w-full max-w-md p-8 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Join Skyline Org</h1>
-          <p className="text-sm text-slate-400 mt-2">Create your student account to activate membership</p>
+    <div className="min-h-screen bg-[#f7f6f2] text-[#1c1c1c] flex flex-col justify-center items-center px-6 py-16">
+      <div className="w-full max-w-md bg-white border border-[#e5e4de] p-8 md:p-10 shadow-sm relative">
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-[#5F3F56]" />
+
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#e5e4de] bg-[#f7f6f2] text-[#5F3F56] font-mono text-[10px] uppercase tracking-widest mb-4">
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>New Student Account</span>
+          </div>
+          <h1 className="font-serif text-3xl md:text-4xl uppercase tracking-tight">
+            Join Skyline
+          </h1>
+          <p className="font-sans text-xs text-neutral-500 mt-2">
+            Create your account to unlock membership benefits, event tickets, and club apparel.
+          </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-sm">
+          <div className="mb-6 p-4 border border-rose-300 bg-rose-50 text-rose-800 text-xs font-mono">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+            <label className="block font-mono text-[10px] uppercase tracking-widest text-neutral-600 mb-2">
               Full Name
             </label>
             <input
@@ -69,12 +80,12 @@ export const Register = () => {
               onChange={handleChange}
               placeholder="Alex Taylor"
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+              className="w-full px-4 py-3 border border-[#e5e4de] bg-[#f7f6f2] text-sm focus:outline-none focus:border-[#5F3F56] font-sans transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+            <label className="block font-mono text-[10px] uppercase tracking-widest text-neutral-600 mb-2">
               Email Address
             </label>
             <input
@@ -82,14 +93,14 @@ export const Register = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="alex@ldce.ac.in"
+              placeholder="alex@skyline.org"
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-850 bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+              className="w-full px-4 py-3 border border-[#e5e4de] bg-[#f7f6f2] text-sm focus:outline-none focus:border-[#5F3F56] font-mono text-xs transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+            <label className="block font-mono text-[10px] uppercase tracking-widest text-neutral-600 mb-2">
               Password
             </label>
             <input
@@ -97,24 +108,31 @@ export const Register = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="At least 6 characters"
+              placeholder="••••••••"
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+              className="w-full px-4 py-3 border border-[#e5e4de] bg-[#f7f6f2] text-sm focus:outline-none focus:border-[#5F3F56] font-mono text-xs transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 mt-2 rounded-xl font-medium text-sm text-white bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 shadow-lg shadow-indigo-600/25 transition-all"
+            className="w-full py-3.5 px-6 bg-[#5F3F56] text-white font-mono text-xs uppercase tracking-[0.2em] hover:bg-[#4d3246] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {loading ? 'Creating Account...' : 'Register Account'}
+            {loading ? (
+              <span>Creating Account...</span>
+            ) : (
+              <>
+                <span>Register Account</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </>
+            )}
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-slate-800 text-center text-sm text-slate-400">
+        <div className="mt-8 pt-6 border-t border-[#e5e4de] text-center font-mono text-xs text-neutral-500">
           Already have an account?{' '}
-          <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
+          <Link to="/login" className="text-[#5F3F56] hover:underline font-semibold ml-1">
             Sign In
           </Link>
         </div>
