@@ -452,16 +452,19 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
               {/* Ticket Reference Code Box */}
               <div className="bg-white border border-[#e5e4de] p-3.5 flex items-center justify-between font-mono text-xs max-w-md mx-auto">
                 <div className="text-left">
-                  <span className="text-[10px] text-[#1c1c1c]/50 block uppercase tracking-wider">
-                    Ticket Reference Code
+                  <span className="text-[10px] text-[#5F3F56] font-bold block uppercase tracking-wider">
+                    Manual Entry Code
                   </span>
-                  <span className="font-bold text-sm text-[#1c1c1c] tracking-wider select-all">
-                    {confirmedTicket.ticket_code}
+                  <span className="font-bold text-base text-primary tracking-widest select-all block">
+                    {confirmedTicket.fallback_code || confirmedTicket.ticket_code}
+                  </span>
+                  <span className="text-[9px] text-[#1c1c1c]/50 font-mono block">
+                    Ref: {confirmedTicket.ticket_code}
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => copyTicketCode(confirmedTicket.ticket_code)}
+                  onClick={() => copyTicketCode(confirmedTicket.fallback_code || confirmedTicket.ticket_code)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e4de] bg-[#f7f6f2] hover:bg-[#e5e4de] text-[#1c1c1c] transition-colors text-[11px]"
                 >
                   {copiedCode ? (

@@ -1,6 +1,7 @@
 const verifyQR = require('../../shared/qr/verifyQR');
 const eventRepository = require('./event.repository');
 const { getMembershipStatus } = require('../../shared/membership/isActiveMember');
+const auditService = require('../../shared/audit/audit.service');
 
 /**
  * Check-in Service
@@ -109,6 +110,7 @@ class CheckinService {
         result: 'ALREADY_USED',
         message: 'Ticket has already been checked in',
         ticket_code: ticket.ticket_code,
+        fallback_code: ticket.fallback_code,
         checked_in_at: ticket.checked_in_at,
         scan_mode: scanMode,
         holder: holderInfo,
@@ -126,10 +128,18 @@ class CheckinService {
     const updatedTicket = await eventRepository.atomicCheckIn(ticket.id, checkedInBy);
     if (!updatedTicket) {
       const reloaded = await eventRepository.getTicketByCode(ticketCode);
+      await auditService.recordLog({
+        actorId: checkedInBy,
+        action: 'CHECKIN_REJECTED',
+        entityType: 'ticket',
+        entityId: ticket.id,
+        metadata: { reason: 'CONCURRENT_DOUBLE_SCAN', scan_mode: scanMode },
+      });
       return {
         result: 'ALREADY_USED',
         message: 'Ticket was just checked in concurrently',
         ticket_code: ticket.ticket_code,
+        fallback_code: ticket.fallback_code,
         checked_in_at: reloaded ? reloaded.checked_in_at : null,
         scan_mode: scanMode,
         holder: holderInfo,
@@ -137,11 +147,20 @@ class CheckinService {
       };
     }
 
+    await auditService.recordLog({
+      actorId: checkedInBy,
+      action: 'TICKET_CHECKED_IN',
+      entityType: 'ticket',
+      entityId: updatedTicket.id,
+      metadata: { scan_mode: scanMode, event_id: ticket.event_id },
+    });
+
     // 8. Return VALID result with complete admission context
     return {
       result: 'VALID',
       message: 'Check-in successful',
       ticket_code: updatedTicket.ticket_code,
+      fallback_code: updatedTicket.fallback_code || ticket.fallback_code,
       checked_in_at: updatedTicket.checked_in_at,
       checked_in_by: checkedInBy,
       scan_mode: scanMode,

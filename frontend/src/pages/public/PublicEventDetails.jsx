@@ -82,13 +82,14 @@ export const PublicEventDetails = () => {
         <div className="max-w-3xl mx-auto p-12 text-center space-y-4">
           <h2 className="font-serif text-3xl text-[#1c1c1c]">Event Unavailable</h2>
           <p className="font-sans text-sm text-[#1c1c1c]/70">{error || 'The requested event could not be found.'}</p>
-          <Link
-            to="/events"
-            className="inline-flex items-center gap-2 font-mono text-xs uppercase px-4 py-2 border border-[#e5e4de] bg-white text-[#1c1c1c]"
+          <button
+            type="button"
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/events')}
+            className="inline-flex items-center gap-2 font-mono text-xs uppercase px-4 py-2 border border-[#e5e4de] bg-white text-[#1c1c1c] cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to All Events</span>
-          </Link>
+          </button>
         </div>
         <footer className="border-t border-[#e5e4de] py-6 text-center font-mono text-xs text-[#1c1c1c]/50">
           CampusCore Student Organization
@@ -127,13 +128,14 @@ export const PublicEventDetails = () => {
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Breadcrumb Back Link */}
           <div>
-            <Link
-              to="/events"
-              className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#1c1c1c]/60 hover:text-[#5F3F56] transition-colors"
+            <button
+              type="button"
+              onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/events')}
+              className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-[#1c1c1c]/60 hover:text-[#5F3F56] transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Public Schedule</span>
-            </Link>
+            </button>
           </div>
 
           {/* Event Article / Details Card */}

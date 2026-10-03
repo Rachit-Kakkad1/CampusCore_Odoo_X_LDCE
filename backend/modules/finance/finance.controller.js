@@ -70,13 +70,12 @@ const financeController = {
 
   async getTransactions(req, res, next) {
     try {
-      const { limit, offset, source_type, direction } = req.query;
-      const data = await financeService.getTransactions({
-        limit: limit ? parseInt(limit) : 100,
-        offset: offset ? parseInt(offset) : 0,
-        source_type,
-        direction
-      });
+      const limit = parseInt(req.query.limit, 10) || 100;
+      const offset = parseInt(req.query.offset, 10) || 0;
+      const sourceType = req.query.source_type || req.query.sourceType || 'all';
+      const direction = req.query.direction;
+
+      const data = await financeService.getTransactions({ limit, offset, sourceType, direction });
       return res.status(200).json({
         success: true,
         count: data.length,
@@ -130,16 +129,18 @@ const financeController = {
   async createExpense(req, res, next) {
     try {
       const { amount, description, receipt_url } = req.body;
-      const submitted_by = req.user?.userId || 1;
+      const submittedBy = req.user?.userId || req.user?.id || 1;
+
       const data = await financeService.createExpense({
-        submitted_by,
+        submitted_by: submittedBy,
         amount,
         description,
-        receipt_url
+        receipt_url: receipt_url || null,
       });
+
       return res.status(201).json({
         success: true,
-        message: 'Expense submitted successfully for treasurer approval',
+        message: 'Expense submitted successfully for review',
         data,
       });
     } catch (err) {
@@ -150,11 +151,17 @@ const financeController = {
   async approveExpense(req, res, next) {
     try {
       const { id } = req.params;
-      const approverId = req.user?.userId || 1;
-      const data = await financeService.approveExpense(id, approverId);
+      const status = req.body.status || 'approved';
+      const approverId = req.user?.userId || req.user?.id || 1;
+
+      const data = await financeService.updateExpenseStatus(id, {
+        status,
+        approved_by: approverId,
+      });
+
       return res.status(200).json({
         success: true,
-        message: 'Expense approved successfully',
+        message: `Expense ${status} successfully`,
         data,
       });
     } catch (err) {
@@ -165,8 +172,11 @@ const financeController = {
   async rejectExpense(req, res, next) {
     try {
       const { id } = req.params;
-      const approverId = req.user?.userId || 1;
-      const data = await financeService.rejectExpense(id, approverId);
+      const approverId = req.user?.userId || req.user?.id || 1;
+      const data = await financeService.updateExpenseStatus(id, {
+        status: 'rejected',
+        approved_by: approverId,
+      });
       return res.status(200).json({
         success: true,
         message: 'Expense rejected',
@@ -181,7 +191,7 @@ const financeController = {
     try {
       const { id } = req.params;
       const { payment_mode } = req.body;
-      const reimburserId = req.user?.userId || 1;
+      const reimburserId = req.user?.userId || req.user?.id || 1;
       const data = await financeService.reimburseExpense(id, reimburserId, payment_mode);
       return res.status(200).json({
         success: true,

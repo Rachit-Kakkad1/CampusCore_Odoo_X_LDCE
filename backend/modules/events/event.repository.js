@@ -1,5 +1,6 @@
 // backend/modules/events/event.repository.js
 const { pool, query } = require('../../config/database');
+const { generateUniqueFallbackCode } = require('../../shared/qr/generateFallbackCode');
 
 /**
  * Event and Ticket Repository
@@ -7,7 +8,7 @@ const { pool, query } = require('../../config/database');
  */
 class EventRepository {
   /**
-   * Creates a new event record.
+   * Creates a new event record with optional volunteer requirements and ends_at.
    */
   async createEvent(data, client = null) {
     const {
@@ -15,16 +16,21 @@ class EventRepository {
       description = null,
       venue,
       starts_at,
+      ends_at = null,
       capacity,
       seats_remaining,
       member_price,
       non_member_price,
+      volunteers_enabled = false,
+      volunteers_required = 0,
       created_by = null,
     } = data;
 
+    const resolvedEndsAt = ends_at || new Date(new Date(starts_at).getTime() + 3 * 60 * 60 * 1000).toISOString();
+
     const queryText = `
-      INSERT INTO events (title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_by, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      INSERT INTO events (title, description, venue, starts_at, ends_at, capacity, seats_remaining, member_price, non_member_price, volunteers_enabled, volunteers_required, created_by, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
       RETURNING *;
     `;
     const params = [
@@ -32,10 +38,13 @@ class EventRepository {
       description,
       venue,
       starts_at,
+      resolvedEndsAt,
       capacity,
       seats_remaining !== undefined ? seats_remaining : capacity,
       member_price,
       non_member_price,
+      Boolean(volunteers_enabled),
+      parseInt(volunteers_required || 0, 10),
       created_by,
     ];
     const res = client ? await client.query(queryText, params) : await pool.query(queryText, params);
@@ -43,13 +52,24 @@ class EventRepository {
   }
 
   /**
-   * Retrieves all events ordered by starts_at ASC.
+   * Retrieves all events ordered by starts_at ASC with real-time computed_status and volunteer counts.
    */
   async getAllEvents() {
     const queryText = `
-      SELECT id, title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_by, created_at
-      FROM events
-      ORDER BY starts_at ASC;
+      SELECT e.id, e.title, e.description, e.venue, e.starts_at, e.ends_at, e.capacity, e.seats_remaining,
+             e.member_price, e.non_member_price, e.volunteers_enabled, e.volunteers_required,
+             e.status, e.cancelled_at, e.cancelled_by, e.cancellation_reason,
+             e.created_by, e.created_at,
+             CASE
+               WHEN e.status = 'cancelled' THEN 'cancelled'
+               WHEN NOW() < e.starts_at THEN 'upcoming'
+               WHEN NOW() >= e.starts_at AND NOW() <= COALESCE(e.ends_at, e.starts_at + INTERVAL '3 hours') THEN 'live'
+               ELSE 'past'
+             END AS computed_status,
+             (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved')) AS volunteers_applied,
+             GREATEST(0, e.volunteers_required - (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved'))) AS volunteers_remaining
+      FROM events e
+      ORDER BY e.starts_at ASC;
     `;
     const result = await pool.query(queryText);
     return result.rows;
@@ -60,13 +80,24 @@ class EventRepository {
   }
 
   /**
-   * Retrieves a single event by ID.
+   * Retrieves a single event by ID with computed_status and volunteer metrics.
    */
   async getEventById(id, client = pool) {
     const queryText = `
-      SELECT id, title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_by, created_at
-      FROM events
-      WHERE id = $1;
+      SELECT e.id, e.title, e.description, e.venue, e.starts_at, e.ends_at, e.capacity, e.seats_remaining,
+             e.member_price, e.non_member_price, e.volunteers_enabled, e.volunteers_required,
+             e.status, e.cancelled_at, e.cancelled_by, e.cancellation_reason,
+             e.created_by, e.created_at,
+             CASE
+               WHEN e.status = 'cancelled' THEN 'cancelled'
+               WHEN NOW() < e.starts_at THEN 'upcoming'
+               WHEN NOW() >= e.starts_at AND NOW() <= COALESCE(e.ends_at, e.starts_at + INTERVAL '3 hours') THEN 'live'
+               ELSE 'past'
+             END AS computed_status,
+             (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved')) AS volunteers_applied,
+             GREATEST(0, e.volunteers_required - (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved'))) AS volunteers_remaining
+      FROM events e
+      WHERE e.id = $1;
     `;
     const result = await client.query(queryText, [id]);
     return result.rows[0] || null;
@@ -81,13 +112,52 @@ class EventRepository {
    */
   async getEventByIdForUpdate(id, client) {
     const queryText = `
-      SELECT id, title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price
+      SELECT id, title, description, venue, starts_at, ends_at, capacity, seats_remaining,
+             member_price, non_member_price, volunteers_enabled, volunteers_required,
+             status, cancelled_at, cancelled_by, cancellation_reason
       FROM events
       WHERE id = $1
       FOR UPDATE;
     `;
     const result = await client.query(queryText, [id]);
     return result.rows[0] || null;
+  }
+
+  /**
+   * Updates an existing event record.
+   */
+  async updateEvent(id, data, client = pool) {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    const allowed = [
+      'title', 'description', 'venue', 'starts_at', 'ends_at',
+      'capacity', 'seats_remaining', 'member_price', 'non_member_price',
+      'volunteers_enabled', 'volunteers_required'
+    ];
+
+    for (const key of allowed) {
+      if (data[key] !== undefined) {
+        fields.push(`${key} = $${idx}`);
+        values.push(data[key]);
+        idx++;
+      }
+    }
+
+    if (fields.length === 0) {
+      return await this.getEventById(id, client);
+    }
+
+    values.push(id);
+    const queryText = `
+      UPDATE events
+      SET ${fields.join(', ')}
+      WHERE id = $${idx}
+      RETURNING *;
+    `;
+    const res = await client.query(queryText, values);
+    return res.rows[0] || null;
   }
 
   /**
@@ -171,9 +241,13 @@ class EventRepository {
   /**
    * Creates a ticket record.
    */
+  /**
+   * Creates a ticket record with guaranteed unique human-readable fallback code.
+   */
   async createTicket(data, client = pool) {
-    const {
+    let {
       ticket_code,
+      fallback_code = null,
       event_id,
       user_id = null,
       attendee_id = null,
@@ -183,13 +257,18 @@ class EventRepository {
       checkout_session_id = null,
     } = data;
 
+    if (!fallback_code) {
+      fallback_code = await generateUniqueFallbackCode(client);
+    }
+
     const queryText = `
-      INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status, checkout_session_id, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      INSERT INTO tickets (ticket_code, fallback_code, event_id, user_id, attendee_id, price, price_type, payment_status, checkout_session_id, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       RETURNING *;
     `;
     const result = await client.query(queryText, [
       ticket_code,
+      fallback_code,
       event_id,
       user_id,
       attendee_id,
@@ -239,9 +318,12 @@ class EventRepository {
   }
 
   /**
-   * Retrieves a ticket by ticket_code supporting both registered user and attendee tickets.
+   * Retrieves a ticket by ticket_code OR short fallback_code (case-insensitive).
+   * Supports both registered user and attendee tickets.
    */
   async getTicketByCode(ticketCode, client = pool) {
+    if (!ticketCode) return null;
+    const cleanCode = ticketCode.trim();
     const queryText = `
       SELECT t.*,
              COALESCE(u.name, a.name) as user_name,
@@ -252,9 +334,9 @@ class EventRepository {
       LEFT JOIN users u ON t.user_id = u.id
       LEFT JOIN event_attendees a ON t.attendee_id = a.id
       JOIN events e ON t.event_id = e.id
-      WHERE t.ticket_code = $1;
+      WHERE t.ticket_code = $1 OR UPPER(t.fallback_code) = UPPER($1);
     `;
-    const result = await client.query(queryText, [ticketCode]);
+    const result = await client.query(queryText, [cleanCode]);
     return result.rows[0] || null;
   }
 
@@ -263,7 +345,7 @@ class EventRepository {
    */
   async getTicketsByUserId(userId) {
     const queryText = `
-      SELECT t.id, t.ticket_code, t.event_id, t.price, t.price_type, t.payment_status,
+      SELECT t.id, t.ticket_code, t.fallback_code, t.event_id, t.price, t.price_type, t.payment_status,
              t.checked_in_at, t.created_at,
              e.title as event_title, e.venue as event_venue, e.starts_at as event_starts_at
       FROM tickets t
@@ -305,6 +387,123 @@ class EventRepository {
     `;
     const result = await client.query(queryText, [checkedInBy, ticketId]);
     return result.rows[0] || null;
+  }
+
+  // =========================================================================
+  // VOLUNTEER APPLICATION METHODS
+  // =========================================================================
+
+  /**
+   * Applies a volunteer for an event.
+   */
+  async applyAsVolunteer({ event_id, user_id }, client = pool) {
+    const queryText = `
+      INSERT INTO event_volunteers (event_id, user_id, status, applied_at, created_at, updated_at)
+      VALUES ($1, $2, 'pending', NOW(), NOW(), NOW())
+      RETURNING *;
+    `;
+    const res = await client.query(queryText, [event_id, user_id]);
+    return res.rows[0];
+  }
+
+  /**
+   * Counts active volunteer applications (pending or approved).
+   */
+  async getActiveVolunteerCount(eventId, client = pool) {
+    const queryText = `
+      SELECT COUNT(*)::int as count
+      FROM event_volunteers
+      WHERE event_id = $1 AND status IN ('pending', 'approved');
+    `;
+    const res = await client.query(queryText, [eventId]);
+    return res.rows[0] ? parseInt(res.rows[0].count, 10) : 0;
+  }
+
+  /**
+   * Checks if user already applied for this event.
+   */
+  async getVolunteerApplicationByUserAndEvent(eventId, userId, client = pool) {
+    const queryText = `
+      SELECT * FROM event_volunteers
+      WHERE event_id = $1 AND user_id = $2;
+    `;
+    const res = await client.query(queryText, [eventId, userId]);
+    return res.rows[0] || null;
+  }
+
+  /**
+   * Retrieves all volunteer applications for an event with user details.
+   */
+  async getVolunteerApplications(eventId, client = pool) {
+    const queryText = `
+      SELECT ev.*,
+             u.name as user_name, u.email as user_email, u.role as user_role,
+             app_u.name as approved_by_name,
+             rem_u.name as removed_by_name
+      FROM event_volunteers ev
+      JOIN users u ON ev.user_id = u.id
+      LEFT JOIN users app_u ON ev.approved_by = app_u.id
+      LEFT JOIN users rem_u ON ev.removed_by = rem_u.id
+      WHERE ev.event_id = $1
+      ORDER BY ev.applied_at ASC;
+    `;
+    const res = await client.query(queryText, [eventId]);
+    return res.rows;
+  }
+
+  /**
+   * Retrieves a single volunteer application by ID.
+   */
+  async getVolunteerApplicationById(applicationId, client = pool) {
+    const queryText = `
+      SELECT ev.*,
+             u.name as user_name, u.email as user_email,
+             e.title as event_title, e.volunteers_required, e.volunteers_enabled
+      FROM event_volunteers ev
+      JOIN users u ON ev.user_id = u.id
+      JOIN events e ON ev.event_id = e.id
+      WHERE ev.id = $1;
+    `;
+    const res = await client.query(queryText, [applicationId]);
+    return res.rows[0] || null;
+  }
+
+  /**
+   * Updates volunteer application status (approved, rejected, removed) with audit fields.
+   */
+  async updateVolunteerApplicationStatus(applicationId, { status, approved_by = null, removed_by = null }, client = pool) {
+    const queryText = `
+      UPDATE event_volunteers
+      SET status = $2::varchar,
+          approved_at = CASE WHEN $2::varchar = 'approved' THEN NOW() ELSE approved_at END,
+          approved_by = CASE WHEN $2::varchar = 'approved' THEN $3::int ELSE approved_by END,
+          removed_at = CASE WHEN $2::varchar = 'removed' THEN NOW() ELSE removed_at END,
+          removed_by = CASE WHEN $2::varchar = 'removed' THEN $4::int ELSE removed_by END,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `;
+    const res = await client.query(queryText, [applicationId, status, approved_by, removed_by]);
+    return res.rows[0] || null;
+  }
+
+  /**
+   * Retrieves all event applications submitted by a user.
+   */
+  async getUserVolunteerApplications(userId, client = pool) {
+    const queryText = `
+      SELECT ev.*,
+             e.title as event_title, e.venue as event_venue, e.starts_at as event_starts_at,
+             e.ends_at as event_ends_at, e.volunteers_required,
+             (SELECT COUNT(*)::int FROM event_volunteers ev2 WHERE ev2.event_id = e.id AND ev2.status IN ('pending', 'approved')) as volunteers_applied,
+             GREATEST(0, e.volunteers_required - (SELECT COUNT(*)::int FROM event_volunteers ev2 WHERE ev2.event_id = e.id AND ev2.status IN ('pending', 'approved'))) as volunteers_remaining
+      FROM event_volunteers ev
+      JOIN events e ON ev.event_id = e.id
+      WHERE ev.user_id = $1
+      ORDER BY ev.applied_at DESC;
+    `;
+    const res = await client.query(queryText, [userId]);
+    return res.rows;
   }
 }
 

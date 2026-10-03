@@ -227,6 +227,7 @@ async function runTests() {
   } finally {
     server.close();
     await pool.end();
+    process.exit(failed > 0 ? 1 : 0);
   }
 }
 

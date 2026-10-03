@@ -23,7 +23,7 @@ class AuthRepository {
    */
   async getUserByEmail(email, client = pool) {
     const queryText = `
-      SELECT id, name, email, password_hash, role, created_at
+      SELECT id, name, email, password_hash, role, failed_login_attempts, locked_until, last_login_at, created_at
       FROM users
       WHERE LOWER(email) = LOWER($1);
     `;
@@ -42,6 +42,137 @@ class AuthRepository {
     `;
     const result = await client.query(queryText, [id]);
     return result.rows[0] || null;
+  }
+
+  /**
+   * Retrieves all users with associated membership information and counts.
+   */
+  async getAllUsers(client = pool) {
+    const queryText = `
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.created_at,
+        m.id AS membership_id,
+        m.member_code,
+        m.status AS membership_raw_status,
+        m.dues_status,
+        m.dues_amount,
+        m.started_at,
+        m.expiry_date,
+        CASE 
+          WHEN m.id IS NULL THEN 'NO_MEMBERSHIP'
+          WHEN m.status = 'cancelled' THEN 'CANCELLED'
+          WHEN m.status = 'expired' OR (m.status = 'active' AND m.expiry_date <= NOW()) THEN 'EXPIRED'
+          WHEN m.status = 'active' AND m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW()) THEN 'ACTIVE'
+          WHEN m.dues_status = 'pending' THEN 'PENDING'
+          ELSE UPPER(COALESCE(m.status, 'PENDING'))
+        END AS membership_status,
+        COALESCE((SELECT COUNT(*) FROM tickets t WHERE t.user_id = u.id), 0)::int AS ticket_count,
+        COALESCE((SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id), 0)::int AS order_count
+      FROM users u
+      LEFT JOIN (
+        SELECT DISTINCT ON (user_id) *
+        FROM memberships
+        ORDER BY user_id, 
+          CASE status
+            WHEN 'active' THEN 1
+            WHEN 'pending' THEN 2
+            WHEN 'expired' THEN 3
+            WHEN 'cancelled' THEN 4
+            ELSE 5
+          END,
+          created_at DESC
+      ) m ON u.id = m.user_id
+      ORDER BY u.id ASC;
+    `;
+    const result = await client.query(queryText);
+    return result.rows;
+  }
+
+  /**
+   * Updates a user's role.
+   */
+  async updateUserRole(id, role, client = pool) {
+    const queryText = `
+      UPDATE users
+      SET role = $2
+      WHERE id = $1
+      RETURNING id, name, email, role, created_at;
+    `;
+    const result = await client.query(queryText, [id, role]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Deletes a user by ID.
+   */
+  async deleteUser(id, client = pool) {
+    const queryText = `
+      DELETE FROM users
+      WHERE id = $1
+      RETURNING id, name, email, role;
+    `;
+    const result = await client.query(queryText, [id]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Aggregates user metrics for dashboard analytics.
+   */
+  async getUserStats(client = pool) {
+    const totalUsersRes = await client.query('SELECT COUNT(*)::int AS total FROM users');
+    const rolesRes = await client.query(`
+      SELECT role, COUNT(*)::int AS count
+      FROM users
+      GROUP BY role
+      ORDER BY count DESC
+    `);
+    const membershipStatusRes = await client.query(`
+      SELECT 
+        CASE 
+          WHEN m.id IS NULL THEN 'NO_MEMBERSHIP'
+          WHEN m.status = 'cancelled' THEN 'CANCELLED'
+          WHEN m.status = 'expired' OR (m.status = 'active' AND m.expiry_date <= NOW()) THEN 'EXPIRED'
+          WHEN m.status = 'active' AND m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW()) THEN 'ACTIVE'
+          WHEN m.dues_status = 'pending' THEN 'PENDING'
+          ELSE UPPER(COALESCE(m.status, 'PENDING'))
+        END AS status,
+        COUNT(*)::int AS count
+      FROM users u
+      LEFT JOIN (
+        SELECT DISTINCT ON (user_id) *
+        FROM memberships
+        ORDER BY user_id, 
+          CASE status
+            WHEN 'active' THEN 1
+            WHEN 'pending' THEN 2
+            WHEN 'expired' THEN 3
+            WHEN 'cancelled' THEN 4
+            ELSE 5
+          END,
+          created_at DESC
+      ) m ON u.id = m.user_id
+      GROUP BY 1
+    `);
+    
+    const timelineRes = await client.query(`
+      SELECT 
+        TO_CHAR(created_at, 'YYYY-MM') AS month,
+        COUNT(*)::int AS count
+      FROM users
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+      ORDER BY month ASC
+    `);
+
+    return {
+      totalUsers: totalUsersRes.rows[0].total,
+      roleDistribution: rolesRes.rows,
+      membershipDistribution: membershipStatusRes.rows,
+      timeline: timelineRes.rows,
+    };
   }
 }
 

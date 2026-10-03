@@ -86,59 +86,107 @@ const financeRepository = {
   },
 
   /**
-   * Get financial summary overview
+   * Get financial summary overview with telemetry, stream breakdown and pending claims
    */
   async getOverview() {
     try {
-      const sql = `
+      // 1. Balance and totals
+      const totalsSql = `
         SELECT
           COALESCE(SUM(CASE WHEN direction = 'in' AND status = 'paid' THEN amount END), 0)::NUMERIC AS total_income,
           COALESCE(SUM(CASE WHEN direction = 'out' AND status = 'paid' THEN amount END), 0)::NUMERIC AS total_expenses,
           (COALESCE(SUM(CASE WHEN direction = 'in' AND status = 'paid' THEN amount END), 0) - COALESCE(SUM(CASE WHEN direction = 'out' AND status = 'paid' THEN amount END), 0))::NUMERIC AS balance,
-          COUNT(*)::INT AS total_transactions,
-          (SELECT COUNT(*)::INT FROM expenses WHERE status = 'pending') AS pending_expenses_count,
-          (SELECT COALESCE(SUM(dues_amount), 0)::NUMERIC FROM memberships WHERE dues_status = 'pending') AS unpaid_dues_total,
-          (SELECT COUNT(*)::INT FROM memberships WHERE dues_status = 'pending') AS unpaid_dues_count
+          COUNT(*)::INT AS total_transactions
         FROM transactions;
       `;
-      const res = await query(sql);
-      return res.rows[0] || {
-        total_income: '0.00',
-        total_expenses: '0.00',
-        balance: '0.00',
-        total_transactions: 0,
-        pending_expenses_count: 0,
-        unpaid_dues_total: '0.00',
-        unpaid_dues_count: 0
+      const totalsRes = await query(totalsSql);
+      const totals = totalsRes.rows[0] || { total_income: '0.00', total_expenses: '0.00', balance: '0.00', total_transactions: 0 };
+
+      // 2. Pending expenses count and sum
+      const expSql = `
+        SELECT
+          COUNT(*)::INT as count,
+          COALESCE(SUM(amount), 0)::NUMERIC as total
+        FROM expenses
+        WHERE status = 'pending';
+      `;
+      const expRes = await query(expSql);
+      const pendingExpenses = expRes.rows[0] || { count: 0, total: '0.00' };
+
+      // 3. Pending membership dues
+      const duesSql = `
+        SELECT
+          COUNT(*)::INT as count,
+          COALESCE(SUM(dues_amount), 0)::NUMERIC as total
+        FROM memberships
+        WHERE dues_status = 'pending';
+      `;
+      const duesRes = await query(duesSql);
+      const pendingDues = duesRes.rows[0] || { count: 0, total: '0.00' };
+
+      // 4. Stream breakdown by source_type (paid inflows)
+      const streamsSql = `
+        SELECT
+          source_type,
+          COALESCE(SUM(amount), 0)::NUMERIC as total,
+          COUNT(*)::INT as count
+        FROM transactions
+        WHERE status = 'paid' AND direction = 'in'
+        GROUP BY source_type
+        ORDER BY total DESC;
+      `;
+      const streamsRes = await query(streamsSql);
+      const streams = streamsRes.rows || [];
+
+      // 5. Recent transactions
+      const recentSql = `
+        SELECT 
+          t.*,
+          u.name AS user_name,
+          u.email AS user_email
+        FROM transactions t
+        LEFT JOIN users u ON t.user_id = u.id
+        ORDER BY t.created_at DESC
+        LIMIT 15;
+      `;
+      const recentRes = await query(recentSql);
+
+      return {
+        ...totals,
+        pending_expenses: pendingExpenses,
+        pending_expenses_count: pendingExpenses.count,
+        pending_dues: pendingDues,
+        unpaid_dues_total: pendingDues.total,
+        unpaid_dues_count: pendingDues.count,
+        stream_breakdown: streams,
+        recent_transactions: recentRes.rows || [],
       };
-    } catch {
+    } catch (err) {
+      console.error('Error fetching financial overview:', err);
       return {
         total_income: '0.00',
         total_expenses: '0.00',
         balance: '0.00',
         total_transactions: 0,
+        pending_expenses: { count: 0, total: '0.00' },
         pending_expenses_count: 0,
+        pending_dues: { count: 0, total: '0.00' },
         unpaid_dues_total: '0.00',
-        unpaid_dues_count: 0
+        unpaid_dues_count: 0,
+        stream_breakdown: [],
+        recent_transactions: [],
       };
     }
   },
 
   /**
-   * Get all transactions in immutable ledger
+   * Get all transactions with optional filter
    */
-  async getAllTransactions({ limit = 100, offset = 0, source_type = null, direction = null } = {}) {
+  async getAllTransactions({ limit = 100, offset = 0, sourceType = null, source_type = null, direction = null } = {}) {
+    const filterSource = sourceType || source_type;
     let sql = `
       SELECT 
-        t.id,
-        t.source_type,
-        t.source_id,
-        t.user_id,
-        t.amount,
-        t.direction,
-        t.payment_mode,
-        t.status,
-        t.created_at,
+        t.*,
         u.name AS user_name,
         u.email AS user_email,
         u.role AS user_role
@@ -148,8 +196,8 @@ const financeRepository = {
     `;
     const params = [];
 
-    if (source_type) {
-      params.push(source_type);
+    if (filterSource && filterSource !== 'all') {
+      params.push(filterSource);
       sql += ` AND t.source_type = $${params.length}`;
     }
 
@@ -158,8 +206,10 @@ const financeRepository = {
       sql += ` AND t.direction = $${params.length}`;
     }
 
-    sql += ` ORDER BY t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2};`;
+    sql += ' ORDER BY t.created_at DESC';
+
     params.push(limit, offset);
+    sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
     const res = await query(sql, params);
     return res.rows;
@@ -190,29 +240,19 @@ const financeRepository = {
   },
 
   /**
-   * Get all expenses
+   * Get all expenses with submitter and approver details
    */
   async getAllExpenses({ status = null } = {}) {
     let sql = `
       SELECT 
-        e.id,
-        e.submitted_by,
-        e.amount,
-        e.description,
-        e.receipt_url,
-        e.status,
-        e.approved_by,
-        e.approved_at,
-        e.reimbursed_by,
-        e.reimbursed_at,
-        e.created_at,
+        e.*,
         u_sub.name AS submitter_name,
         u_sub.email AS submitter_email,
         u_sub.role AS submitter_role,
         u_app.name AS approver_name,
         u_reimb.name AS reimburser_name
       FROM expenses e
-      JOIN users u_sub ON e.submitted_by = u_sub.id
+      LEFT JOIN users u_sub ON e.submitted_by = u_sub.id
       LEFT JOIN users u_app ON e.approved_by = u_app.id
       LEFT JOIN users u_reimb ON e.reimbursed_by = u_reimb.id
       WHERE 1=1
@@ -235,23 +275,13 @@ const financeRepository = {
   async getExpenseById(id) {
     const sql = `
       SELECT 
-        e.id,
-        e.submitted_by,
-        e.amount,
-        e.description,
-        e.receipt_url,
-        e.status,
-        e.approved_by,
-        e.approved_at,
-        e.reimbursed_by,
-        e.reimbursed_at,
-        e.created_at,
+        e.*,
         u_sub.name AS submitter_name,
         u_sub.email AS submitter_email,
         u_app.name AS approver_name,
         u_reimb.name AS reimburser_name
       FROM expenses e
-      JOIN users u_sub ON e.submitted_by = u_sub.id
+      LEFT JOIN users u_sub ON e.submitted_by = u_sub.id
       LEFT JOIN users u_app ON e.approved_by = u_app.id
       LEFT JOIN users u_reimb ON e.reimbursed_by = u_reimb.id
       WHERE e.id = $1;
@@ -261,7 +291,7 @@ const financeRepository = {
   },
 
   /**
-   * Create new expense
+   * Create an expense claim
    */
   async createExpense({ submitted_by, amount, description, receipt_url = null }) {
     const sql = `
@@ -274,27 +304,30 @@ const financeRepository = {
   },
 
   /**
-   * Update expense status (approve or reject)
+   * Approve or reject an expense claim
    */
-  async updateExpenseStatus(id, status, approverId) {
+  async updateExpenseStatus(id, { status, approved_by } = {}) {
+    const approver = approved_by || arguments[2];
+    const newStatus = typeof status === 'string' ? status : arguments[1];
+
     let sql;
     let params;
-    if (status === 'approved') {
+    if (newStatus === 'approved') {
       sql = `
         UPDATE expenses
         SET status = 'approved', approved_by = $2, approved_at = NOW()
         WHERE id = $1
         RETURNING *;
       `;
-      params = [id, approverId];
-    } else if (status === 'rejected') {
+      params = [id, approver];
+    } else if (newStatus === 'rejected') {
       sql = `
         UPDATE expenses
         SET status = 'rejected', approved_by = $2, approved_at = NOW()
         WHERE id = $1
         RETURNING *;
       `;
-      params = [id, approverId];
+      params = [id, approver];
     } else {
       sql = `
         UPDATE expenses
@@ -302,10 +335,23 @@ const financeRepository = {
         WHERE id = $1
         RETURNING *;
       `;
-      params = [id, status];
+      params = [id, newStatus];
     }
+
     const res = await query(sql, params);
-    return res.rows[0] || null;
+    const updated = res.rows[0];
+
+    // If approved, create a corresponding transaction outflow
+    if (updated && newStatus === 'approved') {
+      const txSql = `
+        INSERT INTO transactions (source_type, source_id, amount, direction, status, created_at)
+        VALUES ('expense', $1, $2, 'out', 'paid', NOW())
+        ON CONFLICT DO NOTHING;
+      `;
+      await query(txSql, [updated.id, updated.amount]);
+    }
+
+    return updated;
   },
 
   /**

@@ -53,9 +53,15 @@ export const financeService = {
   /**
    * Approve an expense (Treasurer / Admin)
    */
-  async approveExpense(id) {
-    const res = await api.post(`/finance/expenses/${id}/approve`);
-    return res.data;
+  async approveExpense(id, status = 'approved') {
+    // Supports both endpoint conventions
+    try {
+      const res = await api.post(`/finance/expenses/${id}/approve`);
+      return res.data;
+    } catch {
+      const res = await api.patch(`/finance/expenses/${id}/approve`, { status });
+      return res.data;
+    }
   },
 
   /**

@@ -1,7 +1,7 @@
 // frontend/src/components/merchandise/AdminProductList.jsx
 import React, { useState } from 'react';
-import { ActionButton } from '../dashboard/ActionButton';
-import { Check, Edit3, Save } from 'lucide-react';
+import { Check, Edit3, Save, Package, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { ThreeDCard } from '../dashboard/charts/ThreeDCharts';
 
 export const AdminProductList = ({
   products = [],
@@ -41,94 +41,165 @@ export const AdminProductList = ({
     return (
       <div className="space-y-4">
         {[1, 2].map((i) => (
-          <div key={i} className="h-32 border border-[#e5e4de] bg-white/50 animate-pulse"></div>
+          <div key={i} className="h-36 border border-border bg-white animate-pulse rounded-xs" />
         ))}
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="p-12 border border-border bg-white text-center font-mono text-xs text-slate-500">
+        No catalog items match your search.
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {products.map((product) => (
-        <div
-          key={product.id}
-          className="border border-[#e5e4de] bg-[#f7f6f2] p-6 space-y-4"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#e5e4de]">
-            <div>
-              <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50">
-                Product ID: #{product.id}
-              </span>
-              <h4 className="font-serif text-2xl text-[#1c1c1c]">
-                {product.name}
-              </h4>
-            </div>
-            <div className="font-mono text-base font-bold text-[#5F3F56]">
-              Base Price: ₹{Number(product.price).toFixed(2)}
-            </div>
-          </div>
+      {products.map((product) => {
+        const totalStock = (product.sizes || []).reduce(
+          (sum, s) => sum + (parseInt(s.stock, 10) || 0),
+          0
+        );
 
-          {/* Size Variant Stock Controls */}
-          <div>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[#1c1c1c]/60 block mb-2 font-semibold">
-              Live Size-Level Inventory
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              {product.sizes?.map((s) => {
-                const key = `${product.id}-${s.size}`;
-                const inputValue = stockInputs[key] !== undefined ? stockInputs[key] : s.stock;
-                const isSaving = savingKey === key;
-                const isSaved = successKey === key;
-
-                return (
+        return (
+          <ThreeDCard
+            key={product.id}
+            className="p-6 space-y-4"
+            accentGlow="rgba(95, 63, 86, 0.15)"
+          >
+            {/* Product Top Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-xs flex items-center justify-center overflow-hidden shrink-0">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                      className="w-10 h-10 object-contain"
+                    />
+                  ) : null}
                   <div
-                    key={s.size}
-                    className="p-3 bg-white/80 border border-[#e5e4de] space-y-2"
+                    className="w-full h-full flex items-center justify-center text-slate-400"
+                    style={{ display: product.image_url ? 'none' : 'flex' }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-[#5F3F56]">
-                        Size: {s.size}
-                      </span>
-                      <span className={`font-mono text-[10px] ${
-                        Number(s.stock) <= 0
-                          ? 'text-red-600 font-bold'
-                          : Number(s.stock) === 1
-                          ? 'text-amber-600 font-bold'
-                          : 'text-[#1c1c1c]/60'
-                      }`}>
-                        {Number(s.stock) <= 0 ? 'Out of Stock' : `${s.stock} in stock`}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={inputValue}
-                        onChange={(e) => handleInputChange(product.id, s.size, e.target.value)}
-                        className="w-full p-1.5 bg-white border border-[#e5e4de] font-mono text-xs text-center focus:outline-none focus:border-[#5F3F56]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleSaveStock(product.id, s.size, s.stock)}
-                        disabled={isSaving}
-                        className={`p-1.5 border font-mono text-xs transition-all ${
-                          isSaved
-                            ? 'bg-green-100 border-green-300 text-green-800'
-                            : 'bg-[#1c1c1c] text-white border-[#1c1c1c] hover:bg-[#5F3F56]'
-                        }`}
-                        title="Update stock count"
-                      >
-                        {isSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
+                    <ShoppingBag className="w-5 h-5 text-slate-400" />
                   </div>
-                );
-              })}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10px] uppercase font-bold text-slate-400">
+                      ID: #{product.id}
+                    </span>
+                    <span className={`text-[10px] font-mono px-2 py-0.2 rounded-xs font-bold uppercase ${
+                      totalStock <= 0
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : totalStock <= 10
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}>
+                      {totalStock <= 0 ? 'Out of Stock' : `${totalStock} in stock`}
+                    </span>
+                  </div>
+                  <h4 className="text-xl font-bold text-slate-900 tracking-tight">
+                    {product.name}
+                  </h4>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-mono text-slate-400 block">
+                    Base Unit Price
+                  </span>
+                  <span className="font-mono text-lg font-bold text-slate-900">
+                    ₹{Number(product.price).toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+
+            {/* Size Variant Stock Controls */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                  Size Variant Stock Allocation
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  Direct warehouse inventory update
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {product.sizes?.map((s) => {
+                  const key = `${product.id}-${s.size}`;
+                  const inputValue = stockInputs[key] !== undefined ? stockInputs[key] : s.stock;
+                  const isSaving = savingKey === key;
+                  const isSaved = successKey === key;
+
+                  return (
+                    <div
+                      key={s.size}
+                      className="p-3 bg-slate-50 hover:bg-white border border-slate-200 rounded-xs space-y-2 transition-all shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-primary">
+                          Size: {s.size}
+                        </span>
+                        <span
+                          className={`font-mono text-[10px] font-bold ${
+                            Number(s.stock) <= 0
+                              ? 'text-rose-600'
+                              : Number(s.stock) <= 3
+                              ? 'text-amber-600'
+                              : 'text-slate-500'
+                          }`}
+                        >
+                          {Number(s.stock) <= 0 ? 'Depleted' : `${s.stock} left`}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={inputValue}
+                          onChange={(e) => handleInputChange(product.id, s.size, e.target.value)}
+                          className="w-full p-2 bg-white border border-slate-200 font-mono text-xs text-center font-bold text-slate-900 rounded-xs focus:outline-none focus:border-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveStock(product.id, s.size, s.stock)}
+                          disabled={isSaving}
+                          className={`p-2 border font-mono text-xs rounded-xs transition-all cursor-pointer ${
+                            isSaved
+                              ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                              : 'bg-primary text-white border-primary hover:bg-primary/90'
+                          }`}
+                          title="Save stock value"
+                        >
+                          {isSaved ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-800" />
+                          ) : (
+                            <Save className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ThreeDCard>
+        );
+      })}
     </div>
   );
 };

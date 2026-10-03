@@ -304,6 +304,7 @@ async function runMembershipTests() {
   } finally {
     server.close();
     await pool.end();
+    process.exit(failed > 0 ? 1 : 0);
   }
 }
 

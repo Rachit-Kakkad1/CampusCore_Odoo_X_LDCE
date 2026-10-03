@@ -34,7 +34,7 @@ const financeService = {
     return await financeRepository.getOverview();
   },
 
-  async getTransactions(query) {
+  async getTransactions(query = {}) {
     return await financeRepository.getAllTransactions(query);
   },
 
@@ -42,7 +42,7 @@ const financeService = {
     return await financeRepository.getOwingMembers();
   },
 
-  async getExpenses(query) {
+  async getExpenses(query = {}) {
     return await financeRepository.getAllExpenses(query);
   },
 
@@ -70,7 +70,12 @@ const financeService = {
     return await financeRepository.createExpense(data);
   },
 
-  async approveExpense(id, approverId) {
+  async updateExpenseStatus(id, { status, approved_by }) {
+    if (!['approved', 'rejected'].includes(status)) {
+      const err = new Error('Invalid status. Must be approved or rejected.');
+      err.status = 400;
+      throw err;
+    }
     const expense = await financeRepository.getExpenseById(id);
     if (!expense) {
       const err = new Error('Expense not found');
@@ -82,25 +87,24 @@ const financeService = {
       err.status = 400;
       throw err;
     }
-    return await financeRepository.updateExpenseStatus(id, 'approved', approverId);
+    return await financeRepository.updateExpenseStatus(id, { status, approved_by });
+  },
+
+  async approveExpense(id, approverId) {
+    return await this.updateExpenseStatus(id, { status: 'approved', approved_by: approverId });
   },
 
   async rejectExpense(id, approverId) {
+    return await this.updateExpenseStatus(id, { status: 'rejected', approved_by: approverId });
+  },
+
+  async reimburseExpense(id, reimburserId, paymentMode) {
     const expense = await financeRepository.getExpenseById(id);
     if (!expense) {
       const err = new Error('Expense not found');
       err.status = 404;
       throw err;
     }
-    if (expense.status === 'reimbursed') {
-      const err = new Error('Cannot reject an already reimbursed expense');
-      err.status = 400;
-      throw err;
-    }
-    return await financeRepository.updateExpenseStatus(id, 'rejected', approverId);
-  },
-
-  async reimburseExpense(id, reimburserId, paymentMode) {
     return await financeRepository.reimburseExpense(id, reimburserId, paymentMode);
   }
 };

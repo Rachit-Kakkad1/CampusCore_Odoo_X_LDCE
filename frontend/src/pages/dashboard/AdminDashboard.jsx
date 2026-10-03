@@ -6,11 +6,13 @@ import { DashboardLoadingState } from '../../components/dashboard/DashboardLoadi
 import { DashboardErrorState } from '../../components/dashboard/DashboardErrorState';
 import {
   AdminOverview,
+  AdminUserManagement,
   AdminMemberManagement,
   AdminEventManagement,
   AdminMerchandiseManagement,
   AdminFundraiserManagement,
   AdminAnnouncementManagement,
+  AdminSecurityManagement,
 } from '../../components/dashboard/admin';
 import membershipService from '../../services/membership.service';
 import eventsService from '../../services/events.service';
@@ -23,37 +25,37 @@ export const AdminDashboard = () => {
   const user = authService.getStoredUser();
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Determine active tab from URL pathname
-  const getTabFromPath = (pathname) => {
-    if (pathname.includes('/events')) return 'events';
-    if (pathname.includes('/members') || pathname.includes('/users')) return 'members';
-    if (pathname.includes('/store') || pathname.includes('/merchandise')) return 'merchandise';
-    if (pathname.includes('/fundraisers')) return 'fundraisers';
-    if (pathname.includes('/announcements')) return 'announcements';
+  // Tab State synchronized with URL path
+  const getTabFromLocation = useCallback((pathname) => {
+    if (pathname.includes('/dashboard/admin/users')) return 'users';
+    if (pathname.includes('/dashboard/admin/members')) return 'members';
+    if (pathname.includes('/dashboard/admin/events')) return 'events';
+    if (pathname.includes('/dashboard/admin/store') || pathname.includes('/dashboard/admin/merchandise')) return 'merchandise';
+    if (pathname.includes('/dashboard/admin/fundraisers')) return 'fundraisers';
+    if (pathname.includes('/dashboard/admin/announcements')) return 'announcements';
+    if (pathname.includes('/dashboard/admin/security')) return 'security';
     return 'overview';
-  };
+  }, []);
 
-  // Tab State: 'overview' | 'members' | 'events' | 'merchandise' | 'fundraisers' | 'announcements'
-  const [activeTab, setActiveTab] = useState(() => getTabFromPath(location.pathname));
+  const [activeTab, setActiveTab] = useState(() => getTabFromLocation(location.pathname));
 
   useEffect(() => {
-    const tabFromUrl = getTabFromPath(location.pathname);
-    setActiveTab(tabFromUrl);
-  }, [location.pathname]);
+    setActiveTab(getTabFromLocation(location.pathname));
+  }, [location.pathname, getTabFromLocation]);
 
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    if (newTab === 'overview') {
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === 'overview') {
       navigate('/dashboard/admin');
-    } else if (newTab === 'merchandise') {
+    } else if (tabId === 'merchandise') {
       navigate('/dashboard/admin/store');
     } else {
-      navigate(`/dashboard/admin/${newTab}`);
+      navigate(`/dashboard/admin/${tabId}`);
     }
   };
 
   // Business Data States
+  const [users, setUsers] = useState([]);
   const [members, setMembers] = useState([]);
   const [events, setEvents] = useState([]);
   const [products, setProducts] = useState([]);
@@ -71,6 +73,7 @@ export const AdminDashboard = () => {
       setError(null);
 
       const [
+        usersRes,
         memRes,
         evRes,
         prodRes,
@@ -78,6 +81,7 @@ export const AdminDashboard = () => {
         fundRes,
         annRes,
       ] = await Promise.allSettled([
+        authService.getAllUsers().catch(() => ({ data: [] })),
         membershipService.getAllMemberships(),
         eventsService.getEvents(),
         merchandiseService.getProducts(),
@@ -85,6 +89,11 @@ export const AdminDashboard = () => {
         financeService.getFundraisers().catch(() => ({ data: [] })),
         announcementsService.getAnnouncements(),
       ]);
+
+      if (usersRes.status === 'fulfilled') {
+        const uList = usersRes.value?.data || usersRes.value || [];
+        setUsers(Array.isArray(uList) ? uList : []);
+      }
 
       if (memRes.status === 'fulfilled') {
         const mList = memRes.value?.data || memRes.value || [];
@@ -127,6 +136,58 @@ export const AdminDashboard = () => {
     loadAllData();
   }, [loadAllData]);
 
+  // User Handlers
+  const handleCreateUser = async (userData) => {
+    try {
+      await authService.createUser(userData);
+      setNotification({
+        type: 'success',
+        message: `Account created for ${userData.name} with role ${userData.role.toUpperCase()}.`,
+      });
+      await loadAllData();
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.message || 'Failed to create user account',
+      });
+      throw err;
+    }
+  };
+
+  const handleUpdateRole = async (userId, newRole) => {
+    try {
+      await authService.updateUserRole(userId, newRole);
+      setNotification({
+        type: 'success',
+        message: `User authority role updated to ${newRole.toUpperCase()}.`,
+      });
+      await loadAllData();
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.message || 'Failed to update user role',
+      });
+      throw err;
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      await authService.deleteUser(userId);
+      setNotification({
+        type: 'success',
+        message: 'User account removed from database.',
+      });
+      await loadAllData();
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.message || 'Failed to delete user',
+      });
+      throw err;
+    }
+  };
+
   // Member Handlers
   const handleActivateDues = async (membershipId) => {
     try {
@@ -160,6 +221,23 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleCancelMember = async (membershipId, reason = 'Admin manual cancellation') => {
+    try {
+      await membershipService.cancelMembership(membershipId, reason);
+      setNotification({
+        type: 'success',
+        message: 'Membership cancelled successfully. User account and tickets remain intact.',
+      });
+      await loadAllData();
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.message || 'Failed to cancel membership',
+      });
+      throw err;
+    }
+  };
+
   // Stock update handler
   const handleUpdateStock = async (productId, size, stock) => {
     try {
@@ -184,18 +262,20 @@ export const AdminDashboard = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'users', label: `Users (${users.length})` },
     { id: 'members', label: `Members (${members.length})` },
     { id: 'events', label: `Events (${events.length})` },
     { id: 'merchandise', label: `Merchandise (${products.length})` },
     { id: 'fundraisers', label: `Fundraisers (${fundraisers.length})` },
     { id: 'announcements', label: `Announcements (${announcements.length})` },
+    { id: 'security', label: 'Security & Audit' },
   ];
 
   return (
     <DashboardShell activeRole="admin">
       <DashboardPageHeader
         title="Organization Administration"
-        subtitle={`Welcome, ${user?.name || 'Admin'}. Full authority over memberships, event programming, store catalog, and announcements.`}
+        subtitle={`Welcome, ${user?.name || 'Admin'}. Full authority over memberships, user accounts, event programming, store catalog, and announcements.`}
         badge="Executive Workspace"
       />
 
@@ -204,14 +284,14 @@ export const AdminDashboard = () => {
         <div
           className={`p-3.5 border font-mono text-xs mb-6 flex items-center justify-between ${
             notification.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-900'
-              : 'bg-red-50 border-red-200 text-red-900'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-rose-50 border-rose-200 text-rose-900'
           }`}
         >
           <span>{notification.message}</span>
           <button
             onClick={() => setNotification(null)}
-            className="font-bold underline ml-4 uppercase"
+            className="font-bold underline ml-4 uppercase cursor-pointer"
           >
             Dismiss
           </button>
@@ -219,7 +299,7 @@ export const AdminDashboard = () => {
       )}
 
       {/* Error state */}
-      {error && !members.length && (
+      {error && !members.length && !users.length && (
         <DashboardErrorState
           title="Administrative Data Offline"
           message={error}
@@ -227,9 +307,18 @@ export const AdminDashboard = () => {
         />
       )}
 
+      {/* Top Workspace Navigation Tabs */}
+      <div className="mb-8">
+        <PageTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={handleTabChange}
+        />
+      </div>
       {/* Dynamic Tab Views */}
       {activeTab === 'overview' && (
         <AdminOverview
+          users={users}
           members={members}
           events={events}
           products={products}
@@ -237,7 +326,18 @@ export const AdminDashboard = () => {
           fundraisers={fundraisers}
           announcements={announcements}
           loading={loading}
-          onNavigateTab={setActiveTab}
+          onNavigateTab={handleTabChange}
+        />
+      )}
+
+      {activeTab === 'users' && (
+        <AdminUserManagement
+          users={users}
+          loading={loading}
+          currentUser={user}
+          onCreateUser={handleCreateUser}
+          onUpdateRole={handleUpdateRole}
+          onDeleteUser={handleDeleteUser}
         />
       )}
 
@@ -247,6 +347,7 @@ export const AdminDashboard = () => {
           loading={loading}
           onActivateDues={handleActivateDues}
           onRenewMember={handleRenewMember}
+          onCancelMember={handleCancelMember}
         />
       )}
 
@@ -282,6 +383,10 @@ export const AdminDashboard = () => {
           loading={loading}
           onAnnouncementCreated={() => handleCreatedSuccess('Official announcement broadcasted!')}
         />
+      )}
+
+      {activeTab === 'security' && (
+        <AdminSecurityManagement />
       )}
     </DashboardShell>
   );

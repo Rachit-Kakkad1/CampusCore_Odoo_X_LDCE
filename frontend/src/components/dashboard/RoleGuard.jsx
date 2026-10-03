@@ -26,9 +26,13 @@ export const RoleGuard = ({ allowedRoles = [], children }) => {
           if (isMounted && freshUser) {
             setCurrentUser(freshUser);
           }
-        } catch {
-          // Fallback to stored profile if offline or network error
-          if (isMounted) {
+        } catch (err) {
+          if (err.status === 401) {
+            authService.logout();
+            if (isMounted) {
+              setCurrentUser(null);
+            }
+          } else if (isMounted) {
             setCurrentUser(authService.getStoredUser());
           }
         }
@@ -45,7 +49,7 @@ export const RoleGuard = ({ allowedRoles = [], children }) => {
     };
   }, [location.pathname]);
 
-  if (!authService.isAuthenticated()) {
+  if (!authService.isAuthenticated() || (!isVerifying && !currentUser)) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

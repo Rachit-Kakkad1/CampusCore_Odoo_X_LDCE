@@ -125,39 +125,55 @@ WHERE m.dues_status = 'paid';
 -- -----------------------------------------------------------------------------
 -- 4. SEED EVENTS
 -- -----------------------------------------------------------------------------
--- Spring Gala: capacity 100
-INSERT INTO events (title, venue, starts_at, capacity, seats_remaining, member_price, non_member_price)
+-- Spring Gala: capacity 100, accepts 5 volunteers
+INSERT INTO events (title, venue, starts_at, ends_at, capacity, seats_remaining, member_price, non_member_price, volunteers_enabled, volunteers_required)
 VALUES (
   'Spring Gala 2026',
   'Main Auditorium',
   '2026-11-15 18:00:00+05:30',
+  '2026-11-15 22:00:00+05:30',
   100,
   100,
   300.00,
-  500.00
+  500.00,
+  TRUE,
+  5
 );
 
 -- Mini Workshop: capacity 2 (for oversell and race condition tests)
-INSERT INTO events (title, venue, starts_at, capacity, seats_remaining, member_price, non_member_price)
+INSERT INTO events (title, venue, starts_at, ends_at, capacity, seats_remaining, member_price, non_member_price, volunteers_enabled, volunteers_required)
 VALUES (
   'Mini Workshop',
   'Lab 301',
   '2026-10-20 14:00:00+05:30',
+  '2026-10-20 17:00:00+05:30',
   2,
   2,
   100.00,
-  200.00
+  200.00,
+  FALSE,
+  0
 );
 
 -- -----------------------------------------------------------------------------
 -- 5. SEED TICKETS (Guest Attendee Ticket linked via attendee_id)
 -- -----------------------------------------------------------------------------
-INSERT INTO tickets (ticket_code, event_id, attendee_id, price, price_type, payment_status)
-SELECT 'TCK-SEED-GUEST-001', e.id, a.id, e.non_member_price, 'non_member', 'pending'
+INSERT INTO tickets (ticket_code, fallback_code, event_id, attendee_id, price, price_type, payment_status)
+SELECT 'TCK-SEED-GUEST-001', 'FBK01', e.id, a.id, e.non_member_price, 'non_member', 'pending'
 FROM events e
 CROSS JOIN event_attendees a
 WHERE e.title = 'Spring Gala 2026' AND a.email = 'guest@odoo-ldce.org'
 LIMIT 1;
+
+-- -----------------------------------------------------------------------------
+-- 5b. SEED VOLUNTEER APPLICATION
+-- -----------------------------------------------------------------------------
+INSERT INTO event_volunteers (event_id, user_id, status, applied_at)
+SELECT e.id, u.id, 'pending', NOW()
+FROM events e
+CROSS JOIN users u
+WHERE e.title = 'Spring Gala 2026' AND u.email = 'vik@odoo-ldce.org'
+ON CONFLICT (event_id, user_id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 6. SEED PRODUCTS & PRODUCT SIZES

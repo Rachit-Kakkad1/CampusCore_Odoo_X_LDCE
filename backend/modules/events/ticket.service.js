@@ -33,6 +33,13 @@ class TicketService {
       throw err;
     }
 
+    if (event.status === 'cancelled') {
+      const err = new Error('This event has been cancelled and registrations are closed');
+      err.code = 'EVENT_CANCELLED';
+      err.status = 409;
+      throw err;
+    }
+
     if (event.seats_remaining <= 0) {
       const err = new Error('No seats available for this event');
       err.code = 'NO_SEATS_AVAILABLE';
@@ -207,6 +214,7 @@ class TicketService {
         ticket: {
           id: fullTicket.id,
           ticket_code: fullTicket.ticket_code,
+          fallback_code: fullTicket.fallback_code,
           price: fullTicket.price,
           price_type: fullTicket.price_type,
         },

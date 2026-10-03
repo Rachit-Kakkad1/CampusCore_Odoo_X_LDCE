@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
 import DashboardStat from '../../components/dashboard/DashboardStat';
+import PageTabs from '../../components/dashboard/PageTabs';
 import {
   EventListTable,
   EventCreateModal,
@@ -11,7 +12,7 @@ import {
   EventStatsModal,
 } from '../../components/dashboard/events';
 import eventsService from '../../services/events.service';
-import { Calendar, QrCode, Users, Plus, CheckCircle2, Ticket } from 'lucide-react';
+import { Calendar, QrCode, Users, Ticket } from 'lucide-react';
 
 export const EventManagerDashboard = () => {
   const location = useLocation();
@@ -106,6 +107,15 @@ export const EventManagerDashboard = () => {
           value="Online"
           change="Scanner & HMAC validator ready"
           icon={QrCode}
+        />
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="mb-8">
+        <PageTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={handleTabChange}
         />
       </div>
 

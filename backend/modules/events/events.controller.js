@@ -189,6 +189,153 @@ class EventsController {
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
   }
+
+  async updateEvent(req, res) {
+    try {
+      const event = await eventsService.updateEvent(req.params.id, req.body);
+      return res.status(200).json({
+        success: true,
+        message: 'Event updated successfully',
+        event,
+        data: event,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async cancelEvent(req, res) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body || {};
+      const actor = req.user || getCurrentUser(req);
+      const actorId = actor ? (actor.id || actor.userId) : null;
+      const result = await eventsService.cancelEvent(id, actorId, reason, req);
+      return res.status(200).json(result);
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async applyAsVolunteer(req, res) {
+    try {
+      const eventId = req.params.id;
+      const user = req.user || getCurrentUser(req);
+      const userId = user ? (user.id || user.userId) : null;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication required to apply as a volunteer' });
+      }
+
+      const result = await eventsService.applyAsVolunteer(eventId, userId);
+      return res.status(201).json({
+        success: true,
+        message: 'Volunteer application submitted successfully',
+        data: result,
+        ...result,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async getEventVolunteers(req, res) {
+    try {
+      const eventId = req.params.id;
+      const volunteers = await eventsService.getEventVolunteers(eventId);
+      return res.status(200).json({
+        success: true,
+        count: volunteers.length,
+        volunteers,
+        data: volunteers,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async updateVolunteerStatus(req, res) {
+    try {
+      const applicationId = req.params.applicationId || req.params.appId;
+      const { status } = req.body;
+      const actor = req.user || getCurrentUser(req);
+      const actorId = actor ? (actor.id || actor.userId) : null;
+
+      const updated = await eventsService.updateVolunteerStatus(applicationId, status, actorId);
+      return res.status(200).json({
+        success: true,
+        message: `Volunteer application marked as ${status}`,
+        application: updated,
+        data: updated,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async removeVolunteer(req, res) {
+    try {
+      const applicationId = req.params.applicationId || req.params.appId;
+      const actor = req.user || getCurrentUser(req);
+      const actorId = actor ? (actor.id || actor.userId) : null;
+
+      const updated = await eventsService.updateVolunteerStatus(applicationId, 'removed', actorId);
+      return res.status(200).json({
+        success: true,
+        message: 'Volunteer removed from event',
+        application: updated,
+        data: updated,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async getMyVolunteerApplications(req, res) {
+    try {
+      const user = req.user || getCurrentUser(req);
+      const userId = user ? (user.id || user.userId) : null;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication required' });
+      }
+
+      const applications = await eventsService.getUserVolunteerApplications(userId);
+      return res.status(200).json({
+        success: true,
+        count: applications.length,
+        applications,
+        data: applications,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async getVolunteerOpportunities(req, res) {
+    try {
+      const user = req.user || getCurrentUser(req);
+      const userId = user ? (user.id || user.userId) : null;
+
+      const opportunities = await eventsService.getVolunteerOpportunities(userId);
+      return res.status(200).json({
+        success: true,
+        count: opportunities.length,
+        events: opportunities,
+        data: opportunities,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
 }
 
 module.exports = new EventsController();

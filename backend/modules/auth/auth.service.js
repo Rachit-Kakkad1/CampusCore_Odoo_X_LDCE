@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const env = require('../../config/env');
 const { pool } = require('../../config/database');
 const authRepository = require('./auth.repository');
+const sessionService = require('./session.service');
+const passwordService = require('./password.service');
+const auditService = require('../../shared/audit/audit.service');
 
 /**
  * Auth Service
@@ -111,9 +114,9 @@ class AuthService {
   }
 
   /**
-   * Authenticates user credentials and returns safe user data and JWT token.
+   * Authenticates user credentials and returns safe user data, JWT token, and session token.
    */
-  async login({ email, password }) {
+  async login({ email, password }, req = null) {
     if (!email || !password) {
       const err = new Error('Email and password are required');
       err.code = 'MISSING_CREDENTIALS';
@@ -134,19 +137,69 @@ class AuthService {
     }
 
     if (!user) {
+      await auditService.recordLog({
+        actorId: null,
+        action: 'USER_LOGIN_FAILED',
+        entityType: 'user',
+        metadata: { email: cleanEmail, reason: 'USER_NOT_FOUND' },
+        req,
+      });
       const err = new Error('Invalid email or password');
       err.code = 'INVALID_CREDENTIALS';
       err.status = 401;
       throw err;
     }
 
+    // Check account lockout
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const waitMinutes = Math.ceil((new Date(user.locked_until) - new Date()) / (60 * 1000));
+      await auditService.recordLog({
+        actorId: user.id,
+        action: 'USER_LOGIN_LOCKED_ATTEMPT',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { locked_until: user.locked_until },
+        req,
+      });
+      const err = new Error(`Account is temporarily locked due to multiple failed login attempts. Please try again in ${waitMinutes} minute(s) or reset your password.`);
+      err.code = 'ACCOUNT_LOCKED';
+      err.status = 403;
+      throw err;
+    }
+
     const matches = await bcrypt.compare(password, user.password_hash);
     if (!matches) {
+      const nextAttempts = (user.failed_login_attempts || 0) + 1;
+      let lockoutDate = null;
+      if (nextAttempts >= 5) {
+        lockoutDate = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+      }
+
+      await pool.query(
+        'UPDATE users SET failed_login_attempts = $1, locked_until = $2 WHERE id = $3;',
+        [nextAttempts, lockoutDate, user.id]
+      );
+
+      await auditService.recordLog({
+        actorId: user.id,
+        action: 'USER_LOGIN_FAILED',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { attempts: nextAttempts, locked: !!lockoutDate },
+        req,
+      });
+
       const err = new Error('Invalid email or password');
       err.code = 'INVALID_CREDENTIALS';
       err.status = 401;
       throw err;
     }
+
+    // Reset failed login attempts and update last_login_at
+    await pool.query(
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = NOW() WHERE id = $1;',
+      [user.id]
+    );
 
     const safeUser = {
       id: user.id,
@@ -156,20 +209,40 @@ class AuthService {
       created_at: user.created_at,
     };
 
+    // Create session in user_sessions
+    let session = null;
+    try {
+      session = await sessionService.createSession(user.id, req);
+    } catch (sErr) {
+      console.warn('Session creation warning:', sErr.message);
+    }
+
     const token = jwt.sign(
       {
         id: safeUser.id,
         name: safeUser.name,
         email: safeUser.email,
         role: safeUser.role,
+        sessionId: session ? session.id : null,
       },
       env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
+    await auditService.recordLog({
+      actorId: user.id,
+      action: 'USER_LOGIN',
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { sessionId: session ? session.id : null },
+      req,
+    });
+
     return {
       user: safeUser,
       token,
+      session_token: session ? session.session_token : null,
+      session_id: session ? session.id : null,
     };
   }
 
@@ -190,7 +263,231 @@ class AuthService {
   async getCurrentUserProfile(userId) {
     return this.getMe(userId);
   }
-}
 
+  /**
+   * Retrieves all users for administrative workspace.
+   */
+  async getAllUsers() {
+    return authRepository.getAllUsers();
+  }
+
+  /**
+   * Admin creates a new user account with a specified role.
+   */
+  async createUserByAdmin({ name, email, password, role = 'member' }) {
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      const err = new Error('Name is required');
+      err.code = 'INVALID_NAME';
+      err.status = 400;
+      throw err;
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      const err = new Error('Email is required');
+      err.code = 'INVALID_EMAIL';
+      err.status = 400;
+      throw err;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!emailRegex.test(cleanEmail)) {
+      const err = new Error('Invalid email format');
+      err.code = 'INVALID_EMAIL_FORMAT';
+      err.status = 400;
+      throw err;
+    }
+
+    const validRoles = ['admin', 'treasurer', 'event_manager', 'volunteer', 'member'];
+    if (!validRoles.includes(role)) {
+      const err = new Error(`Role must be one of: ${validRoles.join(', ')}`);
+      err.code = 'INVALID_ROLE';
+      err.status = 400;
+      throw err;
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      const err = new Error('Password must be at least 6 characters long');
+      err.code = 'WEAK_PASSWORD';
+      err.status = 400;
+      throw err;
+    }
+
+    const existing = await authRepository.getUserByEmail(cleanEmail);
+    if (existing) {
+      const err = new Error('An account with this email already exists');
+      err.code = 'EMAIL_ALREADY_EXISTS';
+      err.status = 409;
+      throw err;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const user = await authRepository.createUser(
+        {
+          name: name.trim(),
+          email: cleanEmail,
+          password_hash: passwordHash,
+          role,
+        },
+        client
+      );
+
+      // If user is registered as member, initialize membership
+      if (role === 'member') {
+        const currentYear = new Date().getFullYear();
+        const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const memberCode = `MEM-${currentYear}-${randomSuffix}`;
+
+        await client.query(
+          `
+          INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+          VALUES ($1, $2, 'pending', 'pending', 500.00)
+          ON CONFLICT (member_code) DO NOTHING;
+          `,
+          [user.id, memberCode]
+        );
+      }
+
+      await client.query('COMMIT');
+      return user;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Updates a user's role.
+   */
+  async updateUserRole(id, role) {
+    const validRoles = ['admin', 'treasurer', 'event_manager', 'volunteer', 'member'];
+    if (!validRoles.includes(role)) {
+      const err = new Error(`Role must be one of: ${validRoles.join(', ')}`);
+      err.code = 'INVALID_ROLE';
+      err.status = 400;
+      throw err;
+    }
+
+    const updated = await authRepository.updateUserRole(id, role);
+    if (!updated) {
+      const err = new Error('User not found');
+      err.code = 'USER_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    return updated;
+  }
+
+  /**
+   * Deletes a user by ID, preventing self-deletion.
+   */
+  async deleteUser(id, currentUserId) {
+    if (Number(id) === Number(currentUserId)) {
+      const err = new Error('You cannot delete your own administrative account');
+      err.code = 'CANNOT_DELETE_SELF';
+      err.status = 400;
+      throw err;
+    }
+
+    const deleted = await authRepository.deleteUser(id);
+    if (!deleted) {
+      const err = new Error('User not found');
+      err.code = 'USER_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    return deleted;
+  }
+
+  /**
+   * Retrieves analytics statistics for users.
+   */
+  async getUserStats() {
+    return authRepository.getUserStats();
+  }
+
+  /**
+   * Changes password for authenticated user.
+   */
+  async changePassword(userId, currentPassword, newPassword, req = null) {
+    return passwordService.changePassword(userId, currentPassword, newPassword, req);
+  }
+
+  /**
+   * Requests password reset with non-enumerating generic response.
+   */
+  async requestPasswordReset(email, req = null) {
+    return passwordService.requestPasswordReset(email, req);
+  }
+
+  /**
+   * Resets password using single-use hashed token.
+   */
+  async resetPassword(token, newPassword, req = null) {
+    return passwordService.resetPassword(token, newPassword, req);
+  }
+
+  /**
+   * Retrieves active sessions for a user.
+   */
+  async getUserSessions(userId, currentToken = null) {
+    return sessionService.getUserSessions(userId, currentToken);
+  }
+
+  /**
+   * Revokes a session.
+   */
+  async revokeSession(sessionId, userId, adminId = null, req = null) {
+    return sessionService.revokeSession(sessionId, userId, adminId, req);
+  }
+
+  /**
+   * Revokes all other sessions.
+   */
+  async revokeOtherSessions(userId, currentToken, req = null) {
+    return sessionService.revokeOtherSessions(userId, currentToken, req);
+  }
+
+  /**
+   * Admin unlocks a temporarily locked user account.
+   */
+  async unlockUser(userId, adminId, req = null) {
+    const id = parseInt(userId, 10);
+    if (isNaN(id)) {
+      const err = new Error('Invalid user ID');
+      err.status = 400;
+      throw err;
+    }
+
+    const res = await pool.query(
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1 RETURNING id, name, email;',
+      [id]
+    );
+
+    if (res.rows.length === 0) {
+      const err = new Error('User not found');
+      err.status = 404;
+      throw err;
+    }
+
+    await auditService.recordLog({
+      actorId: adminId,
+      action: 'ADMIN_UNLOCK_USER',
+      entityType: 'user',
+      entityId: id,
+      req,
+    });
+
+    return res.rows[0];
+  }
+}
 
 module.exports = new AuthService();
