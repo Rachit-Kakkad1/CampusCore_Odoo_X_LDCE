@@ -27,6 +27,8 @@ app.use('/api/auth', authRouter);
 
 app.use('/membership', membershipRouter);
 app.use('/api/membership', membershipRouter);
+app.use('/memberships', membershipRouter);
+app.use('/api/memberships', membershipRouter);
 
 app.use('/members', membersRouter);
 app.use('/api/members', membersRouter);
