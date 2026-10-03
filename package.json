@@ -6,10 +6,12 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
-    "db:test": "node backend/config/database.js",
+    "db:test": "node backend/db/connection.js",
+    "db:migrate": "node backend/db/migrate.js",
+    "db:seed": "node backend/db/seed.js",
     "db:verify": "node backend/db/verify.js",
-    "migrate": "node backend/scripts/migrate.js",
-    "seed": "node backend/scripts/seed.js",
+    "migrate": "node backend/db/migrate.js",
+    "seed": "node backend/db/seed.js",
     "verify": "node backend/scripts/verify_phase1.js"
   },
   "repository": {
