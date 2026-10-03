@@ -9,16 +9,18 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleGuard from './components/dashboard/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
+<<<<<<< HEAD
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
 import Announcements from './pages/announcements/Announcements';
 import heroVideo from './assests/login/1003.mp4';
+=======
+>>>>>>> 0f72c2e1d5fa44cdbd502e0e5e50038e4fb1ebd6
 import MemberDashboard from './pages/dashboard/MemberDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
 import EventManagerDashboard from './pages/dashboard/EventManagerDashboard';
 import VolunteerDashboard from './pages/dashboard/VolunteerDashboard';
-import MerchandiseDashboard from './pages/dashboard/MerchandiseDashboard';
 import MerchandisePage from './pages/merchandise/MerchandisePage';
 import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
 import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
@@ -693,29 +695,6 @@ const Footer = () => {
   );
 };
 
-const MainLayout = ({ children }) => (
-  <div className="min-h-screen bg-slate-950 text-slate-100 relative selection:bg-indigo-600 selection:text-white flex flex-col justify-between">
-    {/* Global Grid Overlay */}
-    <div className="fixed inset-0 pointer-events-none z-0">
-      <div className="absolute inset-0 grid-overlay opacity-30" />
-      <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-4 border-x border-slate-900 divide-x divide-slate-900 opacity-50">
-        <div />
-        <div className="hidden md:block" />
-        <div className="hidden md:block" />
-        <div className="hidden md:block" />
-      </div>
-    </div>
-
-    <div className="relative z-10 flex flex-col min-h-screen justify-between">
-      <Navbar />
-      <main className="flex-grow">
-        {children}
-      </main>
-      <Footer />
-    </div>
-  </div>
-);
-
 const DashboardRouter = () => {
   const user = authService.getStoredUser();
   const role = user?.role || 'member';
@@ -749,16 +728,31 @@ export default function App() {
         <Route path="/events" element={<PublicEvents />} />
         <Route path="/events/:id" element={<PublicEventDetails />} />
         <Route path="/login" element={<LoginPage />} />
+<<<<<<< HEAD
         <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
         <Route
           path="/membership"
           element={
             <ProtectedRoute>
               <MainLayout><Membership /></MainLayout>
+=======
+        <Route path="/register" element={<Register />} />
+        <Route path="/membership" element={<Navigate to="/dashboard/member" replace />} />
+        <Route path="/membership/pass" element={<Navigate to="/dashboard/member" replace />} />
+        <Route path="/announcements" element={<Navigate to="/dashboard/member" replace />} />
+        
+        {/* Dashboard Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardRouter />
+>>>>>>> 0f72c2e1d5fa44cdbd502e0e5e50038e4fb1ebd6
             </ProtectedRoute>
           }
         />
         <Route
+<<<<<<< HEAD
           path="/membership/pass"
           element={
             <ProtectedRoute>
@@ -767,6 +761,58 @@ export default function App() {
           }
         />
         <Route path="/announcements" element={<MainLayout><Announcements /></MainLayout>} />
+=======
+          path="/dashboard/admin/*"
+          element={
+            <RoleGuard allowedRoles={['admin']}>
+              <AdminDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/finance/*"
+          element={
+            <RoleGuard allowedRoles={['admin', 'treasurer']}>
+              <TreasurerDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/*"
+          element={
+            <RoleGuard allowedRoles={['admin', 'event_manager']}>
+              <EventManagerDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/tasks/*"
+          element={
+            <RoleGuard allowedRoles={['admin', 'volunteer']}>
+              <VolunteerDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/store/*"
+          element={
+            <RoleGuard allowedRoles={['admin']}>
+              <AdminMerchandisePage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/member/*"
+          element={
+            <ProtectedRoute>
+              <MemberDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/store" element={<MerchandisePage />} />
+        <Route path="/merchandise" element={<MerchandisePage />} />
+
+>>>>>>> 0f72c2e1d5fa44cdbd502e0e5e50038e4fb1ebd6
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
