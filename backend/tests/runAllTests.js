@@ -11,6 +11,7 @@ const suites = [
   { name: '4. Announcements Module Tests', cmd: 'node backend/tests/announcements.test.js' },
   { name: '5. Events, Tickets & Check-in Tests', cmd: 'node backend/tests/events.test.js' },
   { name: '6. Merchandise & Orders Tests', cmd: 'node backend/scripts/test_merchandise.js' },
+  { name: '7. QR & Email Delivery Tests', cmd: 'node backend/tests/qr_email.test.js' },
 ];
 
 let allPassed = true;

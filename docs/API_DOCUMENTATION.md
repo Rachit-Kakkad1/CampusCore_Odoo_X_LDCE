@@ -30,7 +30,12 @@ All endpoints are accessible via direct paths (e.g. `/events`, `/tickets`, `/mem
 ### D. QR Code & Cryptographic Contracts (`backend/shared/qr/`)
 * **`signTicketCode(ticketCode)`**: Computes first 10 hex characters of `HMAC_SHA256(ticket_code, QR_SECRET)`.
 * **`generateQR(ticketCode)`**: Formats payload as `<ticket_code>.<signature>` and creates base64 PNG data URL.
-* **`verifyQR(payload)`**: Pure constant-time cryptographic signature verification.
+* **`verifyQR(payload)`**: Pure constant-time cryptographic signature verification (`crypto.timingSafeEqual`).
+
+### E. Email Delivery Contracts (`backend/shared/email/`)
+* **`sendTicketEmail({ recipientEmail, recipientName, event, ticket, qrDataUrl })`**: Asynchronous delivery service with template rendering (HTML/text, embedded QR, fallback code, door instructions). Abstracted provider architecture (`DevelopmentEmailProvider`, `SmtpEmailProvider`). Resilient design: email provider failures are logged without aborting or rolling back successful ticket payments.
+* **`renderTicketEmail(params)`**: Generates structured HTML and plain-text ticket bodies with responsive design.
+* **`getEmailProvider()` / `setEmailProvider()`**: Pluggable provider factory with in-memory development mailbox and testing mocks.
 
 ---
 
@@ -75,10 +80,10 @@ All endpoints are accessible via direct paths (e.g. `/events`, `/tickets`, `/mem
 * `POST /events/:id/tickets` or `POST /events/:id/register` — Ticket checkout supporting two valid registration flows:
   * **Flow A (Registered User / Member)**: Requires JWT Bearer token. Prices dynamically based on `isActiveMember(userId)`. Stores `tickets.user_id = user.id, tickets.attendee_id = NULL`.
   * **Flow B (Public Event Guest Attendee)**: No system account required. Pass `{ name, email, mobile }` in body. Automatically registers into `event_attendees`, charges `non_member_price`, and stores `tickets.user_id = NULL, tickets.attendee_id = attendee.id`.
-* `POST /tickets/:id/pay` — Atomic payment with row lock (`FOR UPDATE`), seat decrement, ticket status update, and transaction ledger entry. Works for both user and guest attendee tickets.
+* `POST /tickets/:id/pay` — Atomic payment with row lock (`FOR UPDATE`), seat decrement, ticket status update, transaction ledger entry, signed QR generation, and asynchronous ticket confirmation email dispatch with embedded QR and manual fallback code.
 * `GET /tickets/mine` — All tickets purchased by current user (requires `requireAuth`).
 * `GET /tickets/:id/qr` — Generate signed QR payload and image for a valid paid ticket (supports both user and attendee tickets).
-* `POST /checkin/scan` — Door check-in scanning endpoint with HMAC validation, duplicate scan prevention (`ALREADY_USED`), expired member admission (`VALID` with `Member: EXPIRED`), and guest attendee admission (`VALID` with `Member: NONE`, holder: `attendee`).
+* `POST /checkin/scan` — Door check-in scanning endpoint. Supports both signed QR payloads (`payload = ticket_code.signature`) and manual fallback ticket codes (`payload` or `code = ticket_code`). Includes constant-time HMAC validation, event matching, duplicate scan prevention (`ALREADY_USED`), expired member admission (`VALID` with `Member: EXPIRED`), and guest attendee admission (`VALID` with `Member: NONE`, holder: `attendee`).
 
 ---
 

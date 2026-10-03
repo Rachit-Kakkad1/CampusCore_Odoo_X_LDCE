@@ -4,6 +4,7 @@ const eventRepository = require('./event.repository');
 const { isActiveMember } = require('../../shared/membership/isActiveMember');
 const createTransaction = require('../../shared/transactions/createTransaction');
 const generateQR = require('../../shared/qr/generateQR');
+const { sendTicketEmail } = require('../../shared/email/email.service');
 
 /**
  * Ticket Service
@@ -173,12 +174,59 @@ class TicketService {
       }, client);
 
       await client.query('COMMIT');
-      return paidTicket;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
     } finally {
       client.release();
+    }
+
+    // 7. Post-payment cross-cutting integration: QR generation & Email delivery
+    // Note: Database ticket remains PAID regardless of email delivery network status
+    let qrInfo = null;
+    let emailResult = { success: false, mode: 'none' };
+
+    try {
+      const fullTicket = await eventRepository.getTicketById(ticketId);
+
+      // Generate signed QR and image
+      qrInfo = await generateQR(fullTicket.ticket_code);
+
+      // Dispatch ticket email with QR code and fallback instructions
+      emailResult = await sendTicketEmail({
+        recipientEmail: fullTicket.user_email,
+        recipientName: fullTicket.user_name || 'Attendee',
+        event: {
+          id: fullTicket.event_id,
+          title: fullTicket.event_title,
+          venue: fullTicket.event_venue,
+          starts_at: fullTicket.event_starts_at,
+        },
+        ticket: {
+          id: fullTicket.id,
+          ticket_code: fullTicket.ticket_code,
+          price: fullTicket.price,
+          price_type: fullTicket.price_type,
+        },
+        qrDataUrl: qrInfo ? qrInfo.qrDataUrl : null,
+      });
+
+      return {
+        ...fullTicket,
+        qr_payload: qrInfo ? qrInfo.payload : null,
+        qr_data_url: qrInfo ? qrInfo.qrDataUrl : null,
+        email_delivery: emailResult,
+      };
+    } catch (postPaymentErr) {
+      console.warn('[POST-PAYMENT WARNING] QR/Email generation warning:', postPaymentErr.message);
+      // Return ticket record even if secondary notifications hit issues
+      const fallbackTicket = await eventRepository.getTicketById(ticketId);
+      return {
+        ...fallbackTicket,
+        qr_payload: qrInfo ? qrInfo.payload : null,
+        qr_data_url: qrInfo ? qrInfo.qrDataUrl : null,
+        email_delivery: { success: false, error: postPaymentErr.message },
+      };
     }
   }
 

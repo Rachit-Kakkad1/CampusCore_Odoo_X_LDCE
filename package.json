@@ -12,6 +12,7 @@
     "test:announcements": "node backend/tests/announcements.test.js",
     "test:events": "node backend/tests/events.test.js",
     "test:merch": "node backend/scripts/test_merchandise.js",
+    "test:qr-email": "node backend/tests/qr_email.test.js",
     "db:test": "node backend/config/database.js",
     "db:verify": "node backend/db/verify.js",
     "db:migrate": "node backend/db/migrate.js",

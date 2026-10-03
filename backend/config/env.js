@@ -17,6 +17,12 @@ const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'student_org_jwt_secret_ldce_2026',
   QR_SECRET: process.env.QR_SECRET || 'student_org_qr_hmac_secret_ldce_2026',
   NODE_ENV: process.env.NODE_ENV || 'development',
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'development',
+  EMAIL_FROM: process.env.EMAIL_FROM || 'tickets@odoo-ldce.org',
+  SMTP_HOST: process.env.SMTP_HOST || 'smtp.example.com',
+  SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || '',
 };
 
 module.exports = env;

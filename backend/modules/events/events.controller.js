@@ -113,13 +113,14 @@ class EventsController {
 
   async scanCheckIn(req, res) {
     try {
-      const payload = req.body.payload || req.body.code;
+      const payload = req.body.payload || req.body.code || req.body.ticket_code;
       if (!payload) {
-        return res.status(400).json({ error: 'MISSING_PAYLOAD', message: 'Payload is required for check-in' });
+        return res.status(400).json({ error: 'MISSING_PAYLOAD', message: 'Payload or ticket code is required for check-in' });
       }
 
       const checkedInBy = req.user ? req.user.id : null;
-      const result = await checkinService.processScan(payload, checkedInBy);
+      const expectedEventId = req.body.event_id || req.params.id || null;
+      const result = await checkinService.processScan(payload, checkedInBy, expectedEventId);
       return res.status(200).json(result);
     } catch (err) {
       const status = err.status || 500;
