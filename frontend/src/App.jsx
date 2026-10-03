@@ -74,7 +74,7 @@ const LandingPage = () => {
 
           <div className="flex items-center gap-6">
             <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.3em] hidden sm:block hover:text-primary transition-colors">Sign In</Link>
-            <Link to="/register" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em] inline-block">
+            <Link to="/membership" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em] inline-block">
               <span className="relative z-10 flex items-center gap-2">Join Organization <ArrowRight className="w-3 h-3" /></span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
             </Link>
@@ -661,7 +661,7 @@ const FinalCTA = () => {
           Bring memberships, events, merchandise, volunteers and finances into one connected platform.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-          <Link to="/register" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-10 py-5 transition-all duration-700 hover:tracking-[0.4em] w-full sm:w-auto inline-block text-center">
+          <Link to="/membership" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-10 py-5 transition-all duration-700 hover:tracking-[0.4em] w-full sm:w-auto inline-block text-center">
             <span className="relative z-10 flex items-center justify-center gap-2">Join The Organization <ArrowRight className="w-4 h-4" /></span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
           </Link>
