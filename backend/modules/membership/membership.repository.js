@@ -17,12 +17,18 @@ const membershipRepository = {
     return res.rows[0] || null;
   },
 
+  async getMembershipById(id, client = pool) {
+    return this.findById(id, client);
+  },
+
   /**
    * Find current / latest membership for a user.
    */
   async findCurrentMembershipByUserId(userId, client = null) {
     const sql = `
-      SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role
+      SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
+             (m.status = 'active' AND m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW())) as is_active,
+             (m.status = 'expired' OR (m.status = 'active' AND m.expiry_date <= NOW())) as is_expired
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE m.user_id = $1
@@ -40,11 +46,32 @@ const membershipRepository = {
     return res.rows[0] || null;
   },
 
-  /**
-   * Alias for backwards compatibility.
-   */
   async findByUserId(userId, client = null) {
     return this.findCurrentMembershipByUserId(userId, client);
+  },
+
+  async getMembershipByUserId(userId, client = pool) {
+    return this.findCurrentMembershipByUserId(userId, client);
+  },
+
+  async getMembershipByUserIdForUpdate(userId, client) {
+    const sql = `
+      SELECT *
+      FROM memberships
+      WHERE user_id = $1
+      ORDER BY
+        CASE status
+          WHEN 'active' THEN 1
+          WHEN 'pending' THEN 2
+          WHEN 'expired' THEN 3
+          WHEN 'cancelled' THEN 4
+          ELSE 5
+        END, id DESC
+      LIMIT 1
+      FOR UPDATE;
+    `;
+    const res = await client.query(sql, [userId]);
+    return res.rows[0] || null;
   },
 
   /**
@@ -52,14 +79,20 @@ const membershipRepository = {
    */
   async findByMemberCode(memberCode, client = null) {
     const sql = `
-      SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role
+      SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
+             (m.status = 'active' AND m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW())) as is_active,
+             (m.status = 'expired' OR (m.status = 'active' AND m.expiry_date <= NOW())) as is_expired
       FROM memberships m
       JOIN users u ON m.user_id = u.id
-      WHERE m.member_code = $1
+      WHERE UPPER(m.member_code) = UPPER($1)
       LIMIT 1;
     `;
     const res = client ? await client.query(sql, [memberCode]) : await query(sql, [memberCode]);
     return res.rows[0] || null;
+  },
+
+  async getMembershipByCode(memberCode, client = pool) {
+    return this.findByMemberCode(memberCode, client);
   },
 
   /**
@@ -71,6 +104,8 @@ const membershipRepository = {
       member_code,
       dues_amount = 500.00,
       dues_status = 'pending',
+      renewed_from_membership_id = null,
+      status = 'pending',
     } = data;
 
     const sql = `
@@ -80,16 +115,17 @@ const membershipRepository = {
         dues_amount,
         dues_status,
         status,
+        renewed_from_membership_id,
         started_at,
         expiry_date,
         payment_timestamp,
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, 'pending', NULL, NULL, NULL, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, NULL, NOW(), NOW())
       RETURNING *;
     `;
-    const params = [user_id, member_code, dues_amount, dues_status];
+    const params = [user_id, member_code, dues_amount, dues_status, status, renewed_from_membership_id];
     const res = client ? await client.query(sql, params) : await query(sql, params);
     return res.rows[0];
   },
@@ -119,6 +155,24 @@ const membershipRepository = {
   },
 
   /**
+   * Cancels a membership while preserving row history for auditability.
+   */
+  async cancelMembership(membershipId, cancellationReason = 'Member requested cancellation', client = null) {
+    const sql = `
+      UPDATE memberships
+      SET
+        status = 'cancelled',
+        cancelled_at = NOW(),
+        cancellation_reason = $2,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `;
+    const res = client ? await client.query(sql, [membershipId, cancellationReason]) : await query(sql, [membershipId, cancellationReason]);
+    return res.rows[0] || null;
+  },
+
+  /**
    * Find membership history for a user.
    */
   async findMembershipHistory(userId, client = null) {
@@ -133,8 +187,21 @@ const membershipRepository = {
     return res.rows;
   },
 
-  async findHistoryByUserId(userId) {
-    return this.findMembershipHistory(userId);
+  async findHistoryByUserId(userId, client = null) {
+    return this.findMembershipHistory(userId, client);
+  },
+
+  async getRenewalHistory(userId, client = pool) {
+    const sql = `
+      SELECT m.id, m.member_code, m.status, m.dues_status, m.dues_amount,
+             m.started_at, m.expiry_date, m.cancelled_at, m.cancellation_reason,
+             m.payment_timestamp, m.renewed_from_membership_id, m.created_at, m.updated_at
+      FROM memberships m
+      WHERE m.user_id = $1
+      ORDER BY m.id ASC;
+    `;
+    const res = await (client ? client.query(sql, [userId]) : query(sql, [userId]));
+    return res.rows;
   },
 
   /**
@@ -143,12 +210,12 @@ const membershipRepository = {
   async getDashboardCounts(client = null) {
     const sql = `
       SELECT
-        COUNT(*) FILTER (WHERE status = 'active' AND (expiry_date IS NULL OR expiry_date > NOW())) AS total_active,
-        COUNT(*) FILTER (WHERE status = 'active' AND expiry_date > NOW() AND expiry_date <= NOW() + INTERVAL '7 days') AS expiring_7_days,
-        COUNT(*) FILTER (WHERE status = 'active' AND expiry_date > NOW() AND expiry_date <= NOW() + INTERVAL '30 days') AS expiring_30_days,
-        COUNT(*) FILTER (WHERE status = 'expired' OR (status = 'active' AND expiry_date <= NOW())) AS expired,
-        COUNT(*) FILTER (WHERE status = 'pending') AS pending,
-        COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
+        COUNT(*) FILTER (WHERE status = 'active' AND (expiry_date IS NULL OR expiry_date > NOW()))::INT AS total_active,
+        COUNT(*) FILTER (WHERE status = 'active' AND expiry_date > NOW() AND expiry_date <= NOW() + INTERVAL '7 days')::INT AS expiring_7_days,
+        COUNT(*) FILTER (WHERE status = 'active' AND expiry_date > NOW() AND expiry_date <= NOW() + INTERVAL '30 days')::INT AS expiring_30_days,
+        COUNT(*) FILTER (WHERE status = 'expired' OR (status = 'active' AND expiry_date <= NOW()))::INT AS expired,
+        COUNT(*) FILTER (WHERE status = 'pending')::INT AS pending,
+        COUNT(*) FILTER (WHERE status = 'cancelled')::INT AS cancelled,
         COUNT(*)::INT AS total
       FROM memberships;
     `;
@@ -177,13 +244,35 @@ const membershipRepository = {
     };
   },
 
+  async getExpiryDashboard(client = pool) {
+    return this.getDashboardCounts(client);
+  },
+
+  async getExpiringMemberships(days = 30, client = null) {
+    const numDays = typeof days === 'number' ? days : 30;
+    const sql = `
+      SELECT m.*, u.name as user_name, u.email as user_email, u.role as user_role,
+             GREATEST(0, CEIL(EXTRACT(EPOCH FROM (m.expiry_date - NOW())) / 86400))::int as days_remaining
+      FROM memberships m
+      JOIN users u ON m.user_id = u.id
+      WHERE m.status = 'active'
+        AND m.expiry_date > NOW()
+        AND m.expiry_date <= NOW() + ($1 || ' days')::INTERVAL
+      ORDER BY m.expiry_date ASC;
+    `;
+    const res = client ? await client.query(sql, [numDays]) : await query(sql, [numDays]);
+    return res.rows;
+  },
+
   /**
    * Retrieve all memberships with optional status filtering and search.
    */
   async findAll(filter = {}, client = null) {
     const { status, search } = filter;
     let sql = `
-      SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role
+      SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
+             (m.status = 'active' AND m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW())) as is_active,
+             GREATEST(0, CEIL(EXTRACT(EPOCH FROM (m.expiry_date - NOW())) / 86400))::int as days_remaining
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE 1=1
@@ -203,6 +292,10 @@ const membershipRepository = {
     sql += ' ORDER BY m.created_at DESC';
     const res = client ? await client.query(sql, params) : await query(sql, params);
     return res.rows;
+  },
+
+  async getAllMembers(filter = {}, client = null) {
+    return this.findAll(filter, client);
   },
 };
 

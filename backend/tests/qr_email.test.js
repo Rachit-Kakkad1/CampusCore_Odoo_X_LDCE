@@ -78,7 +78,7 @@ async function runQREmailTests() {
 
     const adminToken = makeToken(users['admin@odoo-ldce.org']);
     const mayaToken = makeToken(users['maya@odoo-ldce.org']);
-    const eddieToken = makeToken(users['eddie@odoo-ldce.org']);
+    const vikToken = makeToken(users['vik@odoo-ldce.org']);
 
     const eventsRes = await pool.query("SELECT * FROM events WHERE title = 'Spring Gala 2026' LIMIT 1;");
     const galaEvent = eventsRes.rows[0];
@@ -374,7 +374,7 @@ async function runQREmailTests() {
     // 1. Expired member checkout
     const expiredCheckoutRes = await api(`/events/${galaEvent.id}/tickets`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${eddieToken}` },
+      headers: { Authorization: `Bearer ${vikToken}` },
     });
     assert(expiredCheckoutRes.status === 201, 'Expired member checkouts ticket');
     const expiredTicket = expiredCheckoutRes.body.ticket;
@@ -383,7 +383,7 @@ async function runQREmailTests() {
     // 2. Expired member payment
     const expiredPayRes = await api(`/tickets/${expiredTicket.id}/pay`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${eddieToken}` },
+      headers: { Authorization: `Bearer ${vikToken}` },
       body: { payment_mode: 'card' },
     });
     assert(expiredPayRes.status === 200, 'Expired member ticket payment succeeds');

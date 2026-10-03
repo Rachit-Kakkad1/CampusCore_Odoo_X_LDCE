@@ -96,7 +96,7 @@ class TicketService {
    * Processes ticket payment atomically.
    * Decrements seats, marks ticket as paid, and registers ledger transaction.
    */
-  async payTicket(ticketId, userId = null, paymentMode = 'online') {
+  async payTicket(ticketId, userId = null, paymentMode = 'online', emailOverride = null) {
     const parsedTicketId = parseInt(ticketId, 10);
     if (isNaN(parsedTicketId)) {
       const err = new Error('Invalid ticket ID');
@@ -192,9 +192,11 @@ class TicketService {
       // Generate signed QR and image
       qrInfo = await generateQR(fullTicket.ticket_code);
 
+      const targetEmail = (emailOverride && typeof emailOverride === 'string' && emailOverride.trim()) || fullTicket.user_email;
+
       // Dispatch ticket email with QR code and fallback instructions
       emailResult = await sendTicketEmail({
-        recipientEmail: fullTicket.user_email,
+        recipientEmail: targetEmail,
         recipientName: fullTicket.user_name || 'Attendee',
         event: {
           id: fullTicket.event_id,

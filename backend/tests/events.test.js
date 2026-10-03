@@ -79,7 +79,7 @@ async function runTestSuite() {
     const eventManagerToken = makeToken(users['ethan@odoo-ldce.org']);
     const volunteerToken = makeToken(users['vik@odoo-ldce.org']);
     const mayaMemberToken = makeToken(users['maya@odoo-ldce.org']);
-    const eddieExpiredToken = makeToken(users['eddie@odoo-ldce.org']);
+    const eddieExpiredToken = makeToken(users['vik@odoo-ldce.org']);
     const piaMemberToken = makeToken(users['pia@odoo-ldce.org']);
 
     // -------------------------------------------------------------------------
@@ -89,14 +89,14 @@ async function runTestSuite() {
     const mayaActive = await isActiveMember(users['maya@odoo-ldce.org'].id);
     assert(mayaActive === true, 'isActiveMember(Maya) returns true (paid, valid through Dec 31 2026)');
 
-    const eddieActive = await isActiveMember(users['eddie@odoo-ldce.org'].id);
-    assert(eddieActive === false, 'isActiveMember(Eddie) returns false (expired Dec 31 2025)');
+    const eddieActive = await isActiveMember(users['vik@odoo-ldce.org'].id);
+    assert(eddieActive === false, 'isActiveMember(Vik/Expired) returns false (expired membership)');
 
     const guestActive = await isActiveMember(null);
     assert(guestActive === false, 'isActiveMember(Guest Attendee/null) returns false (no membership)');
 
-    const eddieStatus = await getMembershipStatus(users['eddie@odoo-ldce.org'].id);
-    assert(eddieStatus.status === 'EXPIRED', 'getMembershipStatus(Eddie) correctly identifies EXPIRED state');
+    const eddieStatus = await getMembershipStatus(users['vik@odoo-ldce.org'].id);
+    assert(eddieStatus.status === 'EXPIRED', 'getMembershipStatus(Vik/Expired) correctly identifies EXPIRED state');
     console.log();
 
     // -------------------------------------------------------------------------

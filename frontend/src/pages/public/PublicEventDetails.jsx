@@ -154,15 +154,28 @@ export const PublicEventDetails = () => {
 
             {/* Pricing & Ticket Action Box */}
             <div className="p-6 bg-white/70 border border-[#e5e4de] flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-              <div>
-                <span className="font-mono text-xs uppercase text-[#1c1c1c]/50 block">
-                  Public Guest Ticket Price
-                </span>
-                <div className="font-mono text-3xl font-bold text-[#1c1c1c] mt-0.5">
-                  ₹{nonMemberPrice}
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
+                      Member Pass
+                    </span>
+                    <div className="font-mono text-2xl font-bold text-[#5F3F56]">
+                      ₹{Number(event.member_price || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="h-8 border-r border-[#e5e4de]"></div>
+                  <div>
+                    <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
+                      Guest / Regular
+                    </span>
+                    <div className="font-mono text-2xl font-bold text-[#1c1c1c]">
+                      ₹{nonMemberPrice}
+                    </div>
+                  </div>
                 </div>
-                <span className="font-mono text-xs text-[#1c1c1c]/60 mt-1 block">
-                  Includes full attendee access & official digital pass code
+                <span className="font-mono text-xs text-[#1c1c1c]/60 block pt-1">
+                  Active members save ₹{(Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2)} on this event.
                 </span>
               </div>
 
@@ -176,7 +189,7 @@ export const PublicEventDetails = () => {
                 }`}
               >
                 <Ticket className="w-4 h-4" />
-                <span>{isSoldOut ? 'Event Sold Out' : 'Purchase Guest Ticket'}</span>
+                <span>{isSoldOut ? 'Event Sold Out' : 'Get Event Ticket'}</span>
               </button>
             </div>
           </div>
@@ -189,7 +202,11 @@ export const PublicEventDetails = () => {
           event={event}
           onClose={() => setShowPurchaseModal(false)}
           onSuccess={(ticket) => {
-            // Success handler
+            // Live update remaining seats locally
+            setEvent((prev) => prev ? {
+              ...prev,
+              seats_remaining: Math.max(0, Number(prev.seats_remaining || 0) - 1)
+            } : prev);
           }}
         />
       )}

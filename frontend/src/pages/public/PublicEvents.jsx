@@ -145,20 +145,25 @@ export const PublicEvents = () => {
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-[#e5e4de] flex items-center justify-between gap-4">
+                    <div className="pt-4 border-t border-[#e5e4de] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 block">
-                          Guest Ticket Price
-                        </span>
-                        <span className="font-mono text-2xl font-bold text-[#1c1c1c]">
-                          ₹{nonMemberPrice}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xl font-bold text-[#1c1c1c]">
+                            ₹{Number(event.member_price || 0).toFixed(2)}
+                          </span>
+                          <span className="font-mono text-[10px] uppercase text-[#5F3F56] font-semibold bg-[#5F3F56]/10 px-1.5 py-0.5 border border-[#5F3F56]/20">
+                            Member Rate
+                          </span>
+                        </div>
+                        <div className="font-mono text-xs text-[#1c1c1c]/60 mt-0.5">
+                          Standard: ₹{nonMemberPrice} · Save ₹{(Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2)}
+                        </div>
                       </div>
 
                       <button
                         onClick={() => navigate(`/events/${event.id}`)}
                         disabled={isSoldOut}
-                        className={`font-mono text-xs uppercase tracking-wider px-5 py-2.5 border transition-all flex items-center gap-2 ${
+                        className={`font-mono text-xs uppercase tracking-wider px-5 py-2.5 border transition-all flex items-center justify-center gap-2 ${
                           isSoldOut
                             ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
                             : 'bg-[#1c1c1c] text-white border-[#1c1c1c] hover:bg-[#5F3F56] hover:border-[#5F3F56]'

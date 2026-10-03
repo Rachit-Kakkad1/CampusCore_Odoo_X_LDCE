@@ -1,7 +1,7 @@
-// backend/modules/events/events.controller.js
 const eventsService = require('./events.service');
 const ticketService = require('./ticket.service');
 const checkinService = require('./checkin.service');
+const getCurrentUser = require('../../shared/auth/getCurrentUser');
 
 /**
  * Events Controller
@@ -73,7 +73,8 @@ class EventsController {
   async checkoutTicket(req, res) {
     try {
       const eventId = req.params.id;
-      const userId = req.user ? (req.user.id || req.user.userId) : null;
+      const user = req.user || getCurrentUser(req);
+      const userId = user ? (user.id || user.userId) : null;
       const { checkout_session_id, attendee, name, email, mobile } = req.body;
 
       let attendeeData = attendee || null;
@@ -93,6 +94,7 @@ class EventsController {
         success: true,
         ticket,
         data: ticket,
+        ...ticket,
       });
     } catch (err) {
       const status = err.status || 500;
@@ -103,7 +105,8 @@ class EventsController {
   async purchaseTicket(req, res) {
     try {
       const eventId = req.params.id || req.body.event_id;
-      const userId = req.user ? (req.user.id || req.user.userId) : req.body.user_id;
+      const user = req.user || getCurrentUser(req);
+      const userId = user ? (user.id || user.userId) : req.body.user_id;
       const { payment_mode = 'online' } = req.body || {};
 
       const ticket = await eventsService.purchaseTicket(eventId, userId, { payment_mode });
@@ -112,6 +115,7 @@ class EventsController {
         message: 'Ticket purchased successfully',
         ticket,
         data: ticket,
+        ...ticket,
       });
     } catch (err) {
       const status = err.status || 500;
@@ -122,15 +126,17 @@ class EventsController {
   async payTicket(req, res) {
     try {
       const ticketId = req.params.id;
-      const userId = req.user ? (req.user.id || req.user.userId) : null;
-      const { payment_mode } = req.body;
+      const user = req.user || getCurrentUser(req);
+      const userId = user ? (user.id || user.userId) : null;
+      const { payment_mode, email } = req.body || {};
 
-      const ticket = await ticketService.payTicket(ticketId, userId, payment_mode || 'online');
+      const ticket = await ticketService.payTicket(ticketId, userId, payment_mode || 'online', email);
       return res.status(200).json({
         success: true,
         message: 'Payment successful',
         ticket,
         data: ticket,
+        ...ticket,
       });
     } catch (err) {
       const status = err.status || 500;

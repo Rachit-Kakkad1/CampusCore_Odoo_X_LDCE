@@ -16,7 +16,7 @@ async function seed() {
     password: env.DATABASE_URL ? undefined : env.DB_PASSWORD,
   });
 
-  const seedFile = path.resolve(__dirname, 'seeds/seed_data.sql');
+  const seedFile = path.resolve(__dirname, 'seed.sql');
   const sql = fs.readFileSync(seedFile, 'utf8');
 
   const client = await pool.connect();
