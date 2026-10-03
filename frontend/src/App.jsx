@@ -11,6 +11,7 @@ import Register from './pages/auth/Register';
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
 import Announcements from './pages/announcements/Announcements';
+import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -549,9 +550,9 @@ const FinalCTA = () => {
             <span className="relative z-10 flex items-center gap-2">Join The Organization <ArrowRight className="w-4 h-4" /></span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
           </button>
-          <button className="font-mono text-[10px] uppercase tracking-[0.2em] px-10 py-5 border border-border hover:bg-white transition-colors duration-700 w-full sm:w-auto">
+          <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.2em] px-10 py-5 border border-border hover:bg-white transition-colors duration-700 w-full sm:w-auto inline-block text-center">
             Sign In
-          </button>
+          </Link>
         </div>
       </div>
     </section>
