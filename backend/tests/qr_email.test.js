@@ -10,6 +10,7 @@ const {
   getEmailProvider,
   setEmailProvider,
   resetEmailProvider,
+  defaultDevProvider,
   MockFailingEmailProvider,
 } = require('../shared/email/email.provider');
 const { renderTicketEmail } = require('../shared/email/email.templates');
@@ -18,6 +19,9 @@ const checkinService = require('../modules/events/checkin.service');
 const eventRepository = require('../modules/events/event.repository');
 
 async function runQREmailTests() {
+  // Ensure development email provider is active for test assertions
+  setEmailProvider(defaultDevProvider);
+
   console.log('================================================================');
   console.log('TEST SUITE: QR GENERATION, CRYPTOGRAPHIC VERIFICATION & EMAIL SERVICE');
   console.log('================================================================\n');
@@ -192,7 +196,7 @@ async function runQREmailTests() {
     // =========================================================================
     console.log('\n--- 3. Testing Email Service & Templates ---');
 
-    const devProvider = getEmailProvider();
+    const devProvider = defaultDevProvider;
     devProvider.clearMailbox();
 
     // Template rendering verification
@@ -249,11 +253,12 @@ async function runQREmailTests() {
       ticket: { ticket_code: 'TCK-FAIL' },
     });
     assert(failingResult.success === false && failingResult.error === 'DELIVERY_FAILED', 'Provider failure is safely caught without throwing');
-    resetEmailProvider();
+    setEmailProvider(defaultDevProvider);
 
     // =========================================================================
     // SECTION 4: END-TO-END FLOW: GUEST ATTENDEE (Register -> Pay -> QR -> Email -> Scan)
     // =========================================================================
+    
     console.log('\n--- 4. Testing End-to-End Guest Attendee Flow ---');
     devProvider.clearMailbox();
 
@@ -409,7 +414,7 @@ async function runQREmailTests() {
     assert(ledgerRow && ledgerRow.status === 'paid', 'Financial ledger transaction safely recorded');
 
     // Restore default email provider
-    resetEmailProvider();
+    setEmailProvider(defaultDevProvider);
 
     // Clean up test tickets and attendees created during run
     const testAttendees = await pool.query("SELECT id FROM event_attendees WHERE email LIKE 'guest_e2e_%';");

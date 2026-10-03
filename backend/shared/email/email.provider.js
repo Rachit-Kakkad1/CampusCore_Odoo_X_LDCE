@@ -130,14 +130,18 @@ class SmtpEmailProvider extends BaseEmailProvider {
 
 // Singleton instances
 const defaultDevProvider = new DevelopmentEmailProvider();
-let activeProvider = defaultDevProvider;
+let activeProvider = null;
 
 /**
  * Factory returning active email provider based on configuration.
  */
 function getEmailProvider() {
-  if (activeProvider !== defaultDevProvider) {
+  if (activeProvider) {
     return activeProvider;
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return defaultDevProvider;
   }
 
   if (env.EMAIL_PROVIDER === 'smtp') {
@@ -148,17 +152,17 @@ function getEmailProvider() {
 }
 
 /**
- * Sets the email provider (useful for testing mock failures).
+ * Sets the email provider (useful for testing mock failures or dev overrides).
  */
 function setEmailProvider(provider) {
   activeProvider = provider;
 }
 
 /**
- * Resets active email provider back to default.
+ * Resets active email provider back to configuration default.
  */
 function resetEmailProvider() {
-  activeProvider = defaultDevProvider;
+  activeProvider = null;
 }
 
 module.exports = {
@@ -166,6 +170,7 @@ module.exports = {
   DevelopmentEmailProvider,
   MockFailingEmailProvider,
   SmtpEmailProvider,
+  defaultDevProvider,
   getEmailProvider,
   setEmailProvider,
   resetEmailProvider,
