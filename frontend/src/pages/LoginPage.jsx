@@ -22,12 +22,12 @@ export default function LoginPage() {
   return (
     <div className="h-screen w-full bg-background flex overflow-hidden selection:bg-primary selection:text-white">
       {/* Left Panel - 50% */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col justify-between overflow-y-auto py-8 px-12 sm:px-16 lg:px-24">
+      <div className="w-full lg:w-1/2 h-full flex flex-col justify-between overflow-hidden py-8 px-12 sm:px-16 lg:px-24">
         {/* Top Back Action Button */}
         <div>
           <button
             type="button"
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+            onClick={() => navigate('/')}
             className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted hover:text-primary transition-all cursor-pointer py-1.5 px-3 rounded-sm hover:bg-hover border border-border/60 hover:border-border shadow-2xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />

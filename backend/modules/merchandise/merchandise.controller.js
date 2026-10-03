@@ -98,6 +98,35 @@ class MerchandiseController {
   }
 
   /**
+   * PUT /api/merchandise/products/:id (Admin)
+   */
+  async updateProduct(req, res, next) {
+    try {
+      const productId = parseInt(req.params.id, 10);
+      if (isNaN(productId)) {
+        return res.status(400).json({
+          error: { message: 'Invalid product ID parameter', status: 400 },
+        });
+      }
+      const { name, price, image_url, description } = req.body;
+      const updated = await merchandiseService.updateProduct(productId, {
+        name,
+        price: price !== undefined ? parseFloat(price) : undefined,
+        image_url,
+        description,
+      });
+      res.status(200).json({
+        success: true,
+        message: 'Product updated successfully',
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
+  /**
    * POST /api/merchandise/orders (or /api/orders)
    * Creates pending order without decrementing stock
    */

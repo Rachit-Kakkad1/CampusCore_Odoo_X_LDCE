@@ -26,6 +26,7 @@ export const AdminMerchandiseManagement = ({
   loading = false,
   onUpdateStock,
   onProductCreated,
+  onProductUpdated,
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [search, setSearch] = useState('');
@@ -217,6 +218,7 @@ export const AdminMerchandiseManagement = ({
       <AdminProductList
         products={filteredProducts}
         onUpdateStock={onUpdateStock}
+        onProductUpdated={onProductUpdated}
         loading={loading}
       />
 

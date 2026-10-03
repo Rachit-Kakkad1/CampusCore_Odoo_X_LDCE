@@ -79,6 +79,13 @@ class MerchandiseService {
   }
 
   /**
+   * Update product details (Admin action)
+   */
+  async updateProduct(productId, updates) {
+    return await merchandiseRepo.updateProduct(productId, updates);
+  }
+
+  /**
    * Helper to check active membership status with direct DB fallback
    * (Ensures discount works reliably even before Nishit finalizes shared helper)
    */

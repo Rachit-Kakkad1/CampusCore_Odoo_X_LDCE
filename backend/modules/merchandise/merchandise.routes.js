@@ -23,6 +23,12 @@ router.put(
   requireRole('admin'),
   merchandiseController.updateStock.bind(merchandiseController)
 );
+router.put(
+  '/products/:id',
+  requireAuth,
+  requireRole('admin'),
+  merchandiseController.updateProduct.bind(merchandiseController)
+);
 
 // -----------------------------------------------------------------------------
 // Orders Endpoints

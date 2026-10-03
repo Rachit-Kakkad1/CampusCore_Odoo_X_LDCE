@@ -349,6 +349,7 @@ export const AdminDashboard = () => {
           loading={loading}
           onUpdateStock={handleUpdateStock}
           onProductCreated={() => handleCreatedSuccess('Product created and stock initialized!')}
+          onProductUpdated={() => { setNotification({ type: 'success', message: 'Product details updated successfully.' }); loadAllData(); }}
         />
       )}
 

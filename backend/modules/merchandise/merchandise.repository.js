@@ -45,8 +45,31 @@ class MerchandiseRepository {
   }
 
   /**
-   * Get single product by ID with its size variants
+   * Update a product's details (name, price, image_url, description)
    */
+  async updateProduct(productId, { name, price, image_url, description }) {
+    const text = `
+      UPDATE products
+      SET
+        name = COALESCE($1, name),
+        price = COALESCE($2, price),
+        image_url = COALESCE($3, image_url),
+        description = COALESCE($4, description)
+      WHERE id = $5
+      RETURNING id, name, price, image_url, description, created_at;
+    `;
+    const result = await query(text, [
+      name || null,
+      price !== undefined ? parseFloat(price) : null,
+      image_url || null,
+      description || null,
+      productId,
+    ]);
+    if (result.rows.length === 0) throw new Error('Product not found');
+    return result.rows[0];
+  }
+
+
   async getProductById(productId) {
     const text = `
       SELECT 

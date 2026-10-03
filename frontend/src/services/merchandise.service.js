@@ -70,6 +70,14 @@ export const merchandiseService = {
     const res = await api.put(`/merchandise/products/${productId}/stock`, { size, stock });
     return res.data || res;
   },
+
+  /**
+   * Update product details (Admin)
+   */
+  async updateProduct(productId, updates) {
+    const res = await api.put(`/merchandise/products/${productId}`, updates);
+    return res.data || res;
+  },
 };
 
 export default merchandiseService;
