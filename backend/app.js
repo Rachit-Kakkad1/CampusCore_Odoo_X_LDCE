@@ -1,4 +1,7 @@
 const express = require('express');
+const authRouter = require('./modules/auth/auth.routes');
+const { membershipRouter, membersRouter } = require('./modules/membership/membership.routes');
+const announcementsRouter = require('./modules/announcements/announcements.routes');
 const { eventsRouter, ticketsRouter, checkinRouter } = require('./modules/events/events.routes');
 
 const app = express();
@@ -12,6 +15,10 @@ app.get('/health', (req, res) => {
 });
 
 // Mount Module Routes
+app.use('/auth', authRouter);
+app.use('/membership', membershipRouter);
+app.use('/members', membersRouter);
+app.use('/announcements', announcementsRouter);
 app.use('/events', eventsRouter);
 app.use('/tickets', ticketsRouter);
 app.use('/checkin', checkinRouter);

@@ -1,6 +1,6 @@
 # Student Organization System — API Documentation
 
-This document covers the **Shared Backend Foundation** and the **Events + Tickets + QR + Door Check-in Module**.
+This document provides complete documentation for the **Shared Foundation**, **Auth Module**, **Membership Module**, **Announcements Module**, and **Events Module**.
 
 ---
 
@@ -43,7 +43,7 @@ This document covers the **Shared Backend Foundation** and the **Events + Ticket
 * **Location**: `backend/shared/membership/isActiveMember.js`
 * **Input**: `userId` (number).
 * **Output**: `Promise<{ status: 'ACTIVE' | 'EXPIRED' | 'PENDING' | 'NONE', membership: object | null }>`.
-* **Usage**: Provides badge status for door check-in and profiles.
+* **Usage**: Provides badge status for door check-in, member passes, and ticket pricing.
 
 ---
 
@@ -89,7 +89,264 @@ This document covers the **Shared Backend Foundation** and the **Events + Ticket
 
 ---
 
-## 2. Events Module API Endpoints (`/events`, `/tickets`, `/checkin`)
+## 2. Authentication API (`/auth`)
+
+### `POST /auth/register`
+* **Description**: Register a new student account. Initializes a pending membership record automatically.
+* **Auth**: None (Public).
+* **Request Body**:
+  ```json
+  {
+    "name": "Jane Doe",
+    "email": "jane@ldce.edu",
+    "password": "Password123"
+  }
+  ```
+* **Response (201 Created)**:
+  ```json
+  {
+    "user": {
+      "id": 9,
+      "name": "Jane Doe",
+      "email": "jane@ldce.edu",
+      "role": "guest",
+      "created_at": "..."
+    },
+    "token": "eyJhbGciOi..."
+  }
+  ```
+* **Errors**: `400 INVALID_NAME`, `400 INVALID_EMAIL_FORMAT`, `400 WEAK_PASSWORD`, `409 EMAIL_ALREADY_EXISTS`.
+
+---
+
+### `POST /auth/login`
+* **Description**: Authenticate with email and password to receive JWT token.
+* **Auth**: None (Public).
+* **Request Body**:
+  ```json
+  {
+    "email": "jane@ldce.edu",
+    "password": "Password123"
+  }
+  ```
+* **Response (200 OK)**:
+  ```json
+  {
+    "user": {
+      "id": 9,
+      "name": "Jane Doe",
+      "email": "jane@ldce.edu",
+      "role": "guest",
+      "created_at": "..."
+    },
+    "token": "eyJhbGciOi..."
+  }
+  ```
+* **Errors**: `400 MISSING_CREDENTIALS`, `401 INVALID_CREDENTIALS`.
+
+---
+
+### `GET /auth/me`
+* **Description**: Retrieve safe profile information for the authenticated user.
+* **Auth**: Required (`requireAuth`).
+* **Headers**: `Authorization: Bearer <token>`
+* **Response (200 OK)**:
+  ```json
+  {
+    "user": {
+      "id": 9,
+      "name": "Jane Doe",
+      "email": "jane@ldce.edu",
+      "role": "guest",
+      "created_at": "..."
+    }
+  }
+  ```
+* **Errors**: `401 UNAUTHORIZED`.
+
+---
+
+## 3. Membership API (`/membership` & `/members`)
+
+### `GET /membership/me`
+* **Description**: Retrieve current user's membership details and badge status (`ACTIVE`, `EXPIRED`, `PENDING`, `NONE`).
+* **Auth**: Required (`requireAuth`).
+* **Headers**: `Authorization: Bearer <token>`
+* **Response (200 OK)**:
+  ```json
+  {
+    "status": "ACTIVE",
+    "membership": {
+      "id": 1,
+      "member_code": "MEM-2026-MAYA",
+      "dues_amount": "500.00",
+      "dues_status": "paid",
+      "start_date": "2026-01-01",
+      "expiry_date": "2026-12-31",
+      "paid_at": "..."
+    }
+  }
+  ```
+
+---
+
+### `POST /membership/pay`
+* **Description**: Pay annual membership dues. Transitions membership from `pending`/`expired` to `paid` with validity through Dec 31 of current year, upgrades role from `guest` to `member`, and creates one dues transaction in the financial ledger.
+* **Auth**: Required (`requireAuth`).
+* **Headers**: `Authorization: Bearer <token>`
+* **Request Body** (optional):
+  ```json
+  {
+    "payment_mode": "online"
+  }
+  ```
+* **Response (200 OK)**:
+  ```json
+  {
+    "message": "Membership dues paid successfully",
+    "membership": {
+      "id": 3,
+      "dues_status": "paid",
+      "start_date": "2026-10-03",
+      "expiry_date": "2026-12-31"
+    },
+    "transaction": {
+      "id": 5,
+      "source_type": "dues",
+      "amount": "500.00",
+      "direction": "in"
+    },
+    "status": "ACTIVE"
+  }
+  ```
+* **Errors**: `400 MEMBERSHIP_ALREADY_ACTIVE` (if already active).
+
+---
+
+### `GET /membership/pass`
+* **Description**: Retrieve digital member pass card details.
+* **Auth**: Required (`requireAuth`).
+* **Headers**: `Authorization: Bearer <token>`
+* **Response (200 OK)**:
+  ```json
+  {
+    "pass": {
+      "name": "Maya Member",
+      "email": "maya@odoo-ldce.org",
+      "member_code": "MEM-2026-MAYA",
+      "status": "ACTIVE",
+      "start_date": "2026-01-01",
+      "expiry_date": "2026-12-31",
+      "dues_amount": "500.00"
+    }
+  }
+  ```
+
+---
+
+### `GET /membership/verify/:memberCode`
+* **Description**: Public verification endpoint for physical or digital member cards.
+* **Auth**: None (Public).
+* **Response (200 OK)**:
+  ```json
+  {
+    "valid": true,
+    "status": "ACTIVE",
+    "member_code": "MEM-2026-MAYA",
+    "name": "Maya Member",
+    "email": "maya@odoo-ldce.org",
+    "start_date": "2026-01-01",
+    "expiry_date": "2026-12-31"
+  }
+  ```
+* **Errors**: `404 MEMBER_NOT_FOUND`.
+
+---
+
+### `GET /membership/expiring`
+* **Description**: List memberships expiring within 60 days for renewal reminders.
+* **Auth**: Required (`admin` or `treasurer`).
+* **Response (200 OK)**:
+  ```json
+  {
+    "expiring": [
+      {
+        "id": 2,
+        "member_code": "MEM-2025-EDDIE",
+        "user_name": "Eddie Expired",
+        "expiry_date": "2025-12-31"
+      }
+    ]
+  }
+  ```
+* **Errors**: `403 FORBIDDEN`.
+
+---
+
+### `GET /members`
+* **Description**: Full membership roster.
+* **Auth**: Required (`admin` or `treasurer`).
+* **Response (200 OK)**:
+  ```json
+  {
+    "members": [ ... ]
+  }
+  ```
+* **Errors**: `403 FORBIDDEN`.
+
+---
+
+## 4. Announcements API (`/announcements`)
+
+### `GET /announcements`
+* **Description**: List all organization announcements in chronological order (newest first).
+* **Auth**: None (Public).
+* **Response (200 OK)**:
+  ```json
+  {
+    "announcements": [
+      {
+        "id": 1,
+        "title": "Welcome to the New Academic Year!",
+        "body": "Welcome all students...",
+        "created_at": "...",
+        "author_name": "Admin User",
+        "author_email": "admin@odoo-ldce.org"
+      }
+    ]
+  }
+  ```
+
+---
+
+### `POST /announcements`
+* **Description**: Post a new announcement.
+* **Auth**: Required (`admin` or `event_manager`).
+* **Headers**: `Authorization: Bearer <token>`
+* **Request Body**:
+  ```json
+  {
+    "title": "Hackathon Submission Deadline Extended",
+    "body": "All teams have an additional 1 hour for the final submission checkpoint."
+  }
+  ```
+* **Response (201 Created)**:
+  ```json
+  {
+    "announcement": {
+      "id": 3,
+      "title": "Hackathon Submission Deadline Extended",
+      "body": "...",
+      "created_by": 1,
+      "created_at": "..."
+    }
+  }
+  ```
+* **Errors**: `400 INVALID_TITLE`, `400 INVALID_BODY`, `401 UNAUTHORIZED`, `403 FORBIDDEN`.
+
+---
+
+## 5. Events Module API (`/events`, `/tickets`, `/checkin`)
 
 ### `POST /events`
 * **Description**: Create a new event with seat capacity and tiered pricing.
@@ -106,256 +363,55 @@ This document covers the **Shared Backend Foundation** and the **Events + Ticket
     "non_member_price": 500.00
   }
   ```
-* **Response (201 Created)**:
-  ```json
-  {
-    "event": {
-      "id": 1,
-      "title": "Spring Gala 2026",
-      "venue": "Main Auditorium",
-      "starts_at": "2026-11-15T18:00:00Z",
-      "capacity": 100,
-      "seats_remaining": 100,
-      "member_price": "300.00",
-      "non_member_price": "500.00",
-      "created_at": "..."
-    }
-  }
-  ```
-* **Errors**: `400 INVALID_EVENT_DATA`, `400 INVALID_CAPACITY`, `400 INVALID_PRICE`, `401 UNAUTHORIZED`, `403 FORBIDDEN`.
+* **Response (201 Created)**: Event object.
+* **Errors**: `400 INVALID_EVENT_DATA`, `403 FORBIDDEN`.
 
 ---
 
 ### `GET /events`
 * **Description**: List all events sorted by start date.
 * **Auth**: None (Public).
-* **Response (200 OK)**:
-  ```json
-  {
-    "events": [
-      {
-        "id": 1,
-        "title": "Spring Gala 2026",
-        "venue": "Main Auditorium",
-        "starts_at": "2026-11-15T18:00:00Z",
-        "capacity": 100,
-        "seats_remaining": 99,
-        "member_price": "300.00",
-        "non_member_price": "500.00"
-      }
-    ]
-  }
-  ```
 
 ---
 
 ### `GET /events/:id`
 * **Description**: Get full details for a single event.
 * **Auth**: None (Public).
-* **Response (200 OK)**:
-  ```json
-  {
-    "event": {
-      "id": 1,
-      "title": "Spring Gala 2026",
-      "venue": "Main Auditorium",
-      "starts_at": "2026-11-15T18:00:00Z",
-      "capacity": 100,
-      "seats_remaining": 99,
-      "member_price": "300.00",
-      "non_member_price": "500.00"
-    }
-  }
-  ```
-* **Errors**: `404 EVENT_NOT_FOUND`.
 
 ---
 
 ### `GET /events/:id/stats`
-* **Description**: Real-time event attendance, seat remaining, and ticket sales revenue.
+* **Description**: Real-time event statistics: capacity, seats remaining, tickets sold, tickets checked in, revenue.
 * **Auth**: Required (`admin`, `event_manager`, or `treasurer`).
-* **Headers**: `Authorization: Bearer <token>`
-* **Response (200 OK)**:
-  ```json
-  {
-    "stats": {
-      "id": 1,
-      "title": "Spring Gala 2026",
-      "capacity": 100,
-      "seats_remaining": 99,
-      "tickets_sold": 1,
-      "tickets_checked_in": 1,
-      "ticket_revenue": 300.00
-    }
-  }
-  ```
-* **Errors**: `401 UNAUTHORIZED`, `403 FORBIDDEN`, `404 EVENT_NOT_FOUND`.
 
 ---
 
 ### `POST /events/:id/tickets`
 * **Description**: Check out a ticket. Automatically determines pricing via `isActiveMember(userId)`. **Does not decrement seats yet.**
 * **Auth**: Required (`requireAuth`).
-* **Headers**: `Authorization: Bearer <token>`
-* **Request Body** (optional):
-  ```json
-  {
-    "checkout_session_id": "SES-1727932800"
-  }
-  ```
-* **Response (201 Created)**:
-  ```json
-  {
-    "ticket": {
-      "id": 10,
-      "ticket_code": "TCK-1727932800-A1B2C3D4",
-      "event_id": 1,
-      "user_id": 5,
-      "price": "300.00",
-      "price_type": "member",
-      "payment_status": "pending",
-      "checkout_session_id": "SES-1727932800"
-    }
-  }
-  ```
-* **Errors**: `404 EVENT_NOT_FOUND`, `409 NO_SEATS_AVAILABLE`.
 
 ---
 
 ### `POST /tickets/:id/pay`
 * **Description**: Atomically pays for a ticket. Locks the event row (`FOR UPDATE`), checks `seats_remaining > 0`, decrements seat count, updates ticket to `paid`, and registers exactly 1 transaction in the ledger.
 * **Auth**: Required (`requireAuth`).
-* **Headers**: `Authorization: Bearer <token>`
-* **Request Body** (optional):
-  ```json
-  {
-    "payment_mode": "online"
-  }
-  ```
-* **Response (200 OK)**:
-  ```json
-  {
-    "message": "Payment successful",
-    "ticket": {
-      "id": 10,
-      "ticket_code": "TCK-1727932800-A1B2C3D4",
-      "event_id": 1,
-      "user_id": 5,
-      "price": "300.00",
-      "price_type": "member",
-      "payment_status": "paid"
-    }
-  }
-  ```
-* **Errors**:
-  * `400 TICKET_ALREADY_PAID` (Duplicate payment attempt).
-  * `403 FORBIDDEN` (Ticket owned by another user).
-  * `404 TICKET_NOT_FOUND` / `EVENT_NOT_FOUND`.
-  * `409 NO_SEATS_AVAILABLE` (Sold out / concurrent race condition loser).
+* **Errors**: `400 TICKET_ALREADY_PAID`, `403 FORBIDDEN`, `409 NO_SEATS_AVAILABLE`.
 
 ---
 
 ### `GET /tickets/mine`
 * **Description**: Returns all tickets purchased by the authenticated user.
 * **Auth**: Required (`requireAuth`).
-* **Headers**: `Authorization: Bearer <token>`
-* **Response (200 OK)**:
-  ```json
-  {
-    "tickets": [
-      {
-        "id": 10,
-        "ticket_code": "TCK-1727932800-A1B2C3D4",
-        "event_id": 1,
-        "event_title": "Spring Gala 2026",
-        "event_venue": "Main Auditorium",
-        "event_starts_at": "2026-11-15T18:00:00Z",
-        "price": "300.00",
-        "price_type": "member",
-        "payment_status": "paid",
-        "checked_in_at": null,
-        "created_at": "..."
-      }
-    ]
-  }
-  ```
 
 ---
 
 ### `GET /tickets/:id/qr`
 * **Description**: Generates signed QR payload and base64 PNG data URL for a paid ticket.
 * **Auth**: Required (`requireAuth`).
-* **Headers**: `Authorization: Bearer <token>`
-* **Response (200 OK)**:
-  ```json
-  {
-    "ticket": {
-      "id": 10,
-      "ticket_code": "TCK-1727932800-A1B2C3D4",
-      "payment_status": "paid"
-    },
-    "qr": {
-      "payload": "TCK-1727932800-A1B2C3D4.7a3f89e1b2",
-      "qrDataUrl": "data:image/png;base64,iVBORw0KGgo...",
-      "signature": "7a3f89e1b2",
-      "ticketCode": "TCK-1727932800-A1B2C3D4"
-    }
-  }
-  ```
-* **Errors**: `400 TICKET_NOT_PAID`, `403 FORBIDDEN`, `404 TICKET_NOT_FOUND`.
 
 ---
 
 ### `POST /checkin/scan`
 * **Description**: Door check-in scanning endpoint. Recomputes HMAC signature, verifies payment, checks for duplicate scan atomically, and logs check-in staff.
 * **Auth**: Required (`admin`, `event_manager`, or `volunteer`).
-* **Headers**: `Authorization: Bearer <token>`
-* **Request Body**:
-  ```json
-  {
-    "payload": "TCK-1727932800-A1B2C3D4.7a3f89e1b2"
-  }
-  ```
-* **Response Variations (200 OK)**:
-  * **Success (`VALID`)**:
-    ```json
-    {
-      "result": "VALID",
-      "message": "Check-in successful",
-      "ticket_code": "TCK-1727932800-A1B2C3D4",
-      "checked_in_at": "2026-10-03T10:58:35.000Z",
-      "checked_in_by": 4,
-      "holder": {
-        "id": 5,
-        "name": "Maya Member",
-        "email": "maya@odoo-ldce.org"
-      },
-      "event": {
-        "id": 1,
-        "title": "Spring Gala 2026",
-        "venue": "Main Auditorium"
-      },
-      "member_status": "ACTIVE"
-    }
-    ```
-  * **Duplicate Scan (`ALREADY_USED`)**:
-    ```json
-    {
-      "result": "ALREADY_USED",
-      "message": "Ticket has already been checked in",
-      "ticket_code": "TCK-1727932800-A1B2C3D4",
-      "checked_in_at": "2026-10-03T10:58:35.000Z",
-      "holder": { ... },
-      "member_status": "ACTIVE"
-    }
-    ```
-  * **Tampered or Unknown QR (`INVALID`)**:
-    ```json
-    {
-      "result": "INVALID",
-      "error": "INVALID_SIGNATURE",
-      "message": "QR signature mismatch or tampered payload"
-    }
-    ```
-  * **Expired Member Admission Rule**:
-    If an expired member bought a valid ticket, it returns `result: "VALID"` and explicitly indicates `"member_status": "EXPIRED"`.
+* **Response Values**: `VALID`, `ALREADY_USED`, `INVALID`. Expired members are admitted with `VALID` and display `member_status: EXPIRED`.

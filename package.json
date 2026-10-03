@@ -4,9 +4,13 @@
   "description": "> **Corrected Build Specification & AI Coding Agent README**   > **24-Hour Hackathon — Odoo × LDCE**   > *Implementation-ready specification derived from the Hackathon requirements with transaction and reservation concurrency issues corrected.*",
   "main": "index.js",
   "scripts": {
-    "test": "node backend/tests/events.test.js",
+    "test": "node backend/tests/runAllTests.js",
     "db:test": "node backend/config/database.js",
-    "db:verify": "node backend/db/verify.js"
+    "db:verify": "node backend/db/verify.js",
+    "test:auth": "node backend/tests/auth.test.js",
+    "test:membership": "node backend/tests/membership.test.js",
+    "test:announcements": "node backend/tests/announcements.test.js",
+    "test:events": "node backend/tests/events.test.js"
   },
   "repository": {
     "type": "git",
