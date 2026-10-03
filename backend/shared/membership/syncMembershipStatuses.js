@@ -1,16 +1,18 @@
-// backend/shared/membership/syncMembershipStatuses.js
-const { query } = require('../../db/connection');
+const { pool } = require('../../config/database');
 
 /**
- * Shared Membership Helper: syncMembershipStatuses
- * Idempotently updates active memberships whose expiry date has passed to 'expired'.
- * Never alters pending or cancelled memberships.
+ * Synchronizes membership statuses against expiry dates.
+ * Automatically marks any active memberships whose expiry date has passed as 'expired'.
  *
- * @param {Object} [client] - Optional transactional DB client
- * @returns {Promise<number>} Number of memberships marked as expired
+ * Requirements:
+ * - Idempotent: Can be run multiple times safely.
+ * - Source of truth: memberships table in PostgreSQL.
+ *
+ * @param {object} [client] - Optional database client (for transactions)
+ * @returns {Promise<{ updatedCount: number }>}
  */
-async function syncMembershipStatuses(client = null) {
-  const sql = `
+async function syncMembershipStatuses(client = pool) {
+  const queryText = `
     UPDATE memberships
     SET
       status = 'expired',
@@ -21,16 +23,9 @@ async function syncMembershipStatuses(client = null) {
     RETURNING id;
   `;
 
-  try {
-    const res = client ? await client.query(sql) : await query(sql);
-    if (res.rowCount > 0) {
-      console.log(`[Membership Sync] Automatically expired ${res.rowCount} membership(s).`);
-    }
-    return res.rowCount;
-  } catch (err) {
-    console.error('[Membership Sync Error] Failed to synchronize membership statuses:', err.message);
-    throw err;
-  }
+  const result = await client.query(queryText);
+  return { updatedCount: result.rowCount };
 }
 
-module.exports = { syncMembershipStatuses };
+syncMembershipStatuses.syncMembershipStatuses = syncMembershipStatuses;
+module.exports = syncMembershipStatuses;

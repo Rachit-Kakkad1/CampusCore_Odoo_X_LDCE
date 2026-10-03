@@ -1,37 +1,17 @@
-// backend/shared/auth/requireAuth.js
-const jwt = require('jsonwebtoken');
-const env = require('../../config/env');
+const getCurrentUser = require('./getCurrentUser');
 
 /**
- * Shared Middleware: requireAuth
- * Validates the Authorization header Bearer token against JWT_SECRET.
- * Attaches decoded identity payload to req.user.
+ * Middleware ensuring the request contains a valid authenticated user.
+ * Returns 401 Unauthorized if missing or invalid.
  */
 function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      error: {
-        message: 'Authentication required. Missing or malformed Authorization header.',
-        status: 401,
-      },
-    });
+  const user = getCurrentUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
 
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(token, env.JWT_SECRET);
-    req.user = decoded; // { userId, email, role, iat, exp }
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      error: {
-        message: 'Invalid or expired authentication token.',
-        status: 401,
-      },
-    });
-  }
+  req.user = user;
+  next();
 }
-
-module.exports = { requireAuth };
+requireAuth.requireAuth = requireAuth;
+module.exports = requireAuth;

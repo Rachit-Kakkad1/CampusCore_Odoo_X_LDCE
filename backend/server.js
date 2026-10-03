@@ -1,18 +1,44 @@
-const env = require('./config/env');
 const app = require('./app');
-const { syncMembershipStatuses } = require('./shared/membership/syncMembershipStatuses');
+const env = require('./config/env');
+const { testConnection } = require('./config/database');
 
-const PORT = env.PORT || 5000;
-
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
-
-  // Run initial membership expiry synchronization on startup
-  try {
-    await syncMembershipStatuses();
-  } catch (err) {
-    console.error('Failed initial membership status synchronization:', err.message);
+async function startServer() {
+  console.log('Connecting to PostgreSQL database...');
+  const connected = await testConnection();
+  if (!connected) {
+    console.error('Fatal: Cannot start server without active database connection.');
+    process.exit(1);
   }
-});
 
+  const syncMembershipStatuses = require('./shared/membership/syncMembershipStatuses');
+  try {
+    const { updatedCount } = await syncMembershipStatuses();
+    if (updatedCount > 0) {
+      console.log(`Synchronized membership lifecycle statuses: ${updatedCount} memberships expired.`);
+    }
+  } catch (err) {
+    console.warn('Membership status sync warning on startup:', err.message);
+  }
+
+  // Periodic hourly sync
+  setInterval(async () => {
+    try {
+      await syncMembershipStatuses();
+    } catch (e) {
+      console.warn('Periodic membership sync warning:', e.message);
+    }
+  }, 60 * 60 * 1000).unref();
+
+  const server = app.listen(env.PORT, () => {
+    console.log(`Student Organization System Backend running on port ${env.PORT}`);
+    console.log(`Health check: http://localhost:${env.PORT}/health`);
+  });
+
+  return server;
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { startServer };

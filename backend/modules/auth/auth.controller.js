@@ -1,48 +1,41 @@
-// backend/modules/auth/auth.controller.js
 const authService = require('./auth.service');
-const { getCurrentUser } = require('../../shared/auth/getCurrentUser');
 
-const authController = {
-  async register(req, res, next) {
+/**
+ * Auth Controller
+ * Coordinates HTTP requests for user authentication.
+ */
+class AuthController {
+  async register(req, res) {
     try {
-      const { name, email, password, role } = req.body;
-      const result = await authService.register({ name, email, password, role });
-      return res.status(201).json({
-        success: true,
-        user: result.user,
-        token: result.token,
-      });
-    } catch (error) {
-      next(error);
+      const result = await authService.register(req.body);
+      return res.status(201).json({ success: true, ...result });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  async login(req, res, next) {
+  async login(req, res) {
     try {
-      const { email, password } = req.body;
-      const result = await authService.login({ email, password });
-      return res.status(200).json({
-        success: true,
-        user: result.user,
-        token: result.token,
-      });
-    } catch (error) {
-      next(error);
+      const result = await authService.login(req.body);
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  async getMe(req, res, next) {
+  async getMe(req, res) {
     try {
-      const currentUser = getCurrentUser(req);
-      const user = await authService.getCurrentUserProfile(currentUser.userId || currentUser.id);
-      return res.status(200).json({
-        success: true,
-        user,
-      });
-    } catch (error) {
-      next(error);
+      const userId = req.user ? (req.user.id || req.user.userId) : null;
+      const user = await authService.getMe(userId);
+      return res.status(200).json({ success: true, user });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
-};
+  }
+}
 
-module.exports = authController;
+
+module.exports = new AuthController();

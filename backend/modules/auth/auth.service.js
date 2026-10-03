@@ -1,144 +1,187 @@
-// backend/modules/auth/auth.service.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const authRepository = require('./auth.repository');
+const crypto = require('crypto');
 const env = require('../../config/env');
+const { pool } = require('../../config/database');
+const authRepository = require('./auth.repository');
 
-const BCRYPT_SALT_ROUNDS = 10;
-const JWT_EXPIRES_IN = '24h';
-
-const authService = {
+/**
+ * Auth Service
+ * Business logic for user registration, authentication, and session retrieval.
+ */
+class AuthService {
   /**
-   * Register a new user.
+   * Registers a new user with default role ('member') and initializes a pending membership.
    */
-  async register({ name, email, password, role = 'member' }) {
+  async register({ name, email, password }) {
     if (!name || typeof name !== 'string' || !name.trim()) {
-      const err = new Error('Name is required.');
+      const err = new Error('Name is required');
+      err.code = 'INVALID_NAME';
       err.status = 400;
       throw err;
     }
 
     if (!email || typeof email !== 'string' || !email.trim()) {
-      const err = new Error('Email is required.');
+      const err = new Error('Email is required');
+      err.code = 'INVALID_EMAIL';
       err.status = 400;
       throw err;
     }
 
-    // Basic email format validation
-    const normalizedEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(normalizedEmail)) {
-      const err = new Error('Invalid email format.');
+    const cleanEmail = email.trim().toLowerCase();
+    if (!emailRegex.test(cleanEmail)) {
+      const err = new Error('Invalid email format');
+      err.code = 'INVALID_EMAIL_FORMAT';
       err.status = 400;
       throw err;
     }
 
     if (!password || typeof password !== 'string' || password.length < 6) {
-      const err = new Error('Password must be at least 6 characters long.');
+      const err = new Error('Password must be at least 6 characters long');
+      err.code = 'WEAK_PASSWORD';
       err.status = 400;
       throw err;
     }
 
-    // Check if user already exists
-    const existing = await authRepository.findByEmail(normalizedEmail);
+    // Check for existing user with this email
+    const existing = await authRepository.getUserByEmail(cleanEmail);
     if (existing) {
-      const err = new Error('Email already registered.');
+      const err = new Error('An account with this email already exists');
+      err.code = 'EMAIL_ALREADY_EXISTS';
       err.status = 409;
       throw err;
     }
 
-    // Hash password
-    const password_hash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    // Persist safe record
-    const user = await authRepository.createUser({
-      name: name.trim(),
-      email: normalizedEmail,
-      password_hash,
-      role: role || 'member',
-    });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    // Generate JWT
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+      // 1. Create user with default role 'member'
+      const user = await authRepository.createUser(
+        {
+          name: name.trim(),
+          email: cleanEmail,
+          password_hash: passwordHash,
+          role: 'member',
+        },
+        client
+      );
 
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        created_at: user.created_at,
-      },
-      token,
-    };
-  },
+      // 2. Initialize pending membership (per Rule 1: register -> pending membership)
+      const currentYear = new Date().getFullYear();
+      const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+      const memberCode = `MEM-${currentYear}-${randomSuffix}`;
+
+      await client.query(
+        `
+        INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+        VALUES ($1, $2, 'pending', 'pending', 500.00)
+        ON CONFLICT (member_code) DO NOTHING;
+      `,
+        [user.id, memberCode]
+      );
+
+      await client.query('COMMIT');
+
+      // 3. Issue JWT Bearer token
+      const token = jwt.sign(
+        {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return {
+        user,
+        token,
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 
   /**
-   * Authenticate user with email and password.
+   * Authenticates user credentials and returns safe user data and JWT token.
    */
   async login({ email, password }) {
     if (!email || !password) {
-      const err = new Error('Email and password are required.');
+      const err = new Error('Email and password are required');
+      err.code = 'MISSING_CREDENTIALS';
       err.status = 400;
       throw err;
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await authRepository.findByEmail(normalizedEmail);
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await authRepository.getUserByEmail(cleanEmail);
 
     if (!user) {
-      const err = new Error('Invalid email or password.');
+      const err = new Error('Invalid email or password');
+      err.code = 'INVALID_CREDENTIALS';
       err.status = 401;
       throw err;
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      const err = new Error('Invalid email or password.');
+    const matches = await bcrypt.compare(password, user.password_hash);
+    if (!matches) {
+      const err = new Error('Invalid email or password');
+      err.code = 'INVALID_CREDENTIALS';
       err.status = 401;
       throw err;
     }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        created_at: user.created_at,
-      },
-      token,
-    };
-  },
-
-  /**
-   * Get authenticated user profile.
-   */
-  async getCurrentUserProfile(userId) {
-    const user = await authRepository.findById(userId);
-    if (!user) {
-      const err = new Error('User not found.');
-      err.status = 404;
-      throw err;
-    }
-    return {
+    const safeUser = {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       created_at: user.created_at,
     };
-  },
-};
 
-module.exports = authService;
+    const token = jwt.sign(
+      {
+        id: safeUser.id,
+        name: safeUser.name,
+        email: safeUser.email,
+        role: safeUser.role,
+      },
+      env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return {
+      user: safeUser,
+      token,
+    };
+  }
+
+  /**
+   * Retrieves profile for currently authenticated user.
+   */
+  async getMe(userId) {
+    const user = await authRepository.getUserById(userId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.code = 'USER_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+    return user;
+  }
+
+  async getCurrentUserProfile(userId) {
+    return this.getMe(userId);
+  }
+}
+
+
+module.exports = new AuthService();

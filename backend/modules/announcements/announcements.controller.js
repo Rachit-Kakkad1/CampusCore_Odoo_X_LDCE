@@ -1,69 +1,51 @@
-// backend/modules/announcements/announcements.controller.js
 const announcementsService = require('./announcements.service');
 
-const announcementsController = {
-  /**
-   * GET /api/announcements
-   * Retrieve all announcements in reverse chronological order.
-   */
-  async getAll(req, res, next) {
-    try {
-      const announcements = await announcementsService.getAllAnnouncements();
-      return res.status(200).json({
-        success: true,
-        count: announcements.length,
-        data: announcements
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  /**
-   * GET /api/announcements/:id
-   * Retrieve a specific announcement by its ID.
-   */
-  async getById(req, res, next) {
-    try {
-      const { id } = req.params;
-      const announcement = await announcementsService.getAnnouncementById(id);
-      return res.status(200).json({
-        success: true,
-        data: announcement
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  /**
-   * POST /api/announcements
-   * Create a new announcement.
-   */
-  async create(req, res, next) {
+/**
+ * Announcements Controller
+ * Coordinates HTTP requests for announcements.
+ */
+class AnnouncementsController {
+  async createAnnouncement(req, res) {
     try {
       const { title, body, content } = req.body;
       const announcementBody = body !== undefined ? body : content;
-
-      // Temporary development-only user mechanism:
-      // Accepts authenticated user, x-user-id header, request body, or defaults to 1.
-      const created_by = req.user?.userId || req.headers['x-user-id'] || req.body.created_by || 1;
-
-      const created = await announcementsService.createAnnouncement({
-        title,
-        body: announcementBody,
-        created_by
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Announcement created successfully',
-        data: created
-      });
+      const created_by = req.user ? (req.user.id || req.user.userId) : (req.body.created_by || 1);
+      const announcement = await announcementsService.createAnnouncement({ title, body: announcementBody, created_by });
+      return res.status(201).json({ success: true, announcement, data: announcement });
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
   }
-};
 
-module.exports = announcementsController;
+  async getAllAnnouncements(req, res) {
+    try {
+      const announcements = await announcementsService.getAllAnnouncements();
+      return res.status(200).json({ success: true, count: announcements.length, announcements, data: announcements });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async getAnnouncementById(req, res) {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const announcement = await announcementsService.getAnnouncementById(id);
+      if (!announcement) {
+        return res.status(404).json({ error: 'NOT_FOUND', message: 'Announcement not found' });
+      }
+      return res.status(200).json({ success: true, announcement, data: announcement });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  getAll(req, res) { return this.getAllAnnouncements(req, res); }
+  getById(req, res) { return this.getAnnouncementById(req, res); }
+  create(req, res) { return this.createAnnouncement(req, res); }
+}
+
+module.exports = new AnnouncementsController();
+

@@ -6,7 +6,7 @@
 -- Clear existing data cleanly before seeding
 TRUNCATE TABLE transactions, expenses, fundraiser_income, tasks, fundraisers,
                order_items, orders, product_sizes, products,
-               tickets, events, announcements, memberships, users
+               tickets, event_attendees, events, announcements, memberships, users
                RESTART IDENTITY CASCADE;
 
 -- -----------------------------------------------------------------------------
@@ -19,93 +19,46 @@ INSERT INTO users (name, email, password_hash, role) VALUES
   ('Vik Volunteer',  'vik@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'volunteer'),
   ('Maya Member',    'maya@odoo-ldce.org',      '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
   ('Eddie Expired',  'eddie@odoo-ldce.org',     '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
-  ('Greg Guest',     'greg@odoo-ldce.org',      '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'guest'),
-  ('Pia Pending',    'pia@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'guest');
+  ('Pia Pending',    'pia@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member');
 
 -- -----------------------------------------------------------------------------
--- 2. SEED MEMBERSHIPS (Covers all 5 core states + renewal + expiring)
+-- 2. SEED EVENT ATTENDEES (Public guest attendees without user accounts)
 -- -----------------------------------------------------------------------------
--- 1. Maya Member (user_id = 5): ACTIVE (paid, future expiry)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-SELECT 1, id, 'SKY-MEM-005-MAYA', 'active', 'paid', 500.00,
-  NOW() - INTERVAL '3 months',
-  NOW() + INTERVAL '9 months',
-  NOW() - INTERVAL '3 months',
-  NOW() - INTERVAL '3 months',
-  NOW() - INTERVAL '3 months'
+INSERT INTO event_attendees (name, email, mobile) VALUES
+  ('Guest Attendee', 'guest@odoo-ldce.org', '9876543210');
+
+-- -----------------------------------------------------------------------------
+-- 3. SEED MEMBERSHIPS (Complete Lifecycle States)
+-- -----------------------------------------------------------------------------
+-- Maya Member: ACTIVE (paid, started 1 month ago, expires in 11 months)
+INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp)
+SELECT id, 'MEM-2026-MAYA', 'active', 'paid', 500.00, NOW() - INTERVAL '1 month', NOW() + INTERVAL '11 months', NOW() - INTERVAL '1 month'
 FROM users WHERE email = 'maya@odoo-ldce.org';
 
--- 2. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 1: Historical Expired)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-SELECT 2, id, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00,
-  NOW() - INTERVAL '14 months',
-  NOW() - INTERVAL '2 months',
-  NOW() - INTERVAL '14 months',
-  NOW() - INTERVAL '14 months',
-  NOW() - INTERVAL '2 months'
+-- Eddie Expired: EXPIRED (paid 2 years ago, expired 1 year ago)
+INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp)
+SELECT id, 'MEM-2025-EDDIE', 'expired', 'paid', 500.00, NOW() - INTERVAL '2 years', NOW() - INTERVAL '1 year', NOW() - INTERVAL '2 years'
 FROM users WHERE email = 'eddie@odoo-ldce.org';
 
--- 3. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 2: Active Renewal referencing ID 2)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, renewed_from_membership_id, created_at, updated_at)
-SELECT 3, id, 'SKY-MEM-006-EDDIE-2026', 'active', 'paid', 500.00,
-  NOW() - INTERVAL '2 months',
-  NOW() + INTERVAL '10 months',
-  NOW() - INTERVAL '2 months',
-  2,
-  NOW() - INTERVAL '2 months',
-  NOW() - INTERVAL '2 months'
-FROM users WHERE email = 'eddie@odoo-ldce.org';
-
--- 4. Pia Pending (user_id = 8): PENDING (unpaid, dues pending)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-SELECT 4, id, 'SKY-MEM-008-PIA', 'pending', 'pending', 500.00,
-  NULL, NULL, NULL,
-  NOW() - INTERVAL '5 days',
-  NOW() - INTERVAL '5 days'
+-- Pia Pending: PENDING (dues not yet paid, no start or expiry date)
+INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp)
+SELECT id, 'MEM-2026-PIA', 'pending', 'pending', 500.00, NULL, NULL, NULL
 FROM users WHERE email = 'pia@odoo-ldce.org';
 
--- 5. Vik Volunteer (user_id = 4): EXPIRED (past expiry, dues were paid)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-SELECT 5, id, 'SKY-MEM-004-VIK', 'expired', 'paid', 500.00,
-  NOW() - INTERVAL '13 months',
-  NOW() - INTERVAL '1 month',
-  NOW() - INTERVAL '13 months',
-  NOW() - INTERVAL '13 months',
-  NOW() - INTERVAL '1 month'
-FROM users WHERE email = 'vik@odoo-ldce.org';
-
--- 6. Greg Guest (user_id = 7): CANCELLED (was active, cancelled with reason)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, cancelled_at, cancellation_reason, payment_timestamp, created_at, updated_at)
-SELECT 6, id, 'SKY-MEM-007-GREG', 'cancelled', 'paid', 500.00,
-  NOW() - INTERVAL '4 months',
-  NOW() + INTERVAL '8 months',
-  NOW() - INTERVAL '10 days',
-  'Member requested cancellation due to transfer to another campus',
-  NOW() - INTERVAL '4 months',
-  NOW() - INTERVAL '4 months',
-  NOW() - INTERVAL '10 days'
-FROM users WHERE email = 'greg@odoo-ldce.org';
-
--- 7. Tara Treasurer (user_id = 2): EXPIRING SOON (Active, expires in 5 days)
-INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-SELECT 7, id, 'SKY-MEM-002-TARA', 'active', 'paid', 500.00,
-  NOW() - INTERVAL '360 days',
-  NOW() + INTERVAL '5 days',
-  NOW() - INTERVAL '360 days',
-  NOW() - INTERVAL '360 days',
-  NOW() - INTERVAL '360 days'
-FROM users WHERE email = 'tara@odoo-ldce.org';
-
-SELECT setval('memberships_id_seq', (SELECT MAX(id) FROM memberships));
-
 -- -----------------------------------------------------------------------------
--- 3. SEED INITIAL DUES TRANSACTIONS
+-- 3. SEED INITIAL DUES TRANSACTIONS (FOR ACTIVE & EXPIRED MEMBERS WHO PAID)
 -- -----------------------------------------------------------------------------
 INSERT INTO transactions (source_type, source_id, user_id, amount, direction, payment_mode, status)
-SELECT 'dues', m.id, m.user_id, m.dues_amount, 'in', 'online', 'paid'
+SELECT 'dues', m.id, u.id, 500.00, 'in', 'online', 'paid'
 FROM memberships m
-WHERE m.dues_status = 'paid';
+JOIN users u ON m.user_id = u.id
+WHERE u.email = 'maya@odoo-ldce.org';
 
+INSERT INTO transactions (source_type, source_id, user_id, amount, direction, payment_mode, status)
+SELECT 'dues', m.id, u.id, 500.00, 'in', 'online', 'paid'
+FROM memberships m
+JOIN users u ON m.user_id = u.id
+WHERE u.email = 'eddie@odoo-ldce.org';
 
 -- -----------------------------------------------------------------------------
 -- 4. SEED EVENTS
@@ -135,7 +88,17 @@ VALUES (
 );
 
 -- -----------------------------------------------------------------------------
--- 5. SEED PRODUCTS & PRODUCT SIZES
+-- 5. SEED TICKETS (Guest Attendee Ticket linked via attendee_id)
+-- -----------------------------------------------------------------------------
+INSERT INTO tickets (ticket_code, event_id, attendee_id, price, price_type, payment_status)
+SELECT 'TCK-SEED-GUEST-001', e.id, a.id, e.non_member_price, 'non_member', 'pending'
+FROM events e
+CROSS JOIN event_attendees a
+WHERE e.title = 'Spring Gala 2026' AND a.email = 'guest@odoo-ldce.org'
+LIMIT 1;
+
+-- -----------------------------------------------------------------------------
+-- 6. SEED PRODUCTS & PRODUCT SIZES
 -- -----------------------------------------------------------------------------
 -- Club Hoodie: Rs 1200 with Size L stock = 1 (for oversell tests)
 WITH hoodie AS (

@@ -22,12 +22,10 @@ async function testMerchandiseModule() {
   try {
     // 1. Fetch Users
     console.log('--- 1. Fetching Test Users ---');
-    const usersRes = await pool.query(`SELECT id, email, role, name FROM users;`);
-    const maya = usersRes.rows.find((u) => u.name.includes('Maya') || u.email.includes('maya'));
-    const greg = usersRes.rows.find((u) => u.name.includes('Greg') || u.email.includes('greg'));
-    
-    assert(maya !== undefined, `Maya Member found (${maya?.email})`);
-    assert(greg !== undefined, `Greg Guest found (${greg?.email})`);
+    const usersRes = await pool.query(`SELECT id, email, role FROM users;`);
+    const users = Object.fromEntries(usersRes.rows.map((u) => [u.email, u]));
+    assert(users['maya@odoo-ldce.org'], 'Maya Member exists');
+    assert(users['eddie@odoo-ldce.org'], 'Eddie Expired (Non-active member) exists');
     console.log();
 
     // 2. Fetch Catalog
@@ -41,10 +39,10 @@ async function testMerchandiseModule() {
     assert(sizeL && sizeL.stock >= 1, `Club Hoodie Size L initial stock is ${sizeL?.stock}`);
     console.log();
 
-    // 3. Test Active Member Discount (Maya) vs Guest (Greg)
+    // 3. Test Active Member Discount (Maya) vs Non-Active Member (Eddie)
     console.log('--- 3. Testing Member Discounts on Order Creation ---');
     const mayaOrder = await merchandiseService.createPendingOrder({
-      userId: maya.id,
+      userId: users['maya@odoo-ldce.org'].id,
       items: [{ product_size_id: sizeL.id, quantity: 1 }],
       checkout_session_id: `sess_maya_${Date.now()}`,
     });
@@ -59,13 +57,13 @@ async function testMerchandiseModule() {
     const sizeLAfterPending = hoodieAfterPending.sizes.find((s) => s.size === 'L');
     assert(sizeLAfterPending.stock === sizeL.stock, 'Stock is NOT reduced for pending order');
 
-    const gregOrder = await merchandiseService.createPendingOrder({
-      userId: greg.id,
+    const nonMemberOrder = await merchandiseService.createPendingOrder({
+      userId: users['eddie@odoo-ldce.org'].id,
       items: [{ product_size_id: sizeL.id, quantity: 1 }],
-      checkout_session_id: `sess_greg_${Date.now()}`,
+      checkout_session_id: `sess_nonmember_${Date.now()}`,
     });
-    assert(parseFloat(gregOrder.discount) === 0.00, 'Greg (Guest) receives 0.00 discount');
-    assert(parseFloat(gregOrder.total) === 1200.00, 'Greg total is full price 1200.00');
+    assert(parseFloat(nonMemberOrder.discount) === 0.00, 'Eddie (Non-active member) receives 0.00 discount');
+    assert(parseFloat(nonMemberOrder.total) === 1200.00, 'Eddie total is full price 1200.00');
     console.log();
 
     // 4. Test Payment Simulation & Atomic Stock Decrement
@@ -73,7 +71,7 @@ async function testMerchandiseModule() {
     const initialStock = sizeL.stock;
     const paidMayaOrder = await merchandiseService.payOrder({
       orderId: mayaOrder.id,
-      userId: maya.id,
+      userId: users['maya@odoo-ldce.org'].id,
       payment_mode: 'online',
     });
 
@@ -95,37 +93,36 @@ async function testMerchandiseModule() {
     assert(txRes.rows[0].status === 'paid', 'Transaction status is PAID');
     console.log();
 
-    // 5. Test Overselling Protection (when stock reaches 0)
+    // 5. Test Overselling Protection (Second customer attempts to pay for now out-of-stock Size L)
     console.log('--- 5. Testing Overselling Prevention ---');
-    // Set stock to 0 to simulate exhaustion test
-    await pool.query(`UPDATE product_sizes SET stock = 0 WHERE id = $1;`, [sizeL.id]);
     let oversellCaught = false;
     try {
       await merchandiseService.payOrder({
-        orderId: gregOrder.id,
-        userId: greg.id,
+        orderId: nonMemberOrder.id,
+        userId: users['eddie@odoo-ldce.org'].id,
         payment_mode: 'card',
       });
     } catch (err) {
       oversellCaught = true;
       assert(err.status === 409, `Oversell rejected with 409 Conflict: "${err.message}"`);
     }
-    assert(oversellCaught, 'Customer was prevented from buying out-of-stock item');
+    assert(oversellCaught, 'Second customer was prevented from buying out-of-stock item');
 
-    // Restore stock for size L
-    await pool.query(`UPDATE product_sizes SET stock = 1 WHERE id = $1;`, [sizeL.id]);
+    // Check that nonMemberOrder is still pending and no extra transaction was created
+    const nonMemberOrderCheck = await merchandiseService.getOrder(nonMemberOrder.id);
+    assert(nonMemberOrderCheck.payment_status === 'pending', 'Second order remains pending upon failed stock check');
     console.log();
 
     // 6. Test Idempotent Order Creation (Checkout Session)
     console.log('--- 6. Testing Checkout Session Idempotency ---');
     const sessionId = `test_idempotent_${Date.now()}`;
     const firstAttempt = await merchandiseService.createPendingOrder({
-      userId: maya.id,
+      userId: users['maya@odoo-ldce.org'].id,
       items: [{ product_size_id: hoodie.sizes[0].id, quantity: 1 }],
       checkout_session_id: sessionId,
     });
     const secondAttempt = await merchandiseService.createPendingOrder({
-      userId: maya.id,
+      userId: users['maya@odoo-ldce.org'].id,
       items: [{ product_size_id: hoodie.sizes[0].id, quantity: 1 }],
       checkout_session_id: sessionId,
     });
@@ -140,6 +137,7 @@ async function testMerchandiseModule() {
     console.error('Fatal test error:', error);
   } finally {
     await pool.end();
+    process.exit(failed > 0 ? 1 : 0);
   }
 }
 

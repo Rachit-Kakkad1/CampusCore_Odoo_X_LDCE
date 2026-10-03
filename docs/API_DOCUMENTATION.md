@@ -1,325 +1,117 @@
-# API Documentation — Skyline Student Organization System
+# Student Organization System — Complete API Documentation
 
-This document outlines the working and planned API endpoints for the 24-hour Odoo × LDCE Hackathon.
-All endpoints are served under the `/api` prefix.
+This document provides unified documentation for all backend modules in the **Odoo × LDCE Student Organization Management MVP**.
+
+All endpoints are accessible via direct paths (e.g. `/events`, `/tickets`, `/membership`) and via `/api` prefixed paths (e.g. `/api/events`, `/api/tickets`, `/api/membership`) for complete interoperability across all frontend and testing clients.
 
 ---
 
 ## 1. System Health
-- `GET /api/health`
-  - **Auth**: None
-  - **Status**: 200 OK
-  - **Response**:
-    ```json
-    { "status": "ok" }
-    ```
+* `GET /health` or `GET /api/health` — Central health check endpoint (returns `{"status": "ok", "service": "student-organization-system"}`).
 
 ---
 
-## 2. Authentication Module (`/api/auth`) — *Owner: Nishit*
+## 2. Shared Function Contracts (`backend/shared/`)
 
-### `POST /api/auth/register`
-- **Auth**: Public
-- **Description**: Creates a new user account with hashed password (`bcryptjs`, 10 rounds). Automatically issues a 24h JWT.
-- **Request Body**:
-  ```json
-  {
-    "name": "Jane Doe",
-    "email": "jane@ldce.ac.in",
-    "password": "Password123!",
-    "role": "member"
-  }
-  ```
-- **Responses**:
-  - `201 Created`:
-    ```json
-    {
-      "success": true,
-      "user": {
-        "id": 10,
-        "name": "Jane Doe",
-        "email": "jane@ldce.ac.in",
-        "role": "member",
-        "created_at": "2026-10-03T06:00:00.000Z"
-      },
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-    ```
-  - `400 Bad Request`: Validation failure (missing fields, invalid email format, password < 6 chars)
-  - `409 Conflict`: Email already registered
+### A. Auth Contracts (`backend/shared/auth/`)
+* **`getCurrentUser(req)`**: Extracts `{ id, name, email, role }` or `null` from Bearer JWT.
+* **`requireAuth`**: Middleware enforcing authenticated session (`401 UNAUTHORIZED`).
+* **`optionalAuth`**: Middleware extracting user if Bearer token is provided, while allowing guest requests to proceed unauthenticated.
+* **`requireRole(...roles)`**: Middleware factory restricting endpoint access to specific roles (`403 FORBIDDEN`). Permitted roles: `admin`, `treasurer`, `event_manager`, `volunteer`, `member`. (Note: `guest` is NOT a system user role).
 
-### `POST /api/auth/login`
-- **Auth**: Public
-- **Description**: Validates user credentials and issues a JWT containing `{ userId, email, role }`.
-- **Request Body**:
-  ```json
-  {
-    "email": "jane@ldce.ac.in",
-    "password": "Password123!"
-  }
-  ```
-- **Responses**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "user": {
-        "id": 10,
-        "name": "Jane Doe",
-        "email": "jane@ldce.ac.in",
-        "role": "member",
-        "created_at": "2026-10-03T06:00:00.000Z"
-      },
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-    }
-    ```
-  - `400 Bad Request`: Missing email or password
-  - `401 Unauthorized`: Invalid email or password
+### B. Membership Contracts (`backend/shared/membership/`)
+* **`isActiveMember(userId, [client])`**: Returns `true` strictly when `status = 'active' AND dues_status = 'paid' AND expiry_date > NOW()`. Returns `false` for expired, cancelled, pending, or unpaid memberships, and guest attendees (`userId = null`).
+* **`getMembershipStatus(userId, [client])`**: Returns `{ status, started_at, expiry_date, days_remaining, is_active, membership }` with status in `ACTIVE`, `EXPIRED`, `PENDING`, `CANCELLED`, `NONE`.
+* **`syncMembershipStatuses([client])`**: Idempotent backend service that transitions active memberships to `expired` when `expiry_date <= NOW()`. Runs on startup, periodic interval, and before sensitive operations.
 
-### `GET /api/auth/me`
-- **Auth**: Bearer `<token>` (`requireAuth`)
-- **Description**: Returns authenticated profile for the caller.
-- **Responses**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "user": {
-        "id": 10,
-        "name": "Jane Doe",
-        "email": "jane@ldce.ac.in",
-        "role": "member",
-        "created_at": "2026-10-03T06:00:00.000Z"
-      }
-    }
-    ```
-  - `401 Unauthorized`: Missing, invalid, or expired JWT
+### C. Financial Ledger Contracts (`backend/shared/transactions/`)
+* **`createTransaction(params, [client])`**: Idempotent financial ledger entry via `UNIQUE(source_type, source_id)`.
+
+### D. QR Code & Cryptographic Contracts (`backend/shared/qr/`)
+* **`signTicketCode(ticketCode)`**: Computes first 10 hex characters of `HMAC_SHA256(ticket_code, QR_SECRET)`.
+* **`generateQR(ticketCode)`**: Formats payload as `<ticket_code>.<signature>` and creates base64 PNG data URL.
+* **`verifyQR(payload)`**: Pure constant-time cryptographic signature verification (`crypto.timingSafeEqual`).
+
+### E. Email Delivery Contracts (`backend/shared/email/`)
+* **`sendTicketEmail({ recipientEmail, recipientName, event, ticket, qrDataUrl })`**: Asynchronous delivery service with template rendering (HTML/text, embedded QR, fallback code, door instructions). Abstracted provider architecture (`DevelopmentEmailProvider`, `SmtpEmailProvider`). Resilient design: email provider failures are logged without aborting or rolling back successful ticket payments.
+* **`renderTicketEmail(params)`**: Generates structured HTML and plain-text ticket bodies with responsive design.
+* **`getEmailProvider()` / `setEmailProvider()`**: Pluggable provider factory with in-memory development mailbox and testing mocks.
 
 ---
 
-## 3. Membership Module (`/api/membership`) — *Owner: Nishit*
+## 3. Authentication API (`/auth` or `/api/auth`)
 
-### `GET /api/membership/me`
-- **Auth**: Bearer `<token>` (`requireAuth`)
-- **Description**: Retrieves current user's membership details, dues status, and active validation.
-- **Response**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "exists": true,
-        "is_active": true,
-        "computed_status": "active",
-        "membership": {
-          "id": 1,
-          "user_id": 5,
-          "member_code": "MEM-2026-MAYA",
-          "dues_amount": "500.00",
-          "dues_status": "paid",
-          "start_date": "2026-01-01",
-          "expiry_date": "2027-12-31",
-          "paid_at": "2026-01-01T10:00:00.000Z",
-          "is_active": true,
-          "computed_status": "active"
-        }
-      }
-    }
-    ```
-
-### `POST /api/membership`
-- **Auth**: Bearer `<token>` (`requireAuth`)
-- **Description**: Initiates a new membership record for the caller in `pending` dues status.
-- **Responses**:
-  - `201 Created`: Membership created with `dues_status: 'pending'`, `dues_amount: 500.00`
-  - `409 Conflict`: Membership already exists for this user
-
-### `POST /api/membership/dues/pay`
-- **Auth**: Bearer `<token>` (`requireAuth`)
-- **Description**: Simulates dues payment (`online`, `upi`, `card`, `cash`), sets `dues_status = 'paid'`, assigns end-of-year expiry (`YYYY-12-31`), and creates an atomic transaction entry in `transactions` (`source_type = 'dues'`, `direction = 'in'`, `status = 'paid'`).
-- **Request Body**:
-  ```json
-  {
-    "payment_mode": "online"
-  }
-  ```
-- **Response**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "message": "Membership dues paid successfully. Membership is now active.",
-      "data": {
-        "id": 1,
-        "user_id": 10,
-        "member_code": "MEM-2026-10",
-        "dues_amount": "500.00",
-        "dues_status": "paid",
-        "start_date": "2026-10-03",
-        "expiry_date": "2026-12-31",
-        "is_active": true,
-        "computed_status": "active"
-      }
-    }
-    ```
-
-### `GET /api/membership/pass`
-- **Auth**: Bearer `<token>` (`requireAuth`)
-- **Description**: Returns safe digital membership card verification data.
-- **Response**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "membership_id": 1,
-        "member_code": "MEM-2026-10",
-        "member_name": "Jane Doe",
-        "user_email": "jane@ldce.ac.in",
-        "role": "member",
-        "dues_status": "paid",
-        "dues_amount": "500.00",
-        "start_date": "2026-10-03",
-        "expiry_date": "2026-12-31",
-        "is_active": true,
-        "computed_status": "active"
-      }
-    }
-    ```
-  - `404 Not Found`: No membership record exists for this user
-
-### `GET /api/membership/all`
-- **Auth**: Bearer `<token>` (`requireAuth` + `requireRole('admin', 'treasurer')`)
-- **Description**: Admin and Treasurer oversight endpoint returning all registered memberships.
-- **Responses**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "count": 3,
-      "data": [ ... ]
-    }
-    ```
-  - `403 Forbidden`: Authenticated user does not have `admin` or `treasurer` role
+* `POST /auth/register` — Register new system user (default role: `member`). Automatically creates pending membership.
+* `POST /auth/login` — Login with credentials; returns JWT token and safe user profile.
+* `GET /auth/me` — Profile of authenticated user (requires `requireAuth`).
 
 ---
 
-## 4. Announcements Module (`/api/announcements`) — *Owner: Nishit*
+## 4. Membership Lifecycle API (`/membership` or `/api/membership`, `/members` or `/api/members`)
 
-### `GET /api/announcements`
-- **Auth**: Public
-- **Description**: Returns all announcement bulletins in reverse chronological order (newest first), with author details.
-- **Response**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "count": 2,
-      "data": [
-        {
-          "id": 2,
-          "title": "Spring Gala Registration Open",
-          "body": "Early bird tickets are now live for the annual Spring Gala flagship event!",
-          "created_by": 3,
-          "created_at": "2026-10-03T05:00:00.000Z",
-          "author_name": "Ethan Events",
-          "author_role": "event_manager"
-        },
-        {
-          "id": 1,
-          "title": "Welcome to Skyline Student Organization!",
-          "body": "Welcome everyone to the new semester! Check out upcoming events and official club merchandise.",
-          "created_by": 1,
-          "created_at": "2026-10-01T04:00:00.000Z",
-          "author_name": "Admin User",
-          "author_role": "admin"
-        }
-      ]
-    }
-    ```
+* `GET /membership/me` — Current user membership details, lifecycle status (`ACTIVE`, `EXPIRED`, `PENDING`, `CANCELLED`, `NONE`), and days remaining.
+* `POST /membership/pay` — Pay annual dues. Automatically calculates expiry date via PostgreSQL interval (`NOW() + INTERVAL '1 year'`), activates membership (`PENDING -> ACTIVE`), and creates dues transaction in the ledger.
+* `POST /membership/cancel` — Cancel active/pending membership. Updates `status = 'cancelled'`, `cancelled_at = NOW()`, `cancellation_reason`. Preserves historical record (never deletes).
+* `POST /membership/renew` — Renews membership into a new period linked to previous history via `renewed_from_membership_id`.
+* `GET /membership/pass` — Digital member pass card details including member code, validity status, and days remaining.
+* `GET /membership/history` or `GET /membership/history/:userId` — Complete historical timeline of membership periods and renewals.
+* `GET /membership/verify/:memberCode` — Public verification of a member code.
+* `GET /membership/dashboard` — Admin/Treasurer overview reporting `total_active`, `expiring_7_days`, `expiring_30_days`, `expired`, `pending`, and `cancelled`.
+* `GET /membership/expiring` — List memberships expiring within 30 days (Admin / Treasurer).
+* `POST /membership/sync` — Trigger idempotent status synchronization job.
+* `GET /members` or `GET /membership` — Full membership roster with status filters and member search (Admin / Treasurer).
 
-### `GET /api/announcements/:id`
-- **Auth**: Public
-- **Description**: Returns details for a single announcement by its numeric ID.
-- **Parameters**: `id` (integer in URL path)
-- **Responses**:
-  - `200 OK`:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "id": 1,
-        "title": "Welcome to Skyline Student Organization!",
-        "body": "Welcome everyone to the new semester! Check out upcoming events and official club merchandise.",
-        "created_by": 1,
-        "created_at": "2026-10-01T04:00:00.000Z",
-        "author_name": "Admin User",
-        "author_role": "admin"
-      }
-    }
-    ```
-  - `400 Bad Request`: `{"error": {"message": "Invalid announcement ID.", "status": 400}}`
-  - `404 Not Found`: `{"error": {"message": "Announcement with ID 999 not found.", "status": 404}}`
-
-### `POST /api/announcements`
-- **Auth**: Public (Development fallback: uses User 1 or `x-user-id` header until auth is wired)
-- **Description**: Publishes a new announcement bulletin to the organization feed.
-- **Request Body**:
-  ```json
-  {
-    "title": "Executive Board Election Results",
-    "body": "Congratulations to our newly elected student representatives for the upcoming academic year!"
-  }
-  ```
-  *(Note: `content` is also accepted as an alias for `body`)*
-- **Responses**:
-  - `201 Created`:
-    ```json
-    {
-      "success": true,
-      "message": "Announcement created successfully",
-      "data": {
-        "id": 3,
-        "title": "Executive Board Election Results",
-        "body": "Congratulations to our newly elected student representatives for the upcoming academic year!",
-        "created_by": 1,
-        "created_at": "2026-10-03T12:00:00.000Z",
-        "author_name": "Admin User",
-        "author_role": "admin"
-      }
-    }
-    ```
-  - `400 Bad Request`: Missing title, title > 255 chars, or missing body
 
 ---
 
-## 5. Shared Backend Utilities
+## 5. Announcements API (`/announcements` or `/api/announcements`)
 
-### `isActiveMember(userId)`
-- **Path**: `backend/shared/membership/isActiveMember.js`
-- **Contract**:
-  ```javascript
-  const { isActiveMember } = require('../../shared/membership/isActiveMember');
-  const active = await isActiveMember(userId); // returns boolean
-  ```
-- **Rule**:
-  `dues_status === 'paid' AND expiry_date >= CURRENT_DATE`
-
-### `requireAuth`
-- **Path**: `backend/shared/auth/requireAuth.js`
-- **Usage**: Express route middleware verifying `Authorization: Bearer <token>` and attaching `req.user`.
-
-### `requireRole(...allowedRoles)`
-- **Path**: `backend/shared/auth/requireRole.js`
-- **Usage**: Express route middleware verifying `req.user.role`.
-
-### `createTransaction(txData, client)`
-- **Path**: `backend/shared/transactions/createTransaction.js`
-- **Usage**: Records financial ledger records into PostgreSQL `transactions` table with idempotency constraint `UNIQUE(source_type, source_id)`.
+* `GET /announcements` — List announcements chronologically with author attribution.
+* `POST /announcements` — Post new announcement (Admin / Event Manager).
 
 ---
 
-## 6. Upcoming Modules (Planned)
-- **Events & Ticketing (`/api/events`, `/api/tickets`)** — Rachit
-- **Merchandise & Orders (`/api/products`, `/api/orders`)** — Harshit
-- **Finance, Fundraisers, Expenses (`/api/finance`, `/api/fundraisers`, `/api/tasks`, `/api/expenses`)** — Tapan
+## 6. Events & Tickets Module (`/events` or `/api/events`, `/tickets` or `/api/tickets`, `/checkin` or `/api/checkin`)
+
+* `GET /events` — List upcoming events with available seats and tiered pricing.
+* `GET /events/:id` — Event details.
+* `POST /events` — Create event with capacity and tiered pricing (Admin / Event Manager).
+* `GET /events/:id/stats` — Real-time event stats: capacity, seats remaining, tickets sold, tickets checked in, revenue (Admin / Event Manager / Treasurer).
+* `POST /events/:id/tickets` or `POST /events/:id/register` — Ticket checkout supporting two valid registration flows:
+  * **Flow A (Registered User / Member)**: Requires JWT Bearer token. Prices dynamically based on `isActiveMember(userId)`. Stores `tickets.user_id = user.id, tickets.attendee_id = NULL`.
+  * **Flow B (Public Event Guest Attendee)**: No system account required. Pass `{ name, email, mobile }` in body. Automatically registers into `event_attendees`, charges `non_member_price`, and stores `tickets.user_id = NULL, tickets.attendee_id = attendee.id`.
+* `POST /tickets/:id/pay` — Atomic payment with row lock (`FOR UPDATE`), seat decrement, ticket status update, transaction ledger entry, signed QR generation, and asynchronous ticket confirmation email dispatch with embedded QR and manual fallback code.
+* `GET /tickets/mine` — All tickets purchased by current user (requires `requireAuth`).
+* `GET /tickets/:id/qr` — Generate signed QR payload and image for a valid paid ticket (supports both user and attendee tickets).
+* `POST /checkin/scan` — Door check-in scanning endpoint. Supports both signed QR payloads (`payload = ticket_code.signature`) and manual fallback ticket codes (`payload` or `code = ticket_code`). Includes constant-time HMAC validation, event matching, duplicate scan prevention (`ALREADY_USED`), expired member admission (`VALID` with `Member: EXPIRED`), and guest attendee admission (`VALID` with `Member: NONE`, holder: `attendee`).
+
+---
+
+## 7. Merchandise & Orders Module (`/products`, `/orders`, `/merchandise` or `/api/merchandise`)
+
+* `GET /products` — Product catalog with sizes, prices, and stock levels.
+* `GET /products/:id` — Product details.
+* `POST /products` — Create product (Admin).
+* `PUT /products/:id/stock` — Update stock levels (Admin).
+* `POST /orders` — Create pending order with cart items (does not decrement stock yet).
+* `POST /orders/:id/pay` — Atomic order payment with size stock verification and decrement.
+* `GET /orders/mine` — User's order history.
+* `GET /orders` — All orders (Admin / Treasurer).
+* `GET /orders/:id` — Single order details.
+
+---
+
+## 8. Finance & Fundraisers Module (`/finance` or `/api/finance`)
+
+* `GET /finance/summary` — Financial ledger summary (income by source, reimbursed expenses, balance).
+* `GET /finance/transactions` — All financial transactions.
+* `GET /finance/owing` — List of users with pending dues or orders.
+* `POST /finance/fundraiser-income` — Record fundraiser income entry.
+* `GET /expenses` — List submitted expenses.
+* `POST /expenses` — Submit expense receipt.
+* `PUT /expenses/:id/approve` — Approve expense (Treasurer).
+* `POST /expenses/:id/reimburse` — Reimburse approved expense (creates transaction).
+* `GET /fundraisers` — List fundraisers and progress %.
+* `POST /fundraisers` — Create fundraiser.
+* `POST /fundraisers/:id/tasks` — Add task to fundraiser.
+* `PATCH /tasks/:id/status` — Update task status.

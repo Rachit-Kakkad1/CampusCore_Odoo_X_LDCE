@@ -1,227 +1,146 @@
-// backend/modules/membership/membership.controller.js
 const membershipService = require('./membership.service');
 
-const membershipController = {
-  /**
-   * GET /api/membership/dashboard
-   * Aggregated membership metrics
-   */
-  async getDashboard(req, res, next) {
+/**
+ * Membership Controller
+ * Handles HTTP requests for memberships, lifecycle transitions, passes, and admin dashboards.
+ */
+class MembershipController {
+  async getMyMembership(req, res) {
     try {
-      const data = await membershipService.getDashboard();
-      return res.status(200).json({
-        success: true,
-        data,
-      });
+      const result = await membershipService.getMyMembership(req.user.id);
+      return res.status(200).json(result);
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * GET /api/membership/me
-   * Retrieve current user's membership
-   */
-  async getMe(req, res, next) {
+  async payDues(req, res) {
     try {
-      const userId = req.user?.userId || req.headers['x-user-id'] || 1;
-      const data = await membershipService.getMembership(userId);
-      return res.status(200).json({
-        success: true,
-        data,
-      });
+      const paymentMode = req.body.payment_mode || 'online';
+      const result = await membershipService.payDues(req.user.id, paymentMode);
+      return res.status(200).json(result);
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * GET /api/membership/pass
-   * Retrieve digital Member Pass
-   */
-  async getPass(req, res, next) {
+  async cancelMembership(req, res) {
     try {
-      const userId = req.user?.userId || req.query.userId || req.headers['x-user-id'] || 1;
-      const data = await membershipService.getMemberPass(userId);
-      return res.status(200).json({
-        success: true,
-        data,
-      });
+      const reason = req.body.cancellation_reason || req.body.reason || 'Member requested cancellation';
+      // If admin specified a target user_id in params or body, allow admin cancellation, else default to req.user.id
+      const targetUserId = (req.user.role === 'admin' && (req.body.user_id || req.params.userId))
+        ? (req.body.user_id || req.params.userId)
+        : req.user.id;
+      const result = await membershipService.cancelMembership(targetUserId, reason);
+      return res.status(200).json(result);
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * GET /api/membership/all
-   * View all memberships (with status/search query filtering)
-   */
-  async getAll(req, res, next) {
+  async renewMembership(req, res) {
     try {
-      const { status, search } = req.query;
-      const data = await membershipService.getAllMemberships({ status, search });
-      return res.status(200).json({
-        success: true,
-        count: data.length,
-        data,
-      });
+      const paymentMode = req.body.payment_mode || 'online';
+      const targetUserId = (req.user.role === 'admin' && (req.body.user_id || req.params.userId))
+        ? (req.body.user_id || req.params.userId)
+        : req.user.id;
+      const result = await membershipService.renewMembership(targetUserId, paymentMode);
+      return res.status(200).json(result);
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * GET /api/membership/:userId/history
-   * Retrieve full membership history for a user
-   */
-  async getHistory(req, res, next) {
+  async getMemberPass(req, res) {
     try {
-      const { userId } = req.params;
-      const data = await membershipService.getMembershipHistory(userId);
-      return res.status(200).json({
-        success: true,
-        count: data.length,
-        data,
-      });
+      const pass = await membershipService.getMemberPass(req.user.id);
+      return res.status(200).json({ pass });
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * GET /api/membership/:userId
-   * Retrieve current membership status for a user
-   */
-  async getByUserId(req, res, next) {
+  async verifyMemberCode(req, res) {
     try {
-      const { userId } = req.params;
-      if (userId === 'me') {
-        return membershipController.getMe(req, res, next);
-      }
-      const data = await membershipService.getMembership(userId);
-      return res.status(200).json({
-        success: true,
-        data,
-      });
+      const result = await membershipService.verifyMemberCode(req.params.memberCode);
+      return res.status(200).json(result);
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * POST /api/membership
-   * Create a new pending membership for user
-   */
-  async create(req, res, next) {
+  async getExpiryDashboard(req, res) {
     try {
-      const userId =
-        req.body?.user_id || req.user?.userId || req.headers['x-user-id'];
-
-      if (!userId) {
-        return res.status(400).json({
-          error: {
-            message: 'user_id is required to create a membership',
-            status: 400,
-          },
-        });
-      }
-
-      const duesAmount = req.body?.dues_amount || 500.00;
-      const data = await membershipService.createMembership(userId, { dues_amount: duesAmount });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Membership initiated successfully',
-        data,
-      });
+      const dashboard = await membershipService.getExpiryDashboard();
+      return res.status(200).json({ dashboard });
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * POST /api/membership/:id/pay
-   * Activate membership upon successful dues payment
-   */
-  async pay(req, res, next) {
+  async getExpiringMemberships(req, res) {
     try {
-      const { id } = req.params;
-      const { payment_mode = 'online' } = req.body || {};
-      const data = await membershipService.payMembership(id, { payment_mode });
-      return res.status(200).json({
-        success: true,
-        message: 'Membership dues paid successfully. Membership is now active.',
-        data,
-      });
+      const expiring = await membershipService.getExpiringMemberships();
+      return res.status(200).json({ expiring });
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * POST /api/membership/dues/pay (backwards compatible)
-   */
-  async payDues(req, res, next) {
+  async getAllMembers(req, res) {
     try {
-      const userId = req.body?.user_id || req.user?.userId || req.headers['x-user-id'] || 1;
-      const { payment_mode = 'online' } = req.body || {};
-      const data = await membershipService.payDues(userId, payment_mode);
-      return res.status(200).json({
-        success: true,
-        message: 'Membership dues paid successfully. Membership is now active.',
-        data,
-      });
+      const filters = {
+        status: req.query.status || null,
+        search: req.query.search || null,
+      };
+      const members = await membershipService.getAllMembers(filters);
+      return res.status(200).json({ members });
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * PATCH /api/membership/:id/cancel
-   * Cancel an existing membership
-   */
-  async cancel(req, res, next) {
+  async getRenewalHistory(req, res) {
     try {
-      const { id } = req.params;
-      const { reason } = req.body || {};
-      if (!reason || typeof reason !== 'string' || !reason.trim()) {
-        return res.status(400).json({
-          error: {
-            message: 'Cancellation reason is required',
-            status: 400,
-          },
-        });
-      }
-
-      const data = await membershipService.cancelMembership(id, { reason: reason.trim() });
-      return res.status(200).json({
-        success: true,
-        message: 'Membership cancelled successfully',
-        data,
-      });
+      const targetUserId = req.params.userId || req.user.id;
+      const history = await membershipService.getRenewalHistory(targetUserId);
+      return res.status(200).json({ history });
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
+  }
 
-  /**
-   * POST /api/membership/:id/renew
-   * Initiate renewal from an expired or cancelled membership
-   */
-  async renew(req, res, next) {
+  async syncStatuses(req, res) {
     try {
-      const { id } = req.params;
-      const { dues_amount = 500.00 } = req.body || {};
-      const data = await membershipService.renewMembership(id, { dues_amount });
-      return res.status(201).json({
-        success: true,
-        message: 'Membership renewal initiated successfully. Please complete payment to activate.',
-        data,
-      });
+      const result = await membershipService.syncStatuses();
+      return res.status(200).json(result);
     } catch (err) {
-      next(err);
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
     }
-  },
-};
+  }
 
-module.exports = membershipController;
+  // Aliases for compatibility
+  getMe(req, res) { return this.getMyMembership(req, res); }
+  getPass(req, res) { return this.getMemberPass(req, res); }
+  getAll(req, res) { return this.getAllMembers(req, res); }
+  pay(req, res) { return this.payDues(req, res); }
+  cancel(req, res) { return this.cancelMembership(req, res); }
+  renew(req, res) { return this.renewMembership(req, res); }
+  getDashboard(req, res) { return this.getExpiryDashboard(req, res); }
+  getHistory(req, res) { return this.getRenewalHistory(req, res); }
+  getByUserId(req, res) { return this.getMyMembership(req, res); }
+}
+
+module.exports = new MembershipController();
+

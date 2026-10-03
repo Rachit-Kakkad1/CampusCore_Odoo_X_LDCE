@@ -1,10 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 
-const authRoutes = require('./modules/auth/auth.routes');
-const membershipRoutes = require('./modules/membership/membership.routes');
-const announcementsRoutes = require('./modules/announcements/announcements.routes');
-const eventsRoutes = require('./modules/events/events.routes');
+const authRouter = require('./modules/auth/auth.routes');
+const { membershipRouter, membersRouter } = require('./modules/membership/membership.routes');
+const announcementsRouter = require('./modules/announcements/announcements.routes');
+const { eventsRouter, ticketsRouter, checkinRouter } = require('./modules/events/events.routes');
 const merchandiseRoutes = require('./modules/merchandise/merchandise.routes');
 const financeRoutes = require('./modules/finance/finance.routes');
 
@@ -14,30 +14,51 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Base Health Check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
+// Central Health Check
+const healthHandler = (req, res) => {
+  res.status(200).json({ status: 'ok', service: 'student-organization-system' });
+};
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
-// Register feature module routes under /api
-app.use('/api/auth', authRoutes);
-app.use('/api/membership', membershipRoutes);
-app.use('/api/announcements', announcementsRoutes);
-app.use('/api/events', eventsRoutes);
+// Mount Module Routes (Root & /api prefixes supported for backwards/cross compatibility)
+app.use('/auth', authRouter);
+app.use('/api/auth', authRouter);
+
+app.use('/membership', membershipRouter);
+app.use('/api/membership', membershipRouter);
+
+app.use('/members', membersRouter);
+app.use('/api/members', membersRouter);
+
+app.use('/announcements', announcementsRouter);
+app.use('/api/announcements', announcementsRouter);
+
+app.use('/events', eventsRouter);
+app.use('/api/events', eventsRouter);
+
+app.use('/tickets', ticketsRouter);
+app.use('/api/tickets', ticketsRouter);
+
+app.use('/checkin', checkinRouter);
+app.use('/api/checkin', checkinRouter);
+
+app.use('/merchandise', merchandiseRoutes);
 app.use('/api/merchandise', merchandiseRoutes);
+app.use('/', merchandiseRoutes); // allows direct /products and /orders
+
+app.use('/finance', financeRoutes);
 app.use('/api/finance', financeRoutes);
 
-// Centralized error handling middleware
+// Centralized 404 & Error Handler
 app.use((err, req, res, next) => {
   const status = err.status || 500;
   if (status >= 500) {
     console.error('Server error:', err);
   }
   res.status(status).json({
-    error: {
-      message: err.message || 'Internal Server Error',
-      status,
-    },
+    error: err.code || 'INTERNAL_ERROR',
+    message: err.message || 'An internal server error occurred',
   });
 });
 

@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS product_sizes CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
 DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS event_attendees CASCADE;
 DROP TABLE IF EXISTS events CASCADE;
 DROP TABLE IF EXISTS announcements CASCADE;
 
@@ -24,8 +25,8 @@ CREATE TABLE users (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL DEFAULT 'guest'
-    CHECK (role IN ('admin', 'treasurer', 'event_manager', 'volunteer', 'member', 'guest')),
+  role VARCHAR(50) NOT NULL DEFAULT 'member'
+    CHECK (role IN ('admin', 'treasurer', 'event_manager', 'volunteer', 'member')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -64,9 +65,11 @@ CREATE TABLE memberships (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Ensure a user can have at most one currently active or pending membership,
+-- while allowing historical records (expired/cancelled) for renewal audit trails.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_memberships_active_user
-  ON memberships(user_id)
-  WHERE status IN ('active', 'pending');
+  ON memberships(user_id) WHERE status IN ('active', 'pending');
+
 
 
 -- -----------------------------------------------------------------------------
@@ -98,13 +101,25 @@ CREATE TABLE events (
 );
 
 -- -----------------------------------------------------------------------------
--- 5. TICKETS
+-- 5. EVENT ATTENDEES (GUEST ATTENDEES WITHOUT SYSTEM ACCOUNTS)
+-- -----------------------------------------------------------------------------
+CREATE TABLE event_attendees (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  mobile VARCHAR(30) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------------------------
+-- 6. TICKETS
 -- -----------------------------------------------------------------------------
 CREATE TABLE tickets (
   id SERIAL PRIMARY KEY,
   ticket_code VARCHAR(64) UNIQUE NOT NULL,
   event_id INT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT REFERENCES users(id) ON DELETE RESTRICT,
+  attendee_id INT REFERENCES event_attendees(id) ON DELETE RESTRICT,
   price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
   price_type VARCHAR(20) NOT NULL CHECK (price_type IN ('member', 'non_member')),
   payment_status VARCHAR(20) NOT NULL DEFAULT 'pending'
@@ -112,7 +127,12 @@ CREATE TABLE tickets (
   checkout_session_id VARCHAR(100) UNIQUE,
   checked_in_at TIMESTAMP WITH TIME ZONE,
   checked_in_by INT REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT chk_ticket_owner CHECK (
+    (user_id IS NOT NULL AND attendee_id IS NULL)
+    OR
+    (user_id IS NULL AND attendee_id IS NOT NULL)
+  )
 );
 
 -- -----------------------------------------------------------------------------
@@ -121,10 +141,12 @@ CREATE TABLE tickets (
 CREATE TABLE products (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  description TEXT,
   price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
   image_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
 
 CREATE TABLE product_sizes (
   id SERIAL PRIMARY KEY,
@@ -227,8 +249,13 @@ CREATE TABLE transactions (
 -- INDEXES FOR PERFORMANCE & RELIABILITY
 -- -----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_memberships_user_id ON memberships(user_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_status ON memberships(status);
+CREATE INDEX IF NOT EXISTS idx_memberships_expiry_date ON memberships(expiry_date);
+CREATE INDEX IF NOT EXISTS idx_memberships_renewed_from ON memberships(renewed_from_membership_id);
+CREATE INDEX IF NOT EXISTS idx_event_attendees_email ON event_attendees(email);
 CREATE INDEX IF NOT EXISTS idx_tickets_event_id ON tickets(event_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_attendee_id ON tickets(attendee_id);
 CREATE INDEX IF NOT EXISTS idx_product_sizes_product_id ON product_sizes(product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);

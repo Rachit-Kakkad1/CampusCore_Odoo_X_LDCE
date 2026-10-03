@@ -1,9 +1,9 @@
 const path = require('path');
 const dotenv = require('dotenv');
 
-// Load environment variables from backend/.env or root .env
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Load environment variables from root .env or backend/.env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
 const env = {
@@ -11,12 +11,18 @@ const env = {
   DATABASE_URL: process.env.DATABASE_URL || '',
   DB_HOST: process.env.DB_HOST || 'localhost',
   DB_PORT: parseInt(process.env.DB_PORT || '5432', 10),
-  DB_NAME: process.env.DB_NAME || 'skyline_org',
+  DB_NAME: process.env.DB_NAME || 'student_org',
   DB_USER: process.env.DB_USER || 'postgres',
   DB_PASSWORD: process.env.DB_PASSWORD || '',
-  JWT_SECRET: process.env.JWT_SECRET || '',
-  QR_SECRET: process.env.QR_SECRET || '',
+  JWT_SECRET: process.env.JWT_SECRET || 'student_org_jwt_secret_ldce_2026',
+  QR_SECRET: process.env.QR_SECRET || 'student_org_qr_hmac_secret_ldce_2026',
   NODE_ENV: process.env.NODE_ENV || 'development',
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'development',
+  EMAIL_FROM: process.env.EMAIL_FROM || 'tickets@odoo-ldce.org',
+  SMTP_HOST: process.env.SMTP_HOST || 'smtp.example.com',
+  SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || '',
 };
 
 module.exports = env;

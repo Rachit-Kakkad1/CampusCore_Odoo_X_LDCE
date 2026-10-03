@@ -1,29 +1,38 @@
-// backend/modules/membership/membership.routes.js
 const express = require('express');
-const router = express.Router();
 const membershipController = require('./membership.controller');
+const requireAuth = require('../../shared/auth/requireAuth');
+const requireRole = require('../../shared/auth/requireRole');
 
-// 1. Static and Dashboard endpoints (Must precede /:userId to prevent param collision)
-router.get('/dashboard', membershipController.getDashboard);
-router.get('/me', membershipController.getMe);
-router.get('/pass', membershipController.getPass);
-router.get('/all', membershipController.getAll);
+const membershipRouter = express.Router();
 
-// 2. Member status and history by User ID
-router.get('/:userId/history', membershipController.getHistory);
-router.get('/:userId', membershipController.getByUserId);
+// User membership routes
+membershipRouter.get('/me', requireAuth, (req, res) => membershipController.getMyMembership(req, res));
+membershipRouter.post('/pay', requireAuth, (req, res) => membershipController.payDues(req, res));
+membershipRouter.post('/dues/pay', requireAuth, (req, res) => membershipController.payDues(req, res));
+membershipRouter.post('/:id/pay', requireAuth, (req, res) => membershipController.payDues(req, res));
+membershipRouter.post('/cancel', requireAuth, (req, res) => membershipController.cancelMembership(req, res));
+membershipRouter.patch('/:id/cancel', requireAuth, (req, res) => membershipController.cancelMembership(req, res));
+membershipRouter.post('/renew', requireAuth, (req, res) => membershipController.renewMembership(req, res));
+membershipRouter.post('/:id/renew', requireAuth, (req, res) => membershipController.renewMembership(req, res));
+membershipRouter.get('/pass', requireAuth, (req, res) => membershipController.getMemberPass(req, res));
+membershipRouter.get('/history', requireAuth, (req, res) => membershipController.getRenewalHistory(req, res));
+membershipRouter.get('/history/:userId', requireRole('admin', 'treasurer'), (req, res) => membershipController.getRenewalHistory(req, res));
+membershipRouter.get('/:userId/history', requireRole('admin', 'treasurer'), (req, res) => membershipController.getRenewalHistory(req, res));
+membershipRouter.get('/verify/:memberCode', (req, res) => membershipController.verifyMemberCode(req, res));
 
-// 3. Create new membership
-router.post('/', membershipController.create);
+// Admin / Treasurer management routes
+membershipRouter.get('/dashboard', requireRole('admin', 'treasurer'), (req, res) => membershipController.getExpiryDashboard(req, res));
+membershipRouter.get('/expiring', requireRole('admin', 'treasurer'), (req, res) => membershipController.getExpiringMemberships(req, res));
+membershipRouter.post('/sync', requireRole('admin', 'treasurer'), (req, res) => membershipController.syncStatuses(req, res));
+membershipRouter.get('/all', requireRole('admin', 'treasurer'), (req, res) => membershipController.getAllMembers(req, res));
+membershipRouter.get('/', requireRole('admin', 'treasurer'), (req, res) => membershipController.getAllMembers(req, res));
 
-// 4. Payment / Activation
-router.post('/dues/pay', membershipController.payDues);
-router.post('/:id/pay', membershipController.pay);
 
-// 5. Cancellation
-router.patch('/:id/cancel', membershipController.cancel);
+// Members Router (/members)
+const membersRouter = express.Router();
+membersRouter.get('/', requireRole('admin', 'treasurer'), (req, res) => membershipController.getAllMembers(req, res));
 
-// 6. Renewal
-router.post('/:id/renew', membershipController.renew);
-
-module.exports = router;
+module.exports = {
+  membershipRouter,
+  membersRouter,
+};

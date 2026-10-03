@@ -1,73 +1,43 @@
-// backend/modules/announcements/announcements.repository.js
-const { query } = require('../../db/connection');
+const { pool } = require('../../config/database');
 
-const announcementsRepository = {
-  /**
-   * Retrieve all announcements ordered newest first.
-   * Joins users table to fetch author name and role.
-   *
-   * @returns {Promise<Array>}
-   */
-  async findAll() {
-    const sql = `
-      SELECT 
-        a.id,
-        a.title,
-        a.body,
-        a.created_by,
-        a.created_at,
-        u.name AS author_name,
-        u.role AS author_role
+/**
+ * Announcements Repository
+ * Database queries for organization announcements.
+ */
+class AnnouncementsRepository {
+  async createAnnouncement({ title, body, created_by }) {
+    const queryText = `
+      INSERT INTO announcements (title, body, created_by)
+      VALUES ($1, $2, $3)
+      RETURNING *;
+    `;
+    const result = await pool.query(queryText, [title, body, created_by]);
+    return result.rows[0];
+  }
+
+  async getAllAnnouncements() {
+    const queryText = `
+      SELECT a.id, a.title, a.body, a.created_at,
+             u.id as author_id, u.name as author_name, u.email as author_email
       FROM announcements a
       LEFT JOIN users u ON a.created_by = u.id
-      ORDER BY a.created_at DESC, a.id DESC;
+      ORDER BY a.created_at DESC;
     `;
-    const res = await query(sql);
-    return res.rows;
-  },
+    const result = await pool.query(queryText);
+    return result.rows;
+  }
 
-  /**
-   * Retrieve a single announcement by primary key ID.
-   *
-   * @param {number|string} id
-   * @returns {Promise<Object|null>}
-   */
-  async findById(id) {
-    const sql = `
-      SELECT 
-        a.id,
-        a.title,
-        a.body,
-        a.created_by,
-        a.created_at,
-        u.name AS author_name,
-        u.role AS author_role
+  async getAnnouncementById(id) {
+    const queryText = `
+      SELECT a.id, a.title, a.body, a.created_at,
+             u.id as author_id, u.name as author_name, u.email as author_email
       FROM announcements a
       LEFT JOIN users u ON a.created_by = u.id
       WHERE a.id = $1;
     `;
-    const res = await query(sql, [id]);
-    return res.rows[0] || null;
-  },
-
-  /**
-   * Insert a new announcement.
-   *
-   * @param {Object} data
-   * @param {string} data.title
-   * @param {string} data.body
-   * @param {number|null} [data.created_by]
-   * @returns {Promise<Object>}
-   */
-  async create({ title, body, created_by }) {
-    const sql = `
-      INSERT INTO announcements (title, body, created_by)
-      VALUES ($1, $2, $3)
-      RETURNING id, title, body, created_by, created_at;
-    `;
-    const res = await query(sql, [title, body, created_by]);
-    return res.rows[0];
+    const result = await pool.query(queryText, [id]);
+    return result.rows[0] || null;
   }
-};
+}
 
-module.exports = announcementsRepository;
+module.exports = new AnnouncementsRepository();

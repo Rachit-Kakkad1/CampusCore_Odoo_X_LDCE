@@ -1,18 +1,48 @@
-// backend/shared/auth/getCurrentUser.js
+const jwt = require('jsonwebtoken');
+const env = require('../../config/env');
 
 /**
- * Shared Auth Helper: getCurrentUser
- * Extracts authenticated user context from request.
+ * Extracts and returns the current authenticated user from the request.
+ * Supports:
+ *   1. Pre-populated req.user (from requireAuth middleware)
+ *   2. Directly parsing Authorization: Bearer <token> header
  *
- * @param {import('express').Request} req
- * @returns {Object|null}
+ * @param {object} req - Express request object
+ * @returns {{ id: number, name: string, email: string, role: string } | null}
  */
 function getCurrentUser(req) {
-  if (!req.user) return null;
-  return {
-    ...req.user,
-    id: req.user.userId || req.user.id,
-  };
+  if (req && req.user && req.user.id) {
+    const user = {
+      id: req.user.id || req.user.userId,
+      userId: req.user.id || req.user.userId,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+    };
+    return user;
+  }
+
+  const authHeader = req && req.headers ? req.headers.authorization : null;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+    const id = decoded.id || decoded.userId;
+    return {
+      id,
+      userId: id,
+      name: decoded.name,
+      email: decoded.email,
+      role: decoded.role,
+    };
+  } catch (err) {
+    return null;
+  }
 }
 
-module.exports = { getCurrentUser };
+getCurrentUser.getCurrentUser = getCurrentUser;
+module.exports = getCurrentUser;
+

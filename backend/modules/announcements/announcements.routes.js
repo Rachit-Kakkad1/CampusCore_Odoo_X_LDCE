@@ -1,15 +1,12 @@
-// backend/modules/announcements/announcements.routes.js
 const express = require('express');
-const router = express.Router();
 const announcementsController = require('./announcements.controller');
+const requireRole = require('../../shared/auth/requireRole');
 
-// List all announcements (newest first)
-router.get('/', announcementsController.getAll);
+const announcementsRouter = express.Router();
 
-// Get single announcement by ID
-router.get('/:id', announcementsController.getById);
+announcementsRouter.get('/', (req, res) => announcementsController.getAllAnnouncements(req, res));
+announcementsRouter.get('/:id', (req, res) => announcementsController.getAnnouncementById(req, res));
+announcementsRouter.post('/', requireRole('admin', 'event_manager'), (req, res) => announcementsController.createAnnouncement(req, res));
 
-// Create new announcement
-router.post('/', announcementsController.create);
+module.exports = announcementsRouter;
 
-module.exports = router;
