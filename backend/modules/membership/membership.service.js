@@ -1,53 +1,62 @@
 // backend/modules/membership/membership.service.js
+const crypto = require('crypto');
+const { pool } = require('../../db/connection');
 const membershipRepository = require('./membership.repository');
 const { isActiveMember } = require('../../shared/membership/isActiveMember');
+const { getMembershipStatus, calculateDaysRemaining } = require('../../shared/membership/getMembershipStatus');
+const { syncMembershipStatuses } = require('../../shared/membership/syncMembershipStatuses');
 const { createTransaction } = require('../../shared/transactions/createTransaction');
 
 class MembershipService {
   /**
-   * Calculate end of year expiry string (YYYY-12-31)
+   * Generate a unique, readable member code: SKY-MEM-XXXXXX
+   *
+   * @param {number|string} [userId]
+   * @returns {string}
    */
-  getEndOfYearExpiry() {
-    const currentYear = new Date().getFullYear();
-    return `${currentYear}-12-31`;
+  generateMemberCode(userId) {
+    const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const idPart = userId ? String(userId).padStart(3, '0') : '000';
+    return `SKY-MEM-${idPart}-${randomHex}`;
   }
 
   /**
-   * Helper to format membership object with active status
+   * Helper to format a membership database record with derived fields.
    */
-  async formatMembership(membership) {
-    if (!membership) return null;
-
-    const isActive = await isActiveMember(membership.user_id);
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    let status = 'none';
-    if (membership.dues_status === 'paid') {
-      let expiryStr = '';
-      if (membership.expiry_date instanceof Date) {
-        expiryStr = membership.expiry_date.toISOString().split('T')[0];
-      } else if (membership.expiry_date) {
-        expiryStr = String(membership.expiry_date).split('T')[0];
-      }
-
-      if (expiryStr && expiryStr >= todayStr) {
-        status = 'active';
-      } else {
-        status = 'expired';
-      }
-    } else {
-      status = 'pending';
-    }
+  formatMembership(m) {
+    if (!m) return null;
+    const daysRemaining = calculateDaysRemaining(m.expiry_date);
+    const isCurrentlyActive =
+      m.status === 'active' &&
+      m.dues_status === 'paid' &&
+      m.expiry_date &&
+      new Date(m.expiry_date) > new Date();
 
     return {
-      ...membership,
-      is_active: isActive,
-      computed_status: status
+      id: m.id,
+      user_id: m.user_id,
+      member_code: m.member_code,
+      status: m.status,
+      dues_status: m.dues_status,
+      dues_amount: m.dues_amount,
+      started_at: m.started_at,
+      expiry_date: m.expiry_date,
+      cancelled_at: m.cancelled_at,
+      cancellation_reason: m.cancellation_reason,
+      payment_timestamp: m.payment_timestamp,
+      renewed_from_membership_id: m.renewed_from_membership_id,
+      created_at: m.created_at,
+      updated_at: m.updated_at,
+      days_remaining: daysRemaining,
+      is_active: isCurrentlyActive,
+      user_name: m.user_name || undefined,
+      user_email: m.user_email || undefined,
+      user_role: m.user_role || undefined,
     };
   }
 
   /**
-   * Get current user's membership details
+   * Retrieve current membership for a user.
    */
   async getMembership(userId) {
     if (!userId) {
@@ -56,107 +65,284 @@ class MembershipService {
       throw err;
     }
 
-    const membership = await membershipRepository.findByUserId(userId);
+    // Run expiry sync before returning status
+    await syncMembershipStatuses().catch(() => {});
+
+    const membership = await membershipRepository.findCurrentMembershipByUserId(userId);
     if (!membership) {
       return {
         exists: false,
         is_active: false,
         computed_status: 'none',
-        membership: null
+        membership: null,
       };
     }
 
-    const formatted = await this.formatMembership(membership);
+    const formatted = this.formatMembership(membership);
     return {
       exists: true,
       is_active: formatted.is_active,
-      computed_status: formatted.computed_status,
-      membership: formatted
+      computed_status: formatted.status,
+      membership: formatted,
     };
   }
 
   /**
-   * Create / initiate a new membership for the authenticated user
+   * Create a new membership in pending state.
    */
-  async createMembership(userId) {
+  async createMembership(userId, { dues_amount = 500.00 } = {}) {
     if (!userId) {
       const err = new Error('User ID is required');
       err.status = 400;
       throw err;
     }
 
-    const existing = await membershipRepository.findByUserId(userId);
-    if (existing) {
-      const err = new Error('Membership already exists for this user');
+    const numericUserId = parseInt(userId, 10);
+    if (isNaN(numericUserId) || numericUserId <= 0) {
+      const err = new Error('Invalid user ID');
+      err.status = 400;
+      throw err;
+    }
+
+    // Check if the user already has an active or pending membership
+    const current = await membershipRepository.findCurrentMembershipByUserId(numericUserId);
+    if (current && (current.status === 'active' || current.status === 'pending')) {
+      const err = new Error(`User already has a ${current.status} membership (${current.member_code})`);
       err.status = 409;
       throw err;
     }
 
-    const currentYear = new Date().getFullYear();
-    const memberCode = `MEM-${currentYear}-${userId}`;
+    const memberCode = this.generateMemberCode(numericUserId);
 
-    const newMembership = await membershipRepository.create({
-      user_id: userId,
+    const created = await membershipRepository.createMembership({
+      user_id: numericUserId,
       member_code: memberCode,
-      dues_amount: 500.00,
+      dues_amount,
+      status: 'pending',
       dues_status: 'pending',
-      start_date: null,
-      expiry_date: null,
-      paid_at: null
     });
 
-    const fullMembership = await membershipRepository.findById(newMembership.id);
-    return this.formatMembership(fullMembership);
+    const full = await membershipRepository.findById(created.id);
+    return this.formatMembership(full || created);
   }
 
   /**
-   * Pay dues for membership (MVP mock payment + ledger transaction creation)
+   * Activate membership upon successful payment.
+   * Transaction-safe and idempotent.
+   */
+  async payMembership(membershipId, { payment_mode = 'online' } = {}) {
+    if (!membershipId) {
+      const err = new Error('Membership ID is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const id = parseInt(membershipId, 10);
+    if (isNaN(id) || id <= 0) {
+      const err = new Error('Invalid membership ID');
+      err.status = 400;
+      throw err;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const existing = await membershipRepository.findById(id, client);
+      if (!existing) {
+        const err = new Error(`Membership with ID ${id} not found`);
+        err.status = 404;
+        throw err;
+      }
+
+      // Idempotency: do not activate twice if already active and paid
+      if (existing.status === 'active' && existing.dues_status === 'paid') {
+        const err = new Error('Membership is already active and paid');
+        err.status = 409;
+        throw err;
+      }
+
+      if (existing.status === 'cancelled') {
+        const err = new Error('Cannot process payment for a cancelled membership');
+        err.status = 400;
+        throw err;
+      }
+
+      // Activate membership in DB (calculates expiry_date = started_at + 1 year via PostgreSQL)
+      const updated = await membershipRepository.activateMembership(id, client);
+
+      // Record transaction in ledger atomically
+      const validPaymentModes = ['online', 'cash', 'upi', 'card'];
+      const mode = validPaymentModes.includes(payment_mode) ? payment_mode : 'online';
+
+      await createTransaction(
+        {
+          source_type: 'dues',
+          source_id: updated.id,
+          user_id: updated.user_id,
+          amount: updated.dues_amount,
+          direction: 'in',
+          payment_mode: mode,
+          status: 'paid',
+        },
+        client
+      );
+
+      await client.query('COMMIT');
+
+      const fullUpdated = await membershipRepository.findById(updated.id);
+      return this.formatMembership(fullUpdated || updated);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Backwards compatible payDues by userId.
    */
   async payDues(userId, paymentMode = 'online') {
+    let current = await membershipRepository.findCurrentMembershipByUserId(userId);
+    if (!current || (current.status !== 'pending' && current.status !== 'active')) {
+      const created = await this.createMembership(userId);
+      current = await membershipRepository.findById(created.id);
+    }
+    return this.payMembership(current.id, { payment_mode: paymentMode });
+  }
+
+  /**
+   * Cancel membership.
+   * Requires a non-empty cancellation reason.
+   */
+  async cancelMembership(membershipId, { reason }) {
+    if (!membershipId) {
+      const err = new Error('Membership ID is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const id = parseInt(membershipId, 10);
+    if (isNaN(id) || id <= 0) {
+      const err = new Error('Invalid membership ID');
+      err.status = 400;
+      throw err;
+    }
+
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      const err = new Error('Cancellation reason is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const existing = await membershipRepository.findById(id);
+    if (!existing) {
+      const err = new Error(`Membership with ID ${id} not found`);
+      err.status = 404;
+      throw err;
+    }
+
+    if (existing.status === 'cancelled') {
+      const err = new Error('Membership is already cancelled');
+      err.status = 400;
+      throw err;
+    }
+
+    const cancelled = await membershipRepository.cancelMembership(id, reason.trim());
+    const full = await membershipRepository.findById(cancelled.id);
+    return this.formatMembership(full || cancelled);
+  }
+
+  /**
+   * Renew an existing membership.
+   * Creates a new pending membership linked via renewed_from_membership_id.
+   */
+  async renewMembership(membershipId, { dues_amount = 500.00 } = {}) {
+    if (!membershipId) {
+      const err = new Error('Previous membership ID is required');
+      err.status = 400;
+      throw err;
+    }
+
+    const id = parseInt(membershipId, 10);
+    if (isNaN(id) || id <= 0) {
+      const err = new Error('Invalid membership ID');
+      err.status = 400;
+      throw err;
+    }
+
+    const previous = await membershipRepository.findById(id);
+    if (!previous) {
+      const err = new Error(`Previous membership with ID ${id} not found`);
+      err.status = 404;
+      throw err;
+    }
+
+    const userId = previous.user_id;
+
+    // Check if user currently has another active or pending membership
+    const current = await membershipRepository.findCurrentMembershipByUserId(userId);
+    if (current && current.id !== previous.id && (current.status === 'active' || current.status === 'pending')) {
+      const err = new Error(`User already has an active or pending membership (${current.member_code})`);
+      err.status = 409;
+      throw err;
+    }
+
+    const newMemberCode = this.generateMemberCode(userId);
+
+    const renewal = await membershipRepository.createMembership({
+      user_id: userId,
+      member_code: newMemberCode,
+      dues_amount,
+      status: 'pending',
+      dues_status: 'pending',
+      renewed_from_membership_id: previous.id,
+    });
+
+    const full = await membershipRepository.findById(renewal.id);
+    return this.formatMembership(full || renewal);
+  }
+
+  /**
+   * Retrieve complete membership history for a user (newest to oldest).
+   */
+  async getMembershipHistory(userId) {
     if (!userId) {
       const err = new Error('User ID is required');
       err.status = 400;
       throw err;
     }
 
-    let membership = await membershipRepository.findByUserId(userId);
-    if (!membership) {
-      // Initiate pending membership first
-      await this.createMembership(userId);
-      membership = await membershipRepository.findByUserId(userId);
+    const numId = parseInt(userId, 10);
+    if (isNaN(numId) || numId <= 0) {
+      const err = new Error('Invalid user ID');
+      err.status = 400;
+      throw err;
     }
 
-    const validPaymentModes = ['online', 'cash', 'upi', 'card'];
-    const mode = validPaymentModes.includes(paymentMode) ? paymentMode : 'online';
-
-    const startDate = new Date().toISOString().split('T')[0];
-    const expiryDate = this.getEndOfYearExpiry();
-    const paidAt = new Date();
-
-    const updated = await membershipRepository.updatePayment(membership.id, {
-      dues_status: 'paid',
-      start_date: startDate,
-      expiry_date: expiryDate,
-      paid_at: paidAt
-    });
-
-    // Money moved! Record in central transaction ledger
-    await createTransaction({
-      source_type: 'dues',
-      source_id: updated.id,
-      user_id: userId,
-      amount: updated.dues_amount,
-      direction: 'in',
-      payment_mode: mode,
-      status: 'paid'
-    });
-
-    const fullUpdated = await membershipRepository.findById(updated.id);
-    return this.formatMembership(fullUpdated);
+    const list = await membershipRepository.findMembershipHistory(numId);
+    return list.map(m => this.formatMembership(m));
   }
 
   /**
-   * Retrieve Member Pass information (safe for display)
+   * Aggregated membership dashboard counts.
+   */
+  async getDashboard() {
+    await syncMembershipStatuses().catch(() => {});
+    return await membershipRepository.getDashboardCounts();
+  }
+
+  /**
+   * Expiring memberships list.
+   */
+  async getExpiring(days = 30) {
+    const list = await membershipRepository.getExpiringMemberships(days);
+    return list.map(m => this.formatMembership(m));
+  }
+
+  /**
+   * Digital Member Pass helper.
    */
   async getMemberPass(userId) {
     if (!userId) {
@@ -165,36 +351,37 @@ class MembershipService {
       throw err;
     }
 
-    const membership = await membershipRepository.findByUserId(userId);
+    const membership = await membershipRepository.findCurrentMembershipByUserId(userId);
     if (!membership) {
       const err = new Error('No membership found for this user');
       err.status = 404;
       throw err;
     }
 
-    const formatted = await this.formatMembership(membership);
-
+    const formatted = this.formatMembership(membership);
     return {
       membership_id: formatted.id,
       member_code: formatted.member_code,
       member_name: formatted.user_name,
       user_email: formatted.user_email,
       role: formatted.user_role,
+      status: formatted.status,
       dues_status: formatted.dues_status,
       dues_amount: formatted.dues_amount,
-      start_date: formatted.start_date,
+      started_at: formatted.started_at,
       expiry_date: formatted.expiry_date,
+      days_remaining: formatted.days_remaining,
       is_active: formatted.is_active,
-      computed_status: formatted.computed_status
     };
   }
 
   /**
-   * Retrieve all memberships (Admin/Treasurer)
+   * Retrieve all memberships with optional filter.
    */
-  async getAllMemberships() {
-    const list = await membershipRepository.findAll();
-    return Promise.all(list.map(m => this.formatMembership(m)));
+  async getAllMemberships(filter = {}) {
+    await syncMembershipStatuses().catch(() => {});
+    const list = await membershipRepository.findAll(filter);
+    return list.map(m => this.formatMembership(m));
   }
 }
 

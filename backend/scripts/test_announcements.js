@@ -49,10 +49,10 @@ async function runTests() {
     const getSingleBody = await getSingleRes.json();
     assert(
       getSingleRes.status === 200 &&
-        getSingleBody.success === true &&
-        getSingleBody.data.id === 1 &&
-        getSingleBody.data.title &&
-        getSingleBody.data.body,
+      getSingleBody.success === true &&
+      getSingleBody.data.id === 1 &&
+      getSingleBody.data.title &&
+      getSingleBody.data.body,
       '2. GET /api/announcements/1 returns 200 and single announcement details'
     );
     assert(
@@ -82,10 +82,10 @@ async function runTests() {
     const createBody = await createRes.json();
     assert(
       createRes.status === 201 &&
-        createBody.success === true &&
-        createBody.data.id &&
-        createBody.data.title === uniqueTitle &&
-        createBody.data.body === testBody,
+      createBody.success === true &&
+      createBody.data.id &&
+      createBody.data.title === uniqueTitle &&
+      createBody.data.body === testBody,
       '4. POST /api/announcements creates a new announcement and returns 201'
     );
     createdAnnouncementId = createBody.data.id;
