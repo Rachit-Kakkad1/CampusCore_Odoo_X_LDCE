@@ -3,6 +3,16 @@ import React, { useState } from 'react';
 import MerchandiseSizeSelector from './MerchandiseSizeSelector';
 import { ActionButton } from '../dashboard/ActionButton';
 import { ShoppingBag, Check, Plus, Minus, Tag } from 'lucide-react';
+import blackHoodieImg from '../../assests/black_hoodie.jpg';
+import blackTshirtImg from '../../assests/black_tshirt.jpg';
+
+const getProductImage = (product) => {
+  const name = (product?.name || '').toLowerCase();
+  if (name.includes('hoodie')) return blackHoodieImg;
+  if (name.includes('t-shirt') || name.includes('tshirt') || name.includes('shirt') || name.includes('tee')) return blackTshirtImg;
+  if (product?.image_url && product.image_url.startsWith('http')) return product.image_url;
+  return blackHoodieImg;
+};
 
 export const MerchandiseProductCard = ({
   product,
@@ -20,6 +30,7 @@ export const MerchandiseProductCard = ({
   const discountedPrice = (rawPrice * (1 - memberDiscountRate)).toFixed(2);
   const isOutOfStock = !product.sizes || product.sizes.every((s) => Number(s.stock) <= 0);
   const maxStock = selectedSize ? Number(selectedSize.stock) : 0;
+  const productImage = getProductImage(product);
 
   const handleSizeChange = (sizeObj) => {
     setSelectedSize(sizeObj);
@@ -45,7 +56,7 @@ export const MerchandiseProductCard = ({
     onAddToCart?.({
       product_id: product.id,
       product_name: product.name,
-      product_image: product.image_url,
+      product_image: productImage,
       product_size_id: selectedSize.id,
       size: selectedSize.size,
       unit_price: rawPrice,
@@ -58,19 +69,18 @@ export const MerchandiseProductCard = ({
   };
 
   return (
-    <div className="border border-[#e5e4de] bg-[#f7f6f2] p-6 flex flex-col justify-between hover:border-[#5F3F56]/40 transition-all duration-300">
+    <div className="border border-[#e5e4de] bg-[#f7f6f2] p-5 flex flex-col justify-between hover:border-[#5F3F56]/60 hover:shadow-md transition-all duration-300">
       <div className="space-y-4">
-        {/* Product Image / Illustration Placeholder */}
-        <div className="aspect-[4/3] w-full bg-white/60 border border-[#e5e4de] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-          <div className="w-16 h-16 border border-[#e5e4de] flex items-center justify-center font-serif text-2xl text-[#5F3F56]">
-            {product.name.charAt(0)}
-          </div>
-          <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 mt-3 tracking-widest">
-            CampusCore Apparel Co.
-          </span>
+        {/* Real Product Image Mockup */}
+        <div className="aspect-[4/3] w-full bg-slate-100 border border-[#e5e4de] relative overflow-hidden group">
+          <img
+            src={productImage}
+            alt={product.name}
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+          />
 
           {isActiveMember && (
-            <div className="absolute top-2 right-2 bg-[#5F3F56] text-white px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider flex items-center gap-1">
+            <div className="absolute top-2.5 right-2.5 bg-[#5F3F56] text-white px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm">
               <Tag className="w-2.5 h-2.5" />
               <span>10% Member Off</span>
             </div>

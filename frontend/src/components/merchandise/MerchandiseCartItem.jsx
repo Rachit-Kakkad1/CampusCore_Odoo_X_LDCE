@@ -1,6 +1,18 @@
 // frontend/src/components/merchandise/MerchandiseCartItem.jsx
 import React from 'react';
 import { Plus, Minus, Trash2 } from 'lucide-react';
+import blackHoodieImg from '../../assests/black_hoodie.jpg';
+import blackTshirtImg from '../../assests/black_tshirt.jpg';
+
+const getCartItemImage = (item) => {
+  if (item?.product_image && (item.product_image.startsWith('http') || item.product_image.startsWith('/assets') || item.product_image.startsWith('data:'))) {
+    return item.product_image;
+  }
+  const name = (item?.product_name || '').toLowerCase();
+  if (name.includes('hoodie')) return blackHoodieImg;
+  if (name.includes('t-shirt') || name.includes('tshirt') || name.includes('shirt') || name.includes('tee')) return blackTshirtImg;
+  return blackHoodieImg;
+};
 
 export const MerchandiseCartItem = ({
   item,
@@ -11,24 +23,34 @@ export const MerchandiseCartItem = ({
   const unitPrice = parseFloat(item.unit_price) || 0;
   const effectiveUnitPrice = isActiveMember ? unitPrice * 0.9 : unitPrice;
   const lineTotal = (effectiveUnitPrice * item.quantity).toFixed(2);
+  const itemImg = getCartItemImage(item);
 
   return (
     <div className="border border-[#e5e4de] bg-[#f7f6f2] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      {/* Product Details */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <h4 className="font-serif text-lg text-[#1c1c1c]">
-            {item.product_name}
-          </h4>
-          <span className="font-mono text-xs uppercase px-2 py-0.5 border border-[#e5e4de] bg-white text-[#5F3F56] font-semibold">
-            Size: {item.size}
-          </span>
+      {/* Product Details & Thumbnail */}
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 border border-[#e5e4de] bg-slate-100 shrink-0 overflow-hidden">
+          <img
+            src={itemImg}
+            alt={item.product_name}
+            className="w-full h-full object-cover"
+          />
         </div>
-        <div className="font-mono text-xs text-[#1c1c1c]/60">
-          Unit Price: ₹{unitPrice.toFixed(2)}
-          {isActiveMember && (
-            <span className="text-[#5F3F56] ml-2">(10% Member Rate: ₹{(unitPrice * 0.9).toFixed(2)})</span>
-          )}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h4 className="font-serif text-lg text-[#1c1c1c]">
+              {item.product_name}
+            </h4>
+            <span className="font-mono text-xs uppercase px-2 py-0.5 border border-[#e5e4de] bg-white text-[#5F3F56] font-semibold">
+              Size: {item.size}
+            </span>
+          </div>
+          <div className="font-mono text-xs text-[#1c1c1c]/60">
+            Unit Price: ₹{unitPrice.toFixed(2)}
+            {isActiveMember && (
+              <span className="text-[#5F3F56] ml-2">(10% Member Rate: ₹{(unitPrice * 0.9).toFixed(2)})</span>
+            )}
+          </div>
         </div>
       </div>
 

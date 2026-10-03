@@ -7,6 +7,7 @@ const announcementsRouter = require('./modules/announcements/announcements.route
 const { eventsRouter, ticketsRouter, checkinRouter } = require('./modules/events/events.routes');
 const merchandiseRoutes = require('./modules/merchandise/merchandise.routes');
 const financeRoutes = require('./modules/finance/finance.routes');
+const tasksRouter = require('./modules/tasks/tasks.routes');
 
 const app = express();
 
@@ -51,6 +52,9 @@ app.use('/', merchandiseRoutes); // allows direct /products and /orders
 
 app.use('/finance', financeRoutes);
 app.use('/api/finance', financeRoutes);
+
+app.use('/tasks', tasksRouter);
+app.use('/api/tasks', tasksRouter);
 
 // Centralized 404 & Error Handler
 app.use((err, req, res, next) => {

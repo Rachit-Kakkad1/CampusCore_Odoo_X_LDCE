@@ -1,5 +1,5 @@
-// frontend/src/pages/dashboard/AdminDashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
 import { PageTabs } from '../../components/dashboard/PageTabs';
@@ -22,9 +22,37 @@ import authService from '../../services/auth.service';
 
 export const AdminDashboard = () => {
   const user = authService.getStoredUser();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Determine active tab from URL pathname
+  const getTabFromPath = (pathname) => {
+    if (pathname.includes('/events')) return 'events';
+    if (pathname.includes('/members') || pathname.includes('/users')) return 'members';
+    if (pathname.includes('/store') || pathname.includes('/merchandise')) return 'merchandise';
+    if (pathname.includes('/fundraisers')) return 'fundraisers';
+    if (pathname.includes('/announcements')) return 'announcements';
+    return 'overview';
+  };
 
   // Tab State: 'overview' | 'members' | 'events' | 'merchandise' | 'fundraisers' | 'announcements'
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => getTabFromPath(location.pathname));
+
+  useEffect(() => {
+    const tabFromUrl = getTabFromPath(location.pathname);
+    setActiveTab(tabFromUrl);
+  }, [location.pathname]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    if (newTab === 'overview') {
+      navigate('/dashboard/admin');
+    } else if (newTab === 'merchandise') {
+      navigate('/dashboard/admin/store');
+    } else {
+      navigate(`/dashboard/admin/${newTab}`);
+    }
+  };
 
   // Business Data States
   const [members, setMembers] = useState([]);
@@ -205,7 +233,7 @@ export const AdminDashboard = () => {
         <PageTabs
           tabs={tabs}
           activeTab={activeTab}
-          onChange={setActiveTab}
+          onChange={handleTabChange}
         />
       </div>
 

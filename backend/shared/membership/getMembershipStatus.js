@@ -85,12 +85,10 @@ async function getMembershipStatus(userId, client = null) {
     FROM memberships
     WHERE user_id = $1
     ORDER BY
-      CASE status
-        WHEN 'active' THEN 1
-        WHEN 'pending' THEN 2
-        WHEN 'expired' THEN 3
-        WHEN 'cancelled' THEN 4
-        ELSE 5
+      CASE
+        WHEN dues_status = 'paid' AND (expiry_date IS NULL OR expiry_date > NOW()) THEN 1
+        WHEN dues_status = 'pending' THEN 2
+        ELSE 3
       END, created_at DESC, id DESC
     LIMIT 1;
   `;

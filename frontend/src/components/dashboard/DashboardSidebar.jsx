@@ -1,5 +1,5 @@
 // frontend/src/components/dashboard/DashboardSidebar.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -12,10 +12,12 @@ import {
   QrCode, 
   CheckSquare, 
   FileText,
+  Ticket,
   LogOut,
   ShieldCheck
 } from 'lucide-react';
 import authService from '../../services/auth.service';
+import AnnouncementsModal from './AnnouncementsModal';
 
 /**
  * DashboardSidebar Component
@@ -28,6 +30,7 @@ export const DashboardSidebar = ({ currentRole }) => {
   const navigate = useNavigate();
   const user = authService.getStoredUser();
   const effectiveRole = currentRole || user?.role || 'guest';
+  const [isAnnouncementsOpen, setIsAnnouncementsOpen] = useState(false);
 
   const handleLogout = () => {
     authService.logout();
@@ -116,13 +119,21 @@ export const DashboardSidebar = ({ currentRole }) => {
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Treasury
               </div>
-              <NavLink to="/dashboard/finance" className={navItemClass}>
+              <NavLink to="/dashboard/finance" end className={navItemClass}>
                 <DollarSign className="w-4 h-4" />
                 <span>Central Ledger</span>
               </NavLink>
               <NavLink to="/dashboard/finance/expenses" className={navItemClass}>
                 <FileText className="w-4 h-4" />
                 <span>Expense Approvals</span>
+              </NavLink>
+              <NavLink to="/dashboard/finance/owing" className={navItemClass}>
+                <CreditCard className="w-4 h-4" />
+                <span>Who Still Owes</span>
+              </NavLink>
+              <NavLink to="/dashboard/finance/fundraisers" className={navItemClass}>
+                <ShoppingBag className="w-4 h-4" />
+                <span>Fundraiser Income</span>
               </NavLink>
             </>
           )}
@@ -154,13 +165,17 @@ export const DashboardSidebar = ({ currentRole }) => {
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Task Execution
               </div>
-              <NavLink to="/dashboard/tasks" className={navItemClass}>
+              <NavLink to="/dashboard/tasks" end className={navItemClass}>
                 <CheckSquare className="w-4 h-4" />
                 <span>Assigned Tasks</span>
               </NavLink>
-              <NavLink to="/dashboard/events/checkin" className={navItemClass}>
+              <NavLink to="/dashboard/tasks/checkin" className={navItemClass}>
                 <QrCode className="w-4 h-4" />
                 <span>Check-in Station</span>
+              </NavLink>
+              <NavLink to="/dashboard/tasks/expenses" className={navItemClass}>
+                <FileText className="w-4 h-4" />
+                <span>Reimbursements</span>
               </NavLink>
             </>
           )}
@@ -173,17 +188,21 @@ export const DashboardSidebar = ({ currentRole }) => {
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Member Services
               </div>
-              <NavLink to="/dashboard/member" className={navItemClass}>
+              <NavLink to="/dashboard/member" end className={navItemClass}>
                 <CreditCard className="w-4 h-4" />
                 <span>Member Portal</span>
               </NavLink>
-              <NavLink to="/events" className={navItemClass}>
+              <NavLink to="/dashboard/member/events" className={navItemClass}>
                 <Calendar className="w-4 h-4" />
                 <span>Events & Tickets</span>
               </NavLink>
-              <NavLink to="/store" className={navItemClass}>
+              <NavLink to="/dashboard/member/store" className={navItemClass}>
                 <ShoppingBag className="w-4 h-4" />
                 <span>Merchandise Store</span>
+              </NavLink>
+              <NavLink to="/dashboard/member/tickets" className={navItemClass}>
+                <Ticket className="w-4 h-4" />
+                <span>My Tickets</span>
               </NavLink>
             </>
           )}
@@ -192,12 +211,28 @@ export const DashboardSidebar = ({ currentRole }) => {
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
             Broadcasts
           </div>
-          <NavLink to="/dashboard" className={navItemClass}>
-            <Megaphone className="w-4 h-4" />
-            <span>Announcements</span>
-          </NavLink>
+          {effectiveRole === 'admin' ? (
+            <NavLink to="/dashboard/admin/announcements" className={navItemClass}>
+              <Megaphone className="w-4 h-4" />
+              <span>Announcements</span>
+            </NavLink>
+          ) : (
+            <button
+              onClick={() => setIsAnnouncementsOpen(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium border-l-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition-colors text-left"
+            >
+              <Megaphone className="w-4 h-4 text-slate-500" />
+              <span>Announcements</span>
+            </button>
+          )}
         </nav>
       </div>
+
+      {/* Announcements Broadcast Modal */}
+      <AnnouncementsModal
+        isOpen={isAnnouncementsOpen}
+        onClose={() => setIsAnnouncementsOpen(false)}
+      />
 
       {/* Logout Action Footer */}
       <div className="p-6 border-t border-border">

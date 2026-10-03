@@ -68,7 +68,7 @@ const LandingPage = () => {
             <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
             <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
             <Link to="/membership" className="hover:text-primary transition-colors">Membership</Link>
-            <a href="#store" className="hover:text-primary transition-colors">Store</a>
+            <Link to="/store" className="hover:text-primary transition-colors">Store</Link>
             <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
           </div>
 
@@ -692,7 +692,7 @@ const Footer = () => {
         <div className="flex flex-wrap justify-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
           <Link to="/membership" className="hover:text-primary transition-colors">Membership</Link>
           <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
-          <a href="#store" className="hover:text-primary transition-colors">Store</a>
+          <Link to="/store" className="hover:text-primary transition-colors">Store</Link>
           <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
         </div>
 

@@ -111,6 +111,15 @@ export const eventsService = {
 
     const paidTicket = payRes?.ticket || payRes?.data || payRes;
     return paidTicket;
+  },
+
+  /**
+   * Check in an attendee via QR scan data / ticket code
+   * Endpoint: POST /checkin/scan
+   */
+  async checkInTicket(qrDataOrCode) {
+    const res = await api.post('/checkin/scan', { qr_data: qrDataOrCode });
+    return res.data;
   }
 };
 

@@ -1,5 +1,6 @@
 // frontend/src/pages/merchandise/MerchandisePage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
 import MerchandiseProductGrid from '../../components/merchandise/MerchandiseProductGrid';
 import MerchandiseCart from '../../components/merchandise/MerchandiseCart';

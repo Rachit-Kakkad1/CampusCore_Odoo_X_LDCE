@@ -122,7 +122,16 @@ class AuthService {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = await authRepository.getUserByEmail(cleanEmail);
+    let user = await authRepository.getUserByEmail(cleanEmail);
+
+    if (!user && (cleanEmail.endsWith('@skyline.org') || cleanEmail.endsWith('@campuscore.org') || cleanEmail.endsWith('@odoo-ldce.org'))) {
+      const altDomains = ['@odoo-ldce.org', '@skyline.org', '@campuscore.org'];
+      const currentPrefix = cleanEmail.split('@')[0];
+      for (const dom of altDomains) {
+        user = await authRepository.getUserByEmail(`${currentPrefix}${dom}`);
+        if (user) break;
+      }
+    }
 
     if (!user) {
       const err = new Error('Invalid email or password');
