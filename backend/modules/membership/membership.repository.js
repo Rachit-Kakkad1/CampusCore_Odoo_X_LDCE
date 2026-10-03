@@ -245,13 +245,23 @@ const membershipRepository = {
     `;
     const res = await query(sql);
     const row = res.rows[0] || {};
+    const totalActive = parseInt(row.total_active || 0, 10);
+    const expiring7Days = parseInt(row.expiring_7_days || 0, 10);
+    const expiring30Days = parseInt(row.expiring_30_days || 0, 10);
+    const expired = parseInt(row.expired || 0, 10);
+    const pending = parseInt(row.pending || 0, 10);
+    const cancelled = parseInt(row.cancelled || 0, 10);
+
     return {
-      total_active: parseInt(row.total_active || 0, 10),
-      expiring_7_days: parseInt(row.expiring_7_days || 0, 10),
-      expiring_30_days: parseInt(row.expiring_30_days || 0, 10),
-      expired: parseInt(row.expired || 0, 10),
-      pending: parseInt(row.pending || 0, 10),
-      cancelled: parseInt(row.cancelled || 0, 10),
+      totalActive,
+      expiring7Days,
+      expiring30Days,
+      expired,
+      pending,
+      cancelled,
+      total_active: totalActive,
+      expiring_7_days: expiring7Days,
+      expiring_30_days: expiring30Days,
     };
   },
 
@@ -305,6 +315,13 @@ const membershipRepository = {
     sql += ` ORDER BY m.created_at DESC, m.id DESC;`;
     const res = await query(sql, params);
     return res.rows;
+  },
+
+  /**
+   * Alias for findMembershipHistory
+   */
+  async findHistoryByUserId(userId) {
+    return this.findMembershipHistory(userId);
   },
 };
 

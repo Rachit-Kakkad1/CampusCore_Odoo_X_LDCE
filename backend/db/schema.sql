@@ -74,9 +74,17 @@ CREATE TABLE announcements (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   body TEXT NOT NULL,
+  priority VARCHAR(20) NOT NULL DEFAULT 'normal'
+    CHECK (priority IN ('normal', 'important', 'urgent')),
+  category VARCHAR(30) NOT NULL DEFAULT 'general'
+    CHECK (category IN ('general', 'event', 'urgent', 'academic', 'membership', 'finance')),
+  status VARCHAR(20) NOT NULL DEFAULT 'published'
+    CHECK (status IN ('draft', 'published')),
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
 
 -- -----------------------------------------------------------------------------
 -- 4. EVENTS

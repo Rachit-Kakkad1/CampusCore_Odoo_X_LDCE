@@ -3,7 +3,11 @@ const crypto = require('crypto');
 const { pool } = require('../../db/connection');
 const membershipRepository = require('./membership.repository');
 const { isActiveMember } = require('../../shared/membership/isActiveMember');
-const { getMembershipStatus, calculateDaysRemaining } = require('../../shared/membership/getMembershipStatus');
+const {
+  getMembershipStatus,
+  calculateDaysRemaining,
+  determineExpiryCategory,
+} = require('../../shared/membership/getMembershipStatus');
 const { syncMembershipStatuses } = require('../../shared/membership/syncMembershipStatuses');
 const { createTransaction } = require('../../shared/transactions/createTransaction');
 
@@ -32,6 +36,8 @@ class MembershipService {
       m.expiry_date &&
       new Date(m.expiry_date) > new Date();
 
+    const expiryCategory = determineExpiryCategory(isCurrentlyActive, daysRemaining, m.status);
+
     return {
       id: m.id,
       user_id: m.user_id,
@@ -48,7 +54,12 @@ class MembershipService {
       created_at: m.created_at,
       updated_at: m.updated_at,
       days_remaining: daysRemaining,
+      daysRemaining,
       is_active: isCurrentlyActive,
+      isActive: isCurrentlyActive,
+      startedAt: m.started_at,
+      expiryDate: m.expiry_date,
+      expiryCategory,
       user_name: m.user_name || undefined,
       user_email: m.user_email || undefined,
       user_role: m.user_role || undefined,
@@ -72,6 +83,12 @@ class MembershipService {
     if (!membership) {
       return {
         exists: false,
+        status: 'none',
+        startedAt: null,
+        expiryDate: null,
+        daysRemaining: 0,
+        isActive: false,
+        expiryCategory: 'normal',
         is_active: false,
         computed_status: 'none',
         membership: null,
@@ -81,6 +98,12 @@ class MembershipService {
     const formatted = this.formatMembership(membership);
     return {
       exists: true,
+      status: formatted.status,
+      startedAt: formatted.started_at,
+      expiryDate: formatted.expiry_date,
+      daysRemaining: formatted.days_remaining,
+      isActive: formatted.is_active,
+      expiryCategory: formatted.expiryCategory,
       is_active: formatted.is_active,
       computed_status: formatted.status,
       membership: formatted,

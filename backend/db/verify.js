@@ -262,16 +262,88 @@ async function runVerification() {
 
     // Verify isActiveMember helper on representative users
     const { isActiveMember } = require('../shared/membership/isActiveMember');
+    const { syncMembershipStatuses } = require('../shared/membership/syncMembershipStatuses');
+    const membershipRepository = require('../modules/membership/membership.repository');
+    const announcementsRepository = require('../modules/announcements/announcements.repository');
+    const announcementsService = require('../modules/announcements/announcements.service');
+
     const mayaId = (await pool.query("SELECT id FROM users WHERE email = 'maya@odoo-ldce.org'")).rows[0].id;
     const piaId = (await pool.query("SELECT id FROM users WHERE email = 'pia@odoo-ldce.org'")).rows[0].id;
     const vikId = (await pool.query("SELECT id FROM users WHERE email = 'vik@odoo-ldce.org'")).rows[0].id;
     const gregId = (await pool.query("SELECT id FROM users WHERE email = 'greg@odoo-ldce.org'")).rows[0].id;
+    const taraId = (await pool.query("SELECT id FROM users WHERE email = 'tara@odoo-ldce.org'")).rows[0].id;
+    const ethanId = (await pool.query("SELECT id FROM users WHERE email = 'ethan@odoo-ldce.org'")).rows[0].id;
 
-    assert(await isActiveMember(mayaId) === true, 'isActiveMember(maya) === true (Active)');
+    console.log('--- 7. Verifying Membership Rules & Status Engine ---');
+    assert(await isActiveMember(mayaId) === true, 'isActiveMember(maya) === true (Active + Paid + Future expiry)');
     assert(await isActiveMember(piaId) === false, 'isActiveMember(pia) === false (Pending)');
     assert(await isActiveMember(vikId) === false, 'isActiveMember(vik) === false (Expired)');
     assert(await isActiveMember(gregId) === false, 'isActiveMember(greg) === false (Cancelled)');
 
+    // Pending membership verification
+    const pendingMem = await membershipRepository.findCurrentMembershipByUserId(piaId);
+    assert(pendingMem && pendingMem.status === 'pending' && pendingMem.dues_status === 'pending', 'Pending membership exists for Pia');
+
+    // Dashboard metrics verification directly in PostgreSQL
+    const dashboardMetrics = await membershipRepository.getDashboardCounts();
+    assert(dashboardMetrics.totalActive >= 3, `Dashboard totalActive >= 3 (found ${dashboardMetrics.totalActive})`);
+    assert(dashboardMetrics.expiring7Days >= 1, `Dashboard expiring7Days captures Tara's 5-day expiry (found ${dashboardMetrics.expiring7Days})`);
+    assert(dashboardMetrics.expiring30Days >= 2, `Dashboard expiring30Days captures Tara & Ethan (found ${dashboardMetrics.expiring30Days})`);
+    assert(dashboardMetrics.expired >= 2, `Dashboard expired counts historical/expired rows (found ${dashboardMetrics.expired})`);
+
+    // Expiry sync idempotence verification
+    console.log('--- 8. Verifying Membership Expiry Synchronization ---');
+    const sync1 = await syncMembershipStatuses();
+    const sync2 = await syncMembershipStatuses();
+    assert(sync2 === 0, 'syncMembershipStatuses is idempotent (second run modifies 0 records)');
+
+    // Renewal chain verification
+    console.log('--- 9. Verifying Renewal History Model ---');
+    const eddieHistory = await membershipRepository.findHistoryByUserId(eddieRenewal.id ? 6 : 6);
+    assert(eddieHistory.length >= 2, 'Eddie history preserves both historical expired and renewed active records');
+    assert(eddieHistory[0].renewed_from_membership_id === eddieHistory[1].id, 'Newest record contains renewed_from_membership_id pointing to previous membership');
+
+    // Announcements verification
+    console.log('--- 10. Verifying Announcements (Filter, Search, Pagination, Drafts) ---');
+    const announcementsCount = parseInt((await pool.query('SELECT COUNT(*) FROM announcements;')).rows[0].count, 10);
+    assert(announcementsCount === 7, `Seeded 7 announcements (found ${announcementsCount})`);
+
+    // List published
+    const publishedList = await announcementsRepository.findAll({ status: 'published' });
+    assert(publishedList.data.length === 6 && publishedList.data.every(a => a.status === 'published'), 'Public list returns only published announcements (drafts excluded)');
+
+    // Category filter
+    const eventAnnouncements = await announcementsRepository.findAll({ category: 'event', status: 'published' });
+    assert(eventAnnouncements.data.length >= 1 && eventAnnouncements.data.every(a => a.category === 'event'), 'Category filter returns only events');
+
+    // Priority filter
+    const urgentAnnouncements = await announcementsRepository.findAll({ priority: 'urgent' });
+    assert(urgentAnnouncements.data.length >= 1 && urgentAnnouncements.data.every(a => a.priority === 'urgent'), 'Priority filter returns urgent announcements');
+
+    // Search filter
+    const searchRes = await announcementsRepository.findAll({ search: 'Gala' });
+    assert(searchRes.data.length >= 1 && searchRes.data.some(a => a.title.includes('Gala')), 'Search filter works via PostgreSQL ILIKE');
+
+    // Pagination
+    const pageRes = await announcementsRepository.findAll({ page: 1, limit: 2 });
+    assert(pageRes.data.length === 2 && pageRes.page === 1 && pageRes.limit === 2 && pageRes.totalPages >= 3, 'Pagination limits output and computes totalPages correctly');
+
+    // Draft detail & publish
+    const draftRow = (await pool.query("SELECT id FROM announcements WHERE status = 'draft' LIMIT 1;")).rows[0];
+    assert(draftRow !== undefined, 'Draft announcement exists in database');
+    let draftBlocked = false;
+    try {
+      await announcementsService.getAnnouncementById(draftRow.id, { allowDraft: false });
+    } catch (e) {
+      if (e.status === 404) draftBlocked = true;
+    }
+    assert(draftBlocked, 'Draft announcement returns 404 to public requests without allowDraft privilege');
+
+    const publishedDraft = await announcementsRepository.publish(draftRow.id);
+    assert(publishedDraft && publishedDraft.status === 'published' && publishedDraft.published_at !== null, 'Publish sets status = "published" and published_at = NOW()');
+
+    // Other core tables sanity checks
+    console.log('--- 11. Verifying Other Project Tables ---');
     const eventsCount = parseInt((await pool.query('SELECT COUNT(*) FROM events;')).rows[0].count, 10);
     assert(eventsCount === 2, `Seeded 2 events: Spring Gala (100) & Mini Workshop (2)`);
 
@@ -291,9 +363,6 @@ async function runVerification() {
       GROUP BY t.status;
     `)).rows;
     assert(bakeTasks.length === 3, 'Bake Sale has 3 tasks seeded across completed, in_progress, and todo');
-
-    const announcementsCount = parseInt((await pool.query('SELECT COUNT(*) FROM announcements;')).rows[0].count, 10);
-    assert(announcementsCount === 2, 'Seeded 2 announcements');
 
     const txCount = parseInt((await pool.query('SELECT COUNT(*) FROM transactions;')).rows[0].count, 10);
     assert(txCount >= 2, `Seeded initial dues transactions (found ${txCount})`);
