@@ -61,7 +61,7 @@ const LandingPage = () => {
 
           <div className="hidden md:flex items-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
             <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
-            <a href="#events" className="hover:text-primary transition-colors">Events</a>
+            <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
             <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
             <a href="#store" className="hover:text-primary transition-colors">Store</a>
             <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
@@ -626,6 +626,13 @@ const EventSpotlight = () => {
             <div className="col-span-2 pt-4">
               <div className="text-muted mb-2 text-xs tracking-widest">SEATS REMAINING</div>
               <div className="text-2xl text-primary">42 / 100</div>
+              <Link
+                to="/events"
+                className="mt-6 inline-flex items-center gap-2 bg-primary text-white font-mono text-xs uppercase tracking-widest px-6 py-3 hover:opacity-90 transition-opacity"
+              >
+                <span>Explore All Events</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         </div>
@@ -672,7 +679,7 @@ const Footer = () => {
 
         <div className="flex flex-wrap justify-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
           <a href="#membership" className="hover:text-primary transition-colors">Membership</a>
-          <a href="#events" className="hover:text-primary transition-colors">Events</a>
+          <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
           <a href="#store" className="hover:text-primary transition-colors">Store</a>
           <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
         </div>

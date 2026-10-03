@@ -41,6 +41,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
 
   // Membership & Pricing State
   const [isActiveMember, setIsActiveMember] = useState(false);
+  const [isExpiredMember, setIsExpiredMember] = useState(false);
   const [checkingMembership, setCheckingMembership] = useState(false);
 
   // Optional Inline Sign-In (for existing members to unlock member discount)
@@ -77,20 +78,29 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
     const checkMemberStatus = async () => {
       if (!authService.isAuthenticated()) {
         setIsActiveMember(false);
+        setIsExpiredMember(false);
         return;
       }
       try {
         setCheckingMembership(true);
         const memData = await membershipService.getMembership();
         const mem = memData?.membership || memData?.data || memData;
-        const active =
+        const active = Boolean(
           mem &&
           mem.status === 'active' &&
           mem.dues_status === 'paid' &&
-          (!mem.expiry_date || new Date(mem.expiry_date) > new Date());
-        setIsActiveMember(Boolean(active));
+          (!mem.expiry_date || new Date(mem.expiry_date) > new Date())
+        );
+        const expired = Boolean(
+          mem &&
+          (mem.status === 'expired' ||
+            (mem.expiry_date && new Date(mem.expiry_date) <= new Date()))
+        );
+        setIsActiveMember(active);
+        setIsExpiredMember(expired);
       } catch (err) {
         setIsActiveMember(false);
+        setIsExpiredMember(false);
       } finally {
         setCheckingMembership(false);
       }
@@ -331,7 +341,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                   Official Admission Pass
                 </span>
                 <h3 className="font-serif text-2xl text-[#1c1c1c] tracking-tight">
-                  Reservation Confirmed
+                  TICKET CONFIRMED ✓
                 </h3>
               </div>
 
@@ -373,7 +383,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                     className="w-48 h-48 mx-auto object-contain"
                   />
                   <div className="mt-2.5 font-mono text-[10px] tracking-wider uppercase text-[#1c1c1c]/80 font-semibold border-t border-[#e5e4de] pt-2">
-                    Show this QR at the venue entrance
+                    Show this QR code at the entrance
                   </div>
                 </div>
               ) : (
@@ -393,7 +403,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                   <span className="text-[#1c1c1c] text-right">{event.venue}</span>
                 </div>
                 <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
-                  <span className="text-[#1c1c1c]/50">SCHEDULE:</span>
+                  <span className="text-[#1c1c1c]/50">DATE:</span>
                   <span className="text-[#1c1c1c] text-right">{formattedEventDate}</span>
                 </div>
                 <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
@@ -407,13 +417,26 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                 <div className="flex justify-between border-b border-[#e5e4de] pb-1.5">
                   <span className="text-[#1c1c1c]/50">TIER:</span>
                   <span className="text-[#1c1c1c] uppercase font-bold">
-                    {confirmedTicket.price_type === 'member' ? 'Active Member Pass' : 'Standard Guest Pass'}
+                    {confirmedTicket.price_type === 'member' ? 'ACTIVE MEMBER' : 'NON-MEMBER / GUEST'}
                   </span>
                 </div>
                 <div className="flex justify-between pt-1 font-bold text-sm">
-                  <span>TOTAL PAID:</span>
+                  <span>PRICE PAID:</span>
                   <span className="text-[#5F3F56]">₹{Number(confirmedTicket.price || 0).toFixed(2)}</span>
                 </div>
+              </div>
+
+              {/* Section 12: Resilient Email Delivery Status Handling */}
+              <div className="max-w-md mx-auto text-left">
+                {confirmedTicket.email_delivery?.success ? (
+                  <p className="font-mono text-xs text-green-900 text-center">
+                    A copy of your ticket has been sent to your email.
+                  </p>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 font-mono text-xs">
+                    Ticket purchased successfully. Email delivery is temporarily unavailable. You can access your ticket here.
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -443,7 +466,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
           )}
 
           {/* ============================================================ */}
-          {/* STAGE 0: CHECKOUT & ATTENDEE FORM                            */}
+          {/* STAGE 0: CHECKOUT & ATTENDEE FORM (SECTION 6 & 10)           */}
           {/* ============================================================ */}
           {stage === 'form' && (
             <motion.div
@@ -456,11 +479,11 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono text-xs uppercase tracking-widest text-[#5F3F56] font-semibold">
-                    Confirm Ticket Reservation
+                    Confirm Ticket
                   </span>
                   {isSoldOut ? (
                     <span className="bg-red-100 text-red-800 text-[10px] font-mono uppercase px-2 py-0.5 font-bold border border-red-300">
-                      Sold Out
+                      SOLD OUT
                     </span>
                   ) : (
                     <span className="bg-green-50 text-green-800 text-[10px] font-mono uppercase px-2 py-0.5 font-semibold border border-green-200">
@@ -481,7 +504,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
               {isSoldOut && (
                 <div className="p-3.5 bg-red-50 border border-red-200 text-red-900 font-mono text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-700" />
-                  <span>This event has reached full capacity. No further seats are available.</span>
+                  <span>This event is SOLD OUT. No further seats are available.</span>
                 </div>
               )}
 
@@ -493,23 +516,40 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                 </div>
               )}
 
-              {/* Pricing Breakdown Card */}
-              <div className="p-4 bg-white/80 border border-[#e5e4de] space-y-2.5">
-                <div className="flex items-center justify-between font-mono text-xs text-[#1c1c1c]/70">
-                  <span>Base Admission Tier</span>
-                  <span>{isActiveMember ? 'Active Member Pass' : 'Standard Guest Pass'}</span>
+              {/* SECTION 10: CONFIRM TICKET PREVIEW CARD */}
+              <div className="p-4 bg-white/80 border border-[#e5e4de] space-y-2.5 font-mono text-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-[#e5e4de]">
+                  <span className="text-[#1c1c1c]/60">Event:</span>
+                  <span className="font-bold text-[#1c1c1c]">{event.title}</span>
+                </div>
+
+                <div className="flex items-center justify-between pb-2 border-b border-[#e5e4de]">
+                  <span className="text-[#1c1c1c]/60">Ticket:</span>
+                  <span className={`font-bold uppercase ${isActiveMember ? 'text-green-800' : 'text-[#1c1c1c]'}`}>
+                    {isActiveMember ? 'ACTIVE MEMBER' : 'NON-MEMBER'}
+                  </span>
                 </div>
 
                 {isActiveMember ? (
-                  <div className="p-2.5 bg-green-50 border border-green-200 font-mono text-xs text-green-900 flex items-center justify-between">
+                  <div className="p-2.5 bg-green-50 border border-green-200 text-green-900 flex items-center justify-between">
                     <span className="flex items-center gap-1.5 font-semibold">
                       <ShieldCheck className="w-4 h-4 text-green-700" />
-                      Member Discount Applied
+                      Member price applied
                     </span>
-                    <span className="font-bold text-green-800">- ₹{savings}</span>
+                    <span className="font-bold text-green-800">Save ₹{savings}</span>
+                  </div>
+                ) : isExpiredMember ? (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-900 space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <span>Membership: EXPIRED</span>
+                      <span>Ticket: ₹{nonMemberPrice.toFixed(2)}</span>
+                    </div>
+                    <p className="text-[10px] text-amber-800">
+                      Renew your membership to unlock member pricing (₹{memberPrice.toFixed(2)}).
+                    </p>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between text-[11px] font-mono text-[#1c1c1c]/60 border-t border-[#e5e4de]/60 pt-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-[#1c1c1c]/60 pt-1">
                     <span>Active Member Price: ₹{memberPrice.toFixed(2)}</span>
                     {!isAuthenticated ? (
                       <button
@@ -520,18 +560,18 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                         {showMemberSignIn ? 'Close Sign In' : 'Member? Sign In to Save ₹' + savings}
                       </button>
                     ) : (
-                      <span className="text-amber-800">Standard rate (Membership inactive)</span>
+                      <span className="text-amber-800">Become a member to unlock member pricing.</span>
                     )}
                   </div>
                 )}
 
-                <div className="flex items-center justify-between font-mono text-base font-bold text-[#1c1c1c] pt-2 border-t border-[#e5e4de]">
-                  <span>Total Due:</span>
+                <div className="flex items-center justify-between text-base font-bold text-[#1c1c1c] pt-2 border-t border-[#e5e4de]">
+                  <span>Price:</span>
                   <span className="text-[#5F3F56] text-xl">₹{applicablePrice}</span>
                 </div>
               </div>
 
-              {/* Inline Member Sign-In (Optional) */}
+              {/* Inline Member Sign-In (Optional for members without current session) */}
               {showMemberSignIn && !isAuthenticated && (
                 <div className="p-4 border border-[#5F3F56]/30 bg-[#5F3F56]/5 space-y-3">
                   <div className="flex items-center justify-between">
@@ -583,15 +623,15 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                 </div>
               )}
 
-              {/* ATTENDEE CONTACT DETAILS FORM */}
+              {/* SECTION 6: GUEST ATTENDEE CONTACT DETAILS FORM */}
               <form onSubmit={handleConfirmPurchase} className="space-y-4">
                 <div className="space-y-3">
                   <div className="border-b border-[#e5e4de] pb-1">
                     <span className="font-mono text-xs uppercase tracking-wider font-semibold text-[#1c1c1c]">
-                      Attendee Confirmation Details
+                      Attendee Information
                     </span>
                     <p className="font-sans text-[11px] text-[#1c1c1c]/60 mt-0.5">
-                      Please provide your contact information. The ticket and entry QR code will be sent to this email.
+                      The ticket and entry QR will be sent to this email.
                     </p>
                   </div>
 
@@ -615,7 +655,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                   <div>
                     <label className="block font-mono text-[10px] uppercase font-semibold text-[#1c1c1c]/70 mb-1 flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-[#5F3F56]" />
-                      <span>Email Address (Ticket & QR Delivery) *</span>
+                      <span>Email Address *</span>
                     </label>
                     <input
                       type="email"
@@ -626,7 +666,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                       className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs text-[#1c1c1c] focus:outline-none focus:border-[#5F3F56]"
                     />
                     <span className="font-mono text-[10px] text-[#1c1c1c]/50 mt-1 block">
-                      Important: Ensure this email is correct. The entry QR pass will be delivered here.
+                      Required: Your admission ticket and QR code will be delivered here.
                     </span>
                   </div>
 
@@ -634,7 +674,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                   <div>
                     <label className="block font-mono text-[10px] uppercase font-semibold text-[#1c1c1c]/70 mb-1 flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-[#5F3F56]" />
-                      <span>Mobile Number (Verification & SMS) *</span>
+                      <span>Mobile Number *</span>
                     </label>
                     <input
                       type="tel"
@@ -676,7 +716,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                   </div>
                 </div>
 
-                {/* Modal Action Buttons */}
+                {/* Modal Action Buttons (Section 10) */}
                 <div className="pt-4 border-t border-[#e5e4de] flex items-center justify-end gap-3">
                   <ActionButton
                     type="button"
@@ -696,7 +736,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                     {purchaseLoading
                       ? 'Issuing Ticket...'
                       : isSoldOut
-                      ? 'Sold Out'
+                      ? 'SOLD OUT'
                       : `Confirm & Pay ₹${applicablePrice}`}
                   </ActionButton>
                 </div>
