@@ -6,14 +6,20 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
-    "db:test": "node backend/db/connection.js",
+    "test": "node backend/tests/runAllTests.js",
+    "test:auth": "node backend/tests/auth.test.js",
+    "test:membership": "node backend/tests/membership.test.js",
+    "test:announcements": "node backend/tests/announcements.test.js",
+    "test:events": "node backend/tests/events.test.js",
+    "test:merch": "node backend/scripts/test_merchandise.js",
+    "test:qr-email": "node backend/tests/qr_email.test.js",
+    "db:test": "node backend/config/database.js",
+    "db:verify": "node backend/db/verify.js",
     "db:migrate": "node backend/db/migrate.js",
     "db:seed": "node backend/db/seed.js",
-    "db:verify": "node backend/db/verify.js",
     "migrate": "node backend/db/migrate.js",
     "seed": "node backend/db/seed.js",
-    "verify": "node backend/scripts/verify_phase1.js",
-    "test:merch": "node backend/scripts/test_merchandise.js"
+    "verify": "node backend/scripts/verify_phase1.js"
   },
   "repository": {
     "type": "git",
@@ -23,7 +29,7 @@
     "odoo",
     "student-organization"
   ],
-  "author": "Nishit",
+  "author": "Odoo x LDCE Team",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
@@ -32,7 +38,9 @@
     "dotenv": "^18.0.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.1"
+    "nodemailer": "^10.0.13",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

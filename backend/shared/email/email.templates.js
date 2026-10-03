@@ -1,0 +1,281 @@
+/**
+ * Email Templates Module
+ * Generates beautiful HTML and accessible plain-text representations for ticket deliveries.
+ */
+
+/**
+ * Formats a date into human-readable string.
+ */
+function formatDate(dateInput) {
+  if (!dateInput) return 'TBA';
+  try {
+    const d = new Date(dateInput);
+    return d.toLocaleString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    });
+  } catch (e) {
+    return String(dateInput);
+  }
+}
+
+/**
+ * Builds HTML and text versions of the ticket confirmation email.
+ *
+ * @param {object} params
+ * @param {string} params.attendeeName
+ * @param {string} params.eventName
+ * @param {string|Date} params.eventDate
+ * @param {string} params.venue
+ * @param {string} params.ticketCode
+ * @param {number|string} params.price
+ * @param {string} params.priceType
+ * @param {string} params.qrDataUrl
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function renderTicketEmail({
+  attendeeName = 'Attendee',
+  eventName = 'Organization Event',
+  eventDate = null,
+  venue = 'Campus Center',
+  ticketCode = 'TCK-0000',
+  price = '0.00',
+  priceType = 'General',
+  qrDataUrl = null,
+}) {
+  const formattedDate = formatDate(eventDate);
+  const subject = `Your Ticket for ${eventName} [${ticketCode}]`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 24px;
+      color: #1a202c;
+    }
+    .ticket-container {
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e2e8f0;
+    }
+    .ticket-header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      color: #ffffff;
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .ticket-header h1 {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .ticket-header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    .ticket-body {
+      padding: 28px 24px;
+    }
+    .qr-section {
+      text-align: center;
+      margin: 20px 0;
+      padding: 16px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      border: 1px dashed #cbd5e1;
+    }
+    .qr-image {
+      width: 200px;
+      height: 200px;
+      display: inline-block;
+      border-radius: 8px;
+    }
+    .fallback-code-box {
+      margin-top: 14px;
+      padding: 10px 16px;
+      background: #edf2f7;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      color: #2d3748;
+    }
+    .fallback-code {
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: #1e3a8a;
+      display: block;
+      margin-top: 4px;
+    }
+    .details-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .details-table td {
+      padding: 10px 0;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 14px;
+    }
+    .details-label {
+      color: #718096;
+      font-weight: 500;
+      width: 35%;
+    }
+    .details-value {
+      color: #1a202c;
+      font-weight: 600;
+      text-align: right;
+    }
+    .instructions-card {
+      margin-top: 24px;
+      padding: 16px;
+      background-color: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #1e40af;
+    }
+    .instructions-card h4 {
+      margin: 0 0 6px 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .instructions-card ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .ticket-footer {
+      background-color: #f8fafc;
+      padding: 16px;
+      text-align: center;
+      font-size: 12px;
+      color: #a0aec0;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="ticket-container">
+    <div class="ticket-header">
+      <h1>${eventName}</h1>
+      <p>Official Admission Pass</p>
+    </div>
+
+    <div class="ticket-body">
+      <p style="margin-top: 0;">Hi <strong>${attendeeName}</strong>,</p>
+      <p>Your ticket payment has been confirmed! Please keep this email accessible on your mobile phone or print it out for entry.</p>
+
+      <div class="qr-section">
+        ${qrDataUrl ? `<img src="cid:ticket_qr_code" data-qr="${qrDataUrl}" alt="Check-in QR Code" class="qr-image" style="width: 180px; height: 180px; display: block; margin: 0 auto 12px auto;" />` : '<p style="color: #e53e3e;">QR Code generation pending</p>'}
+        <div class="fallback-code-box">
+          <span>Manual Fallback Ticket Code:</span>
+          <span class="fallback-code">${ticketCode}</span>
+        </div>
+      </div>
+
+
+      <table class="details-table">
+        <tr>
+          <td class="details-label">Attendee</td>
+          <td class="details-value">${attendeeName}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Event</td>
+          <td class="details-value">${eventName}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Date & Time</td>
+          <td class="details-value">${formattedDate}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Venue</td>
+          <td class="details-value">${venue}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Ticket Type</td>
+          <td class="details-value" style="text-transform: capitalize;">${priceType}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Amount Paid</td>
+          <td class="details-value">₹${parseFloat(price).toFixed(2)}</td>
+        </tr>
+      </table>
+
+      <div class="instructions-card">
+        <h4>Door Check-in Instructions</h4>
+        <p style="font-weight: 700; margin: 4px 0 8px 0;">Show this QR code at the entrance.</p>
+        <ol>
+          <li>Have this QR code displayed on your screen at full brightness when approaching the entrance.</li>
+          <li>Our staff or volunteers will scan your code to grant admission.</li>
+          <li>If your phone battery is low or the scanner fails, show the <strong>Manual Fallback Code</strong> above to the gate manager.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="ticket-footer">
+      Odoo × LDCE Student Organization Management System &bull; Present this pass for admission
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+============================================================
+${eventName.toUpperCase()} — OFFICIAL ADMISSION TICKET
+============================================================
+
+Hello ${attendeeName},
+
+Your ticket payment has been confirmed. Below are your admission details:
+
+Event:            ${eventName}
+Date & Time:      ${formattedDate}
+Venue:            ${venue}
+Ticket Code:      ${ticketCode}
+Ticket Type:      ${priceType}
+Amount Paid:      ₹${parseFloat(price).toFixed(2)}
+
+------------------------------------------------------------
+INSTRUCTION: Show this QR code at the entrance.
+MANUAL FALLBACK CODE: ${ticketCode}
+------------------------------------------------------------
+
+
+CHECK-IN INSTRUCTIONS:
+1. Present your signed QR code at the door for entry.
+2. If your phone screen is damaged or the scanner fails, show the
+   Manual Fallback Code [${ticketCode}] to the gate staff.
+3. Each ticket may only be checked in once.
+
+Odoo x LDCE Student Organization System
+============================================================
+  `.trim();
+
+  return { subject, html, text };
+}
+
+module.exports = {
+  renderTicketEmail,
+};

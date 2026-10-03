@@ -17,9 +17,9 @@ export default {
         hover: '#ffffff',
       },
       fontFamily: {
-        serif: ['"Inter"', 'sans-serif'],
-        sans: ['"Inter"', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+        serif: ['"Playfair Display"', 'serif'],
+        sans: ['"Space Grotesk"', 'sans-serif'],
+        mono: ['"Space Mono"', 'monospace'],
       },
     },
   },

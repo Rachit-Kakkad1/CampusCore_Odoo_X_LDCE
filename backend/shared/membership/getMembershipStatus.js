@@ -1,5 +1,5 @@
 // backend/shared/membership/getMembershipStatus.js
-const { query } = require('../../db/connection');
+const { query, pool } = require('../../config/database');
 
 /**
  * Calculates non-negative days remaining from expiry_date.
@@ -21,8 +21,46 @@ function calculateDaysRemaining(expiryDate) {
 }
 
 /**
+ * Determine dynamic expiry category based on remaining days.
+ *
+ * Categories:
+ * - 'expired': membership has expired
+ * - 'expiring_7_days' (critical): active with <= 7 days remaining
+ * - 'expiring_30_days' (expiring soon): active with <= 30 days remaining
+ * - 'normal': active with > 30 days or pending
+ *
+ * @param {boolean} isActive
+ * @param {number} daysRemaining
+ * @param {string} status
+ * @returns {string}
+ */
+function determineExpiryCategory(isActive, daysRemaining, status) {
+  if (!isActive) {
+    return status === 'expired' ? 'expired' : 'normal';
+  }
+  if (daysRemaining <= 7) return 'expiring_7_days';
+  if (daysRemaining <= 30) return 'expiring_30_days';
+  return 'normal';
+}
+
+/**
+ * Derives normalized status (ACTIVE, EXPIRED, PENDING, NONE)
+ */
+function computeStatus(row) {
+  if (!row) return 'NONE';
+  if (row.dues_status === 'pending' || !row.expiry_date) {
+    return 'PENDING';
+  }
+  const expiry = new Date(row.expiry_date);
+  if (expiry > new Date()) {
+    return 'ACTIVE';
+  }
+  return 'EXPIRED';
+}
+
+/**
  * Shared Membership Helper: getMembershipStatus
- * Retrieves current membership status and derived metrics for a user.
+ * Centralized membership status engine.
  *
  * @param {number|string} userId
  * @param {Object} [client] - Optional DB client
@@ -46,20 +84,19 @@ async function getMembershipStatus(userId, client = null) {
     SELECT *
     FROM memberships
     WHERE user_id = $1
-    ORDER BY 
-      CASE 
-        WHEN status = 'active' THEN 1
-        WHEN status = 'pending' THEN 2
-        WHEN status = 'expired' THEN 3
-        WHEN status = 'cancelled' THEN 4
+    ORDER BY
+      CASE status
+        WHEN 'active' THEN 1
+        WHEN 'pending' THEN 2
+        WHEN 'expired' THEN 3
+        WHEN 'cancelled' THEN 4
         ELSE 5
-      END,
-      created_at DESC, id DESC
+      END, created_at DESC, id DESC
     LIMIT 1;
   `;
 
   const res = client ? await client.query(sql, [numId]) : await query(sql, [numId]);
-  const row = res.rows[0];
+  const row = res.rows ? res.rows[0] : null;
 
   if (!row) {
     return {
@@ -73,42 +110,53 @@ async function getMembershipStatus(userId, client = null) {
     };
   }
 
+  const status = computeStatus(row);
   const daysRemaining = calculateDaysRemaining(row.expiry_date);
-  const isCurrentlyActive =
-    row.status === 'active' &&
-    row.dues_status === 'paid' &&
-    row.expiry_date &&
-    new Date(row.expiry_date) > new Date();
+  const isCurrentlyActive = status === 'ACTIVE';
+
+  const formattedMembership = {
+    id: row.id,
+    user_id: row.user_id,
+    member_code: row.member_code,
+    status: status.toLowerCase(),
+    computed_status: status,
+    dues_status: row.dues_status,
+    dues_amount: row.dues_amount,
+    started_at: row.started_at || row.start_date,
+    start_date: row.started_at || row.start_date,
+    expiry_date: row.expiry_date,
+    paid_at: row.paid_at || row.payment_timestamp,
+    payment_timestamp: row.paid_at || row.payment_timestamp,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    days_remaining: daysRemaining,
+    daysRemaining,
+    is_active: isCurrentlyActive,
+    isActive: isCurrentlyActive,
+  };
+
+  const expiryCategory = determineExpiryCategory(isCurrentlyActive, daysRemaining, row.status);
 
   return {
-    status: row.status.toUpperCase(),
-    dues_status: row.dues_status.toUpperCase(),
-    started_at: row.started_at,
+    status,
+    dues_status: row.dues_status ? row.dues_status.toUpperCase() : 'PENDING',
+    started_at: row.started_at || row.start_date,
+    start_date: row.started_at || row.start_date,
+    startedAt: row.started_at || row.start_date,
     expiry_date: row.expiry_date,
+    expiryDate: row.expiry_date,
     days_remaining: daysRemaining,
+    daysRemaining,
     is_active: isCurrentlyActive,
-    membership: {
-      id: row.id,
-      user_id: row.user_id,
-      member_code: row.member_code,
-      status: row.status,
-      dues_status: row.dues_status,
-      dues_amount: row.dues_amount,
-      started_at: row.started_at,
-      expiry_date: row.expiry_date,
-      cancelled_at: row.cancelled_at,
-      cancellation_reason: row.cancellation_reason,
-      payment_timestamp: row.payment_timestamp,
-      renewed_from_membership_id: row.renewed_from_membership_id,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      days_remaining: daysRemaining,
-      is_active: isCurrentlyActive,
-    },
+    isActive: isCurrentlyActive,
+    expiryCategory,
+    membership: formattedMembership,
   };
 }
 
 module.exports = {
   getMembershipStatus,
   calculateDaysRemaining,
+  determineExpiryCategory,
+  computeStatus,
 };

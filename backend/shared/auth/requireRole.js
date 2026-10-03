@@ -1,34 +1,26 @@
-// backend/shared/auth/requireRole.js
+const getCurrentUser = require('./getCurrentUser');
 
 /**
- * Shared Middleware: requireRole
- * Restricts access to users holding one of the specified roles.
- * Must be preceded by requireAuth in the middleware chain.
+ * Middleware factory restricting endpoint access to specific roles.
+ * Returns 401 if unauthenticated, 403 if authenticated but not allowed.
  *
- * @param  {...string} allowedRoles
+ * @param  {...string} roles - Permitted roles (e.g. 'admin', 'event_manager')
  */
-function requireRole(...allowedRoles) {
+function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user || !req.user.role) {
-      return res.status(401).json({
-        error: {
-          message: 'Authentication required prior to role verification.',
-          status: 401,
-        },
-      });
+    const user = req.user || getCurrentUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        error: {
-          message: `Access forbidden. Required role: [${allowedRoles.join(', ')}].`,
-          status: 403,
-        },
-      });
+    req.user = user;
+
+    if (!roles.includes(user.role)) {
+      return res.status(403).json({ error: 'FORBIDDEN' });
     }
 
     next();
   };
 }
-
-module.exports = { requireRole };
+requireRole.requireRole = requireRole;
+module.exports = requireRole;

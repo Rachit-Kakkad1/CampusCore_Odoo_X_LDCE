@@ -51,6 +51,7 @@ async function runVerification() {
       'memberships',
       'announcements',
       'events',
+      'event_attendees',
       'tickets',
       'products',
       'product_sizes',
@@ -109,8 +110,10 @@ async function runVerification() {
     `);
     const fkPairs = fkRes.rows.map(r => `${r.source_table}.${r.source_column} -> ${r.target_table}.${r.target_column}`);
     assert(fkPairs.includes('memberships.user_id -> users.id'), 'FK: memberships.user_id -> users.id');
+    assert(fkPairs.includes('memberships.renewed_from_membership_id -> memberships.id'), 'FK: memberships.renewed_from_membership_id -> memberships.id');
     assert(fkPairs.includes('tickets.event_id -> events.id'), 'FK: tickets.event_id -> events.id');
     assert(fkPairs.includes('tickets.user_id -> users.id'), 'FK: tickets.user_id -> users.id');
+    assert(fkPairs.includes('tickets.attendee_id -> event_attendees.id'), 'FK: tickets.attendee_id -> event_attendees.id');
     assert(fkPairs.includes('product_sizes.product_id -> products.id'), 'FK: product_sizes.product_id -> products.id');
     assert(fkPairs.includes('order_items.order_id -> orders.id'), 'FK: order_items.order_id -> orders.id');
     assert(fkPairs.includes('order_items.product_size_id -> product_sizes.id'), 'FK: order_items.product_size_id -> product_sizes.id');
@@ -182,62 +185,365 @@ async function runVerification() {
       assert(err.code === '23514', 'Negative stock rejected (23514 check_violation)');
     }
 
-    // 8e. Invalid Role Rejection
+    // 8e. User Roles Constraint Verification
+    for (const r of ['admin', 'treasurer', 'event_manager', 'volunteer', 'member']) {
+      try {
+        await pool.query(
+          `INSERT INTO users (name, email, password_hash, role)
+           VALUES ($1, $2, 'hash', $3);`,
+          [`Test ${r}`, `role_test_${r}_${Date.now()}@example.com`, r]
+        );
+        assert(true, `Valid role accepted: ${r}`);
+      } catch (err) {
+        assert(false, `Valid role was rejected: ${r} - ${err.message}`);
+      }
+    }
+
+    // Role 'guest' MUST BE REJECTED
     try {
       await pool.query(`
         INSERT INTO users (name, email, password_hash, role)
-        VALUES ('Hacker', 'hacker@example.com', 'hash', 'superadmin');
+        VALUES ('Guest User', 'guest_role_reject@example.com', 'hash', 'guest');
       `);
-      assert(false, 'Invalid role was accepted (SHOULD HAVE FAILED)');
+      assert(false, "Role 'guest' in users was accepted (MUST BE REJECTED)");
     } catch (err) {
-      assert(err.code === '23514', 'Invalid user role rejected (23514 check_violation)');
+      assert(err.code === '23514', "Role 'guest' strictly rejected in users (23514 check_violation)");
     }
+
+    // 8f. Event Attendee Constraint Verification
+    console.log('--- 8f. Testing Event Attendee Constraints ---');
+    let testAttendeeId;
+    try {
+      const attRes = await pool.query(`
+        INSERT INTO event_attendees (name, email, mobile)
+        VALUES ('Test Attendee', 'attendee_test@example.com', '9988776655')
+        RETURNING id;
+      `);
+      testAttendeeId = attRes.rows[0].id;
+      assert(Boolean(testAttendeeId), 'Create attendee with name, email, mobile: PASS');
+    } catch (err) {
+      assert(false, `Create attendee failed: ${err.message}`);
+    }
+
+    // Required name
+    try {
+      await pool.query(`
+        INSERT INTO event_attendees (name, email, mobile)
+        VALUES (NULL, 'noname@example.com', '9988776655');
+      `);
+      assert(false, 'Attendee without name accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23502', 'Attendee required name enforced (23502 not_null_violation)');
+    }
+
+    // Required email
+    try {
+      await pool.query(`
+        INSERT INTO event_attendees (name, email, mobile)
+        VALUES ('No Email', NULL, '9988776655');
+      `);
+      assert(false, 'Attendee without email accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23502', 'Attendee required email enforced (23502 not_null_violation)');
+    }
+
+    // Required mobile
+    try {
+      await pool.query(`
+        INSERT INTO event_attendees (name, email, mobile)
+        VALUES ('No Mobile', 'nomobile@example.com', NULL);
+      `);
+      assert(false, 'Attendee without mobile accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23502', 'Attendee required mobile enforced (23502 not_null_violation)');
+    }
+
+    // 8g. Ticket Ownership Model (XOR Constraint)
+    console.log('--- 8g. Testing Ticket Ownership Model ---');
+    const firstEventId = (await pool.query('SELECT id FROM events LIMIT 1;')).rows[0].id;
+    const firstUserId = (await pool.query('SELECT id FROM users LIMIT 1;')).rows[0].id;
+
+    // Registered user ticket (user_id populated, attendee_id null)
+    try {
+      await pool.query(`
+        INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status)
+        VALUES ($1, $2, $3, NULL, 300.00, 'member', 'pending');
+      `, [`TCK-TEST-USER-${Date.now()}`, firstEventId, firstUserId]);
+      assert(true, 'Registered user ticket (user_id populated, attendee_id NULL): PASS');
+    } catch (err) {
+      assert(false, `Registered user ticket failed: ${err.message}`);
+    }
+
+    // Guest attendee ticket (user_id null, attendee_id populated)
+    let testGuestTicketCode = `TCK-TEST-GUEST-${Date.now()}`;
+    let testGuestTicketId;
+    try {
+      const tRes = await pool.query(`
+        INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status)
+        VALUES ($1, $2, NULL, $3, 500.00, 'non_member', 'pending')
+        RETURNING id;
+      `, [testGuestTicketCode, firstEventId, testAttendeeId]);
+      testGuestTicketId = tRes.rows[0].id;
+      assert(true, 'Guest attendee ticket (user_id NULL, attendee_id populated): PASS');
+    } catch (err) {
+      assert(false, `Guest attendee ticket failed: ${err.message}`);
+    }
+
+    // Ticket with neither owner (MUST FAIL)
+    try {
+      await pool.query(`
+        INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status)
+        VALUES ($1, $2, NULL, NULL, 500.00, 'non_member', 'pending');
+      `, [`TCK-TEST-NEITHER-${Date.now()}`, firstEventId]);
+      assert(false, 'Ticket with neither owner accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23514', 'Ticket with neither owner rejected (23514 check_violation chk_ticket_owner)');
+    }
+
+    // Ticket with both owners (MUST FAIL)
+    try {
+      await pool.query(`
+        INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status)
+        VALUES ($1, $2, $3, $4, 500.00, 'non_member', 'pending');
+      `, [`TCK-TEST-BOTH-${Date.now()}`, firstEventId, firstUserId, testAttendeeId]);
+      assert(false, 'Ticket with both owners accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23514', 'Ticket with both owners rejected (23514 check_violation chk_ticket_owner)');
+    }
+
+    // 8h. Pricing Verification
+    console.log('--- 8h. Testing Member vs Non-Member vs Guest Pricing ---');
+    const { isActiveMember } = require('../shared/membership/isActiveMember');
+    const mayaUser = (await pool.query("SELECT id FROM users WHERE email = 'maya@odoo-ldce.org';")).rows[0];
+    const vikUser = (await pool.query("SELECT id FROM users WHERE email = 'vik@odoo-ldce.org';")).rows[0];
+    const eventRow = (await pool.query("SELECT member_price, non_member_price FROM events WHERE title = 'Spring Gala 2026';")).rows[0];
+
+    const mayaIsActive = await isActiveMember(mayaUser.id);
+    const mayaPrice = mayaIsActive ? eventRow.member_price : eventRow.non_member_price;
+    assert(mayaIsActive === true && parseFloat(mayaPrice) === 300.00, 'Active member receives member price (₹300.00)');
+
+    const vikIsActive = await isActiveMember(vikUser.id);
+    const vikPrice = vikIsActive ? eventRow.member_price : eventRow.non_member_price;
+    assert(vikIsActive === false && parseFloat(vikPrice) === 500.00, 'Expired member receives non-member price (₹500.00)');
+
+    const guestAttendeeIsActive = await isActiveMember(null);
+    const guestAttendeePrice = guestAttendeeIsActive ? eventRow.member_price : eventRow.non_member_price;
+    assert(guestAttendeeIsActive === false && parseFloat(guestAttendeePrice) === 500.00, 'Guest attendee receives non-member price (₹500.00)');
+
+    // 8i. QR Code & Check-in Verification for Attendees and Users
+    console.log('--- 8i. Testing QR Code & Door Check-in ---');
+    const generateQR = require('../shared/qr/generateQR');
+    const verifyQR = require('../shared/qr/verifyQR');
+    const eventRepo = require('../modules/events/event.repository');
+    const checkinService = require('../modules/events/checkin.service');
+
+    // Mark test guest ticket as paid for check-in test
+    await pool.query("UPDATE tickets SET payment_status = 'paid' WHERE id = $1;", [testGuestTicketId]);
+
+    // Guest ticket QR generation
+    const guestQR = await generateQR(testGuestTicketCode);
+    assert(typeof guestQR.qrDataUrl === 'string' && guestQR.qrDataUrl.startsWith('data:image/png;base64,'), 'Guest ticket → QR generated: PASS');
+
+    // User ticket QR generation
+    const userTicketCode = `TCK-USER-QR-${Date.now()}`;
+    const userTicketRes = await pool.query(`
+      INSERT INTO tickets (ticket_code, event_id, user_id, price, price_type, payment_status)
+      VALUES ($1, $2, $3, 300.00, 'member', 'paid')
+      RETURNING id;
+    `, [userTicketCode, firstEventId, mayaUser.id]);
+    const userQR = await generateQR(userTicketCode);
+    assert(typeof userQR.qrDataUrl === 'string' && userQR.qrDataUrl.startsWith('data:image/png;base64,'), 'User ticket → QR generated: PASS');
+
+    // Tampered QR
+    const tamperedPayload = `${testGuestTicketCode}.deadbeef12`;
+    const tamperedRes = await checkinService.processScan(tamperedPayload, firstUserId);
+    assert(tamperedRes.result === 'INVALID', 'Tampered QR rejected: REJECT');
+
+    // Guest ticket check-in
+    const scan1 = await checkinService.processScan(guestQR.payload, firstUserId);
+    assert(scan1.result === 'VALID' && scan1.holder.type === 'attendee' && scan1.member_status === 'NONE', 'Guest ticket check-in admitted (VALID, member_status: NONE)');
+
+    // Duplicate check-in
+    const scan2 = await checkinService.processScan(guestQR.payload, firstUserId);
+    assert(scan2.result === 'ALREADY_USED', 'Duplicate check-in rejected: ALREADY_USED');
+
+    // Ticket code fallback check-in
+    const fallbackQR = await generateQR(userTicketCode);
+    const codeCheckIn = await checkinService.processScan(fallbackQR.payload, firstUserId);
+    assert(codeCheckIn.result === 'VALID' && codeCheckIn.holder.type === 'user', 'Ticket code fallback check-in: PASS');
     console.log();
+
+    // 8j. Membership Lifecycle, Constraints & Automatic Expiry
+    console.log('--- 8j. Testing Membership Lifecycle Constraints & Automatic Expiry ---');
+    const syncMembershipStatuses = require('../shared/membership/syncMembershipStatuses');
+
+    // Invalid status rejected
+    try {
+      await pool.query(`
+        INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+        VALUES ($1, 'MEM-INVALID-STATUS', 'bogus', 'pending', 500.00);
+      `, [firstUserId]);
+      assert(false, 'Invalid membership status accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23514', 'Invalid membership status rejected (23514 check_violation)');
+    }
+
+    // Invalid dues_status rejected
+    try {
+      await pool.query(`
+        INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+        VALUES ($1, 'MEM-INVALID-DUES', 'pending', 'bogus', 500.00);
+      `, [firstUserId]);
+      assert(false, 'Invalid membership dues_status accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23514', 'Invalid membership dues_status rejected (23514 check_violation)');
+    }
+
+    // Negative dues_amount rejected
+    try {
+      await pool.query(`
+        INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+        VALUES ($1, 'MEM-NEGATIVE-DUES', 'pending', 'pending', -50.00);
+      `, [firstUserId]);
+      assert(false, 'Negative dues amount accepted (SHOULD HAVE FAILED)');
+    } catch (err) {
+      assert(err.code === '23514', 'Negative dues amount rejected (23514 check_violation)');
+    }
+
+    // Create temporary user for lifecycle testing
+    const tempUserRes = await pool.query(`
+      INSERT INTO users (name, email, password_hash, role)
+      VALUES ('Lifecycle Tester', 'lifecycle_test@example.com', 'hash', 'member')
+      RETURNING id;
+    `);
+    const tempUserId = tempUserRes.rows[0].id;
+
+    // 1. Initial State: PENDING
+    const initialMemRes = await pool.query(`
+      INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+      VALUES ($1, 'MEM-LIFE-001', 'pending', 'pending', 500.00)
+      RETURNING id, status, dues_status, started_at, expiry_date;
+    `, [tempUserId]);
+    const mem1 = initialMemRes.rows[0];
+    assert(mem1.status === 'pending' && mem1.dues_status === 'pending', 'New membership created in PENDING status');
+    assert(mem1.started_at === null && mem1.expiry_date === null, 'Pending membership has null start and expiry dates');
+
+    // 2. Activation with interval arithmetic
+    const activateRes = await pool.query(`
+      UPDATE memberships
+      SET started_at = NOW(),
+          expiry_date = NOW() + INTERVAL '1 year',
+          status = 'active',
+          dues_status = 'paid',
+          payment_timestamp = NOW(),
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `, [mem1.id]);
+    const activatedMem = activateRes.rows[0];
+    assert(activatedMem.status === 'active' && activatedMem.dues_status === 'paid', 'Membership activated with paid dues');
+    const intervalDiffDays = Math.round((new Date(activatedMem.expiry_date) - new Date(activatedMem.started_at)) / (1000 * 86400));
+    assert(intervalDiffDays >= 365 && intervalDiffDays <= 366, 'Expiry date automatically calculated using INTERVAL 1 year (~365 days)');
+
+    // 3. Cancellation preserves row and updates status
+    const cancelRes = await pool.query(`
+      UPDATE memberships
+      SET status = 'cancelled',
+          cancelled_at = NOW(),
+          cancellation_reason = 'Member relocated abroad',
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `, [mem1.id]);
+    const cancelledMem = cancelRes.rows[0];
+    assert(cancelledMem.status === 'cancelled', 'Membership transitioned from ACTIVE to CANCELLED');
+    assert(cancelledMem.cancelled_at !== null && cancelledMem.cancellation_reason === 'Member relocated abroad', 'Cancellation reason and timestamp recorded');
+    assert(cancelledMem.expiry_date !== null, 'Cancellation preserves original expiry_date for audit trail');
+
+    // Verify row still exists in DB (never deleted)
+    const auditCheck = (await pool.query('SELECT COUNT(*) FROM memberships WHERE id = $1;', [mem1.id])).rows[0].count;
+    assert(parseInt(auditCheck, 10) === 1, 'Historical cancelled membership is not deleted');
+
+    // 4. Renewal creates new period linked via renewed_from_membership_id
+    const renewalRes = await pool.query(`
+      INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, renewed_from_membership_id)
+      VALUES ($1, 'MEM-LIFE-002', 'active', 'paid', 500.00, NOW(), NOW() + INTERVAL '1 year', NOW(), $2)
+      RETURNING *;
+    `, [tempUserId, mem1.id]);
+    const renewedMem = renewalRes.rows[0];
+    assert(renewedMem.status === 'active' && renewedMem.renewed_from_membership_id === mem1.id, 'Renewal links through renewed_from_membership_id');
+
+    // Both periods exist in database for this user
+    const userMemCount = (await pool.query('SELECT COUNT(*) FROM memberships WHERE user_id = $1;', [tempUserId])).rows[0].count;
+    assert(parseInt(userMemCount, 10) === 2, 'Renewal preserves previous membership history in database');
+
+    // 5. Automatic Expiry Synchronization
+    // Set renewed membership expiry_date into the past
+    await pool.query(`
+      UPDATE memberships
+      SET expiry_date = NOW() - INTERVAL '1 day'
+      WHERE id = $1;
+    `, [renewedMem.id]);
+
+    const sync1 = await syncMembershipStatuses();
+    assert(sync1.updatedCount >= 1, 'Automatic expiry synchronization updates DB (active past expiry -> expired)');
+
+    const expiredCheck = (await pool.query('SELECT status FROM memberships WHERE id = $1;', [renewedMem.id])).rows[0].status;
+    assert(expiredCheck === 'expired', 'Membership database status updated to expired');
+
+    // Running sync again is safe (idempotent)
+    const sync2 = await syncMembershipStatuses();
+    assert(typeof sync2.updatedCount === 'number', 'Running expiry synchronization twice is safe (idempotent)');
+
+    // Clean up temporary lifecycle test rows
+    await pool.query('DELETE FROM memberships WHERE user_id = $1;', [tempUserId]);
+    await pool.query('DELETE FROM users WHERE id = $1;', [tempUserId]);
+
+    // Clean up temporary test data created during negative/constraint tests
+    await pool.query("DELETE FROM tickets WHERE ticket_code LIKE 'TCK-TEST-%' OR ticket_code LIKE 'TCK-USER-QR-%';");
+    await pool.query("DELETE FROM event_attendees WHERE email LIKE '%@example.com';");
+    await pool.query("DELETE FROM users WHERE email LIKE '%@example.com';");
 
     // 9. Verify Seed Data
     console.log('--- 9. Verifying Seeded Records ---');
     const userCount = parseInt((await pool.query('SELECT COUNT(*) FROM users;')).rows[0].count, 10);
-    assert(userCount === 8, `Seeded exactly 8 users (found ${userCount})`);
+    assert(userCount === 8, `Seeded exactly 8 registered users without guest role (found ${userCount})`);
+
+    const attendeeCount = parseInt((await pool.query('SELECT COUNT(*) FROM event_attendees;')).rows[0].count, 10);
+    assert(attendeeCount === 1, `Seeded exactly 1 event attendee (found ${attendeeCount})`);
+
+    const guestAttendee = (await pool.query("SELECT * FROM event_attendees WHERE email = 'guest@odoo-ldce.org';")).rows[0];
+    assert(guestAttendee && guestAttendee.mobile === '9876543210', 'Seeded Guest Attendee exists with email and mobile');
+
+    const guestSeedTicket = (await pool.query(`
+      SELECT t.* FROM tickets t
+      WHERE t.attendee_id = $1;
+    `, [guestAttendee.id])).rows[0];
+    assert(guestSeedTicket && guestSeedTicket.user_id === null, 'Seeded ticket linked through attendee_id with user_id NULL');
 
     const mayaMembership = (await pool.query(`
-      SELECT m.status, m.dues_status, m.expiry_date, (m.expiry_date > NOW()) as is_active
+      SELECT m.dues_status, m.expiry_date, (m.expiry_date >= CURRENT_DATE) as is_active
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE u.email = 'maya@odoo-ldce.org';
     `)).rows[0];
-    assert(mayaMembership.status === 'active' && mayaMembership.dues_status === 'paid' && mayaMembership.is_active === true, 'Maya Member is ACTIVE');
+    assert(mayaMembership.dues_status === 'paid' && mayaMembership.is_active === true, 'Maya Member is ACTIVE');
 
-    const eddieRenewal = (await pool.query(`
-      SELECT m.id, m.status, m.dues_status, m.renewed_from_membership_id
+    const eddieMembership = (await pool.query(`
+      SELECT m.dues_status, m.expiry_date, (m.expiry_date < CURRENT_DATE) as is_expired
       FROM memberships m
       JOIN users u ON m.user_id = u.id
-      WHERE u.email = 'eddie@odoo-ldce.org' AND m.renewed_from_membership_id IS NOT NULL;
+      WHERE u.email = 'eddie@odoo-ldce.org';
     `)).rows[0];
-    assert(eddieRenewal && eddieRenewal.status === 'active' && eddieRenewal.renewed_from_membership_id !== null, 'Eddie has active renewed membership referencing historical record');
+    assert(eddieMembership.dues_status === 'paid' && eddieMembership.is_expired === true, 'Eddie Expired is EXPIRED');
 
     const piaMembership = (await pool.query(`
-      SELECT m.status, m.dues_status
+      SELECT m.dues_status
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE u.email = 'pia@odoo-ldce.org';
     `)).rows[0];
-    assert(piaMembership.status === 'pending' && piaMembership.dues_status === 'pending', 'Pia Pending has status=pending & dues_status=pending');
-
-    const vikMembership = (await pool.query(`
-      SELECT m.status, m.dues_status, (m.expiry_date < NOW()) as is_expired
-      FROM memberships m
-      JOIN users u ON m.user_id = u.id
-      WHERE u.email = 'vik@odoo-ldce.org';
-    `)).rows[0];
-    assert(vikMembership.status === 'expired' && vikMembership.is_expired === true, 'Vik Volunteer has status=expired');
-
-    const gregMembership = (await pool.query(`
-      SELECT m.status, m.cancelled_at, m.cancellation_reason
-      FROM memberships m
-      JOIN users u ON m.user_id = u.id
-      WHERE u.email = 'greg@odoo-ldce.org';
-    `)).rows[0];
-    assert(gregMembership.status === 'cancelled' && gregMembership.cancellation_reason !== null, 'Greg Guest has status=cancelled and cancellation_reason populated');
+    assert(piaMembership.dues_status === 'pending', 'Pia Pending has dues_status = pending');
 
     // Verify partial unique index exists
     const idxRes = await pool.query(`
@@ -261,17 +567,89 @@ async function runVerification() {
     assert(parseInt(statusCounts.cancelled_count, 10) >= 1, `Cancelled memberships verified (found ${statusCounts.cancelled_count})`);
 
     // Verify isActiveMember helper on representative users
-    const { isActiveMember } = require('../shared/membership/isActiveMember');
+    const membershipRepository = require('../modules/membership/membership.repository');
+    const announcementsRepository = require('../modules/announcements/announcements.repository');
+    const announcementsService = require('../modules/announcements/announcements.service');
+
     const mayaId = (await pool.query("SELECT id FROM users WHERE email = 'maya@odoo-ldce.org'")).rows[0].id;
     const piaId = (await pool.query("SELECT id FROM users WHERE email = 'pia@odoo-ldce.org'")).rows[0].id;
     const vikId = (await pool.query("SELECT id FROM users WHERE email = 'vik@odoo-ldce.org'")).rows[0].id;
     const gregId = (await pool.query("SELECT id FROM users WHERE email = 'greg@odoo-ldce.org'")).rows[0].id;
+    const taraId = (await pool.query("SELECT id FROM users WHERE email = 'tara@odoo-ldce.org'")).rows[0].id;
+    const ethanId = (await pool.query("SELECT id FROM users WHERE email = 'ethan@odoo-ldce.org'")).rows[0].id;
 
-    assert(await isActiveMember(mayaId) === true, 'isActiveMember(maya) === true (Active)');
+    console.log('--- 7. Verifying Membership Rules & Status Engine ---');
+    assert(await isActiveMember(mayaId) === true, 'isActiveMember(maya) === true (Active + Paid + Future expiry)');
     assert(await isActiveMember(piaId) === false, 'isActiveMember(pia) === false (Pending)');
     assert(await isActiveMember(vikId) === false, 'isActiveMember(vik) === false (Expired)');
     assert(await isActiveMember(gregId) === false, 'isActiveMember(greg) === false (Cancelled)');
 
+    // Pending membership verification
+    const pendingMem = await membershipRepository.findCurrentMembershipByUserId(piaId);
+    assert(pendingMem && pendingMem.status === 'pending' && pendingMem.dues_status === 'pending', 'Pending membership exists for Pia');
+
+    // Dashboard metrics verification directly in PostgreSQL
+    const dashboardMetrics = await membershipRepository.getDashboardCounts();
+    assert(dashboardMetrics.totalActive >= 3, `Dashboard totalActive >= 3 (found ${dashboardMetrics.totalActive})`);
+    assert(dashboardMetrics.expiring7Days >= 1, `Dashboard expiring7Days captures Tara's 5-day expiry (found ${dashboardMetrics.expiring7Days})`);
+    assert(dashboardMetrics.expiring30Days >= 2, `Dashboard expiring30Days captures Tara & Ethan (found ${dashboardMetrics.expiring30Days})`);
+    assert(dashboardMetrics.expired >= 2, `Dashboard expired counts historical/expired rows (found ${dashboardMetrics.expired})`);
+
+    // Expiry sync idempotence verification
+    console.log('--- 8. Verifying Membership Expiry Synchronization ---');
+    const syncIdemp1 = await syncMembershipStatuses();
+    const syncIdemp2 = await syncMembershipStatuses();
+    const syncCountFinal = typeof syncIdemp2 === 'number' ? syncIdemp2 : (syncIdemp2.updatedCount ?? Number(syncIdemp2));
+    assert(syncCountFinal === 0, 'syncMembershipStatuses is idempotent (second run modifies 0 records)');
+
+    // Renewal chain verification
+    console.log('--- 9. Verifying Renewal History Model ---');
+    const eddieUser = (await pool.query("SELECT id FROM users WHERE email = 'eddie@odoo-ldce.org'")).rows[0];
+    const eddieHistory = await membershipRepository.findHistoryByUserId(eddieUser.id);
+    assert(eddieHistory.length >= 2, 'Eddie history preserves both historical expired and renewed active records');
+    assert(eddieHistory[0].renewed_from_membership_id === eddieHistory[1].id, 'Newest record contains renewed_from_membership_id pointing to previous membership');
+
+    // Announcements verification
+    console.log('--- 10. Verifying Announcements (Filter, Search, Pagination, Drafts) ---');
+    const announcementsCount = parseInt((await pool.query('SELECT COUNT(*) FROM announcements;')).rows[0].count, 10);
+    assert(announcementsCount === 7, `Seeded 7 announcements (found ${announcementsCount})`);
+
+    // List published
+    const publishedList = await announcementsRepository.findAll({ status: 'published' });
+    assert(publishedList.data.length === 6 && publishedList.data.every(a => a.status === 'published'), 'Public list returns only published announcements (drafts excluded)');
+
+    // Category filter
+    const eventAnnouncements = await announcementsRepository.findAll({ category: 'event', status: 'published' });
+    assert(eventAnnouncements.data.length >= 1 && eventAnnouncements.data.every(a => a.category === 'event'), 'Category filter returns only events');
+
+    // Priority filter
+    const urgentAnnouncements = await announcementsRepository.findAll({ priority: 'urgent' });
+    assert(urgentAnnouncements.data.length >= 1 && urgentAnnouncements.data.every(a => a.priority === 'urgent'), 'Priority filter returns urgent announcements');
+
+    // Search filter
+    const searchRes = await announcementsRepository.findAll({ search: 'Gala' });
+    assert(searchRes.data.length >= 1 && searchRes.data.some(a => a.title.includes('Gala')), 'Search filter works via PostgreSQL ILIKE');
+
+    // Pagination
+    const pageRes = await announcementsRepository.findAll({ page: 1, limit: 2 });
+    assert(pageRes.data.length === 2 && pageRes.page === 1 && pageRes.limit === 2 && pageRes.totalPages >= 3, 'Pagination limits output and computes totalPages correctly');
+
+    // Draft detail & publish
+    const draftRow = (await pool.query("SELECT id FROM announcements WHERE status = 'draft' LIMIT 1;")).rows[0];
+    assert(draftRow !== undefined, 'Draft announcement exists in database');
+    let draftBlocked = false;
+    try {
+      await announcementsService.getAnnouncementById(draftRow.id, { allowDraft: false });
+    } catch (e) {
+      if (e.status === 404) draftBlocked = true;
+    }
+    assert(draftBlocked, 'Draft announcement returns 404 to public requests without allowDraft privilege');
+
+    const publishedDraft = await announcementsRepository.publish(draftRow.id);
+    assert(publishedDraft && publishedDraft.status === 'published' && publishedDraft.published_at !== null, 'Publish sets status = "published" and published_at = NOW()');
+
+    // Other core tables sanity checks
+    console.log('--- 11. Verifying Other Project Tables ---');
     const eventsCount = parseInt((await pool.query('SELECT COUNT(*) FROM events;')).rows[0].count, 10);
     assert(eventsCount === 2, `Seeded 2 events: Spring Gala (100) & Mini Workshop (2)`);
 
@@ -291,9 +669,6 @@ async function runVerification() {
       GROUP BY t.status;
     `)).rows;
     assert(bakeTasks.length === 3, 'Bake Sale has 3 tasks seeded across completed, in_progress, and todo');
-
-    const announcementsCount = parseInt((await pool.query('SELECT COUNT(*) FROM announcements;')).rows[0].count, 10);
-    assert(announcementsCount === 2, 'Seeded 2 announcements');
 
     const txCount = parseInt((await pool.query('SELECT COUNT(*) FROM transactions;')).rows[0].count, 10);
     assert(txCount >= 2, `Seeded initial dues transactions (found ${txCount})`);

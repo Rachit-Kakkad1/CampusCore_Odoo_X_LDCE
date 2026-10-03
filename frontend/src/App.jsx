@@ -6,12 +6,23 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Navbar from './components/common/Navbar';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import RoleGuard from './components/dashboard/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
 import Announcements from './pages/announcements/Announcements';
 import heroVideo from './assests/login/1003.mp4';
+import MemberDashboard from './pages/dashboard/MemberDashboard';
+import AdminDashboard from './pages/dashboard/AdminDashboard';
+import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
+import EventManagerDashboard from './pages/dashboard/EventManagerDashboard';
+import VolunteerDashboard from './pages/dashboard/VolunteerDashboard';
+import MerchandiseDashboard from './pages/dashboard/MerchandiseDashboard';
+import MerchandisePage from './pages/merchandise/MerchandisePage';
+import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
+import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
+import authService from './services/auth.service';
 import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
@@ -89,7 +100,7 @@ const Hero = () => {
   return (
     <section id="overview" className="relative pt-24 pb-12 overflow-hidden">
       <div className="w-full px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-0 items-start relative">
-        
+
         {/* Left Side: Content */}
         <div className="flex flex-col items-start text-left order-2 lg:order-1 lg:col-start-1 lg:col-end-7 lg:row-start-1 lg:pt-12 xl:pt-24 relative z-10">
           <h1 className="font-serif text-4xl lg:text-5xl xl:text-6xl leading-[1.1] tracking-tight mb-6">
@@ -152,11 +163,8 @@ const ProblemStatement = () => {
     offset: ["start center", "end center"]
   });
 
-  const text1 = "Student organizations shouldn't need scattered apps and spreadsheets.";
+  const text1 = "Student organizations shouldn't need spreadsheets for members, WhatsApp for announcements, paper lists for events, notebooks for finances and scattered receipts for expenses.";
   const text2 = "One organization deserves one system.";
-
-  const words1 = text1.split(' ');
-  const words2 = text2.split(' ');
 
   return (
     <section ref={containerRef} className="py-32 px-6 border-b border-border">
@@ -164,31 +172,18 @@ const ProblemStatement = () => {
         <div className="font-mono text-[10px] uppercase tracking-[0.3em] mb-12 text-muted">
           The Problem / 001
         </div>
-        <p className="font-serif text-3xl md:text-5xl lg:text-6xl leading-tight mb-12 flex flex-wrap gap-x-3 gap-y-2">
-          {words1.map((word, i) => {
-            const start = i / (words1.length + words2.length);
-            const end = start + (1 / (words1.length + words2.length));
-            const opacity = useTransform(scrollYProgress, [start, end], [0.15, 1]);
-            return <motion.span key={i} style={{ opacity }}>{word}</motion.span>;
-          })}
-        </p>
-        <p className="font-serif text-4xl md:text-6xl lg:text-7xl leading-tight flex flex-wrap gap-x-4 gap-y-2">
-          {words2.map((word, i) => {
-            const start = (words1.length + i) / (words1.length + words2.length);
-            const end = start + (1 / (words1.length + words2.length));
-            const opacity = useTransform(scrollYProgress, [start, end], [0.15, 1]);
-            const isHighlight = word.toLowerCase().includes("one") || word.toLowerCase().includes("system.");
-            return (
-              <motion.span
-                key={i}
-                style={{ opacity }}
-                className={isHighlight ? "text-primary italic" : ""}
-              >
-                {word}
-              </motion.span>
-            );
-          })}
-        </p>
+        <motion.p 
+          style={{ opacity: useTransform(scrollYProgress, [0, 0.5], [0.15, 1]) }}
+          className="font-serif text-3xl md:text-5xl lg:text-6xl leading-tight mb-12"
+        >
+          {text1}
+        </motion.p>
+        <motion.p 
+          style={{ opacity: useTransform(scrollYProgress, [0.4, 1], [0.15, 1]) }}
+          className="font-serif text-4xl md:text-6xl lg:text-7xl leading-tight text-primary italic"
+        >
+          {text2}
+        </motion.p>
       </div>
     </section>
   );
@@ -721,6 +716,25 @@ const MainLayout = ({ children }) => (
   </div>
 );
 
+const DashboardRouter = () => {
+  const user = authService.getStoredUser();
+  const role = user?.role || 'member';
+
+  switch (role) {
+    case 'admin':
+      return <AdminDashboard />;
+    case 'treasurer':
+      return <TreasurerDashboard />;
+    case 'event_manager':
+      return <EventManagerDashboard />;
+    case 'volunteer':
+      return <VolunteerDashboard />;
+    case 'member':
+    default:
+      return <MemberDashboard />;
+  }
+};
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -731,6 +745,9 @@ export default function App() {
             <Footer />
           </div>
         } />
+        <Route path="/guest" element={<GuestHome />} />
+        <Route path="/events" element={<PublicEvents />} />
+        <Route path="/events/:id" element={<PublicEventDetails />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
         <Route

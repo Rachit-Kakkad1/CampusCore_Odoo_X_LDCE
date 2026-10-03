@@ -166,14 +166,16 @@ async function runMembershipTests() {
     `, [mockUserId]);
     const mockExpId = expiredMockRes.rows[0].id;
 
-    const syncCount = await syncMembershipStatuses();
+    const syncRes1 = await syncMembershipStatuses();
+    const syncCount = typeof syncRes1 === 'number' ? syncRes1 : (syncRes1.updatedCount ?? Number(syncRes1));
     assert(syncCount >= 1, '11. Expiry synchronization detects and expires active records past their expiry date');
 
     const checkMockExp = await query('SELECT status FROM memberships WHERE id = $1;', [mockExpId]);
     assert(checkMockExp.rows[0].status === 'expired', '    Synchronized record updated to status=expired');
 
     // 12. Run expiry synchronization twice: no duplicate effects
-    const syncCount2 = await syncMembershipStatuses();
+    const syncRes2 = await syncMembershipStatuses();
+    const syncCount2 = typeof syncRes2 === 'number' ? syncRes2 : (syncRes2.updatedCount ?? Number(syncRes2));
     assert(syncCount2 === 0, '12. Running expiry synchronization twice is idempotent (0 additional modifications)');
 
     // Clean mock expired row and user

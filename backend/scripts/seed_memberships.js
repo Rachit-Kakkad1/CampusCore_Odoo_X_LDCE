@@ -70,7 +70,7 @@ async function seedMemberships() {
       NOW() - INTERVAL '10 days'
     FROM users WHERE email = 'greg@odoo-ldce.org';
 
-    -- 7. Tara Treasurer (user_id = 2): EXPIRING SOON (Active, expires in 5 days)
+    -- 7. Tara Treasurer (user_id = 2): EXPIRING CRITICAL (Active, expires in 5 days <= 7 days)
     INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
     SELECT 7, id, 'SKY-MEM-002-TARA', 'active', 'paid', 500.00,
       NOW() - INTERVAL '360 days',
@@ -79,6 +79,16 @@ async function seedMemberships() {
       NOW() - INTERVAL '360 days',
       NOW() - INTERVAL '360 days'
     FROM users WHERE email = 'tara@odoo-ldce.org';
+
+    -- 8. Ethan Events (user_id = 3): EXPIRING SOON (Active, expires in 20 days <= 30 days)
+    INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+    SELECT 8, id, 'SKY-MEM-003-ETHAN', 'active', 'paid', 500.00,
+      NOW() - INTERVAL '345 days',
+      NOW() + INTERVAL '20 days',
+      NOW() - INTERVAL '345 days',
+      NOW() - INTERVAL '345 days',
+      NOW() - INTERVAL '345 days'
+    FROM users WHERE email = 'ethan@odoo-ldce.org';
 
     SELECT setval('memberships_id_seq', (SELECT COALESCE(MAX(id), 1) FROM memberships));
 
