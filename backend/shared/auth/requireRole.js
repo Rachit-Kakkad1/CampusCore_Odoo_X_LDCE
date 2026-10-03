@@ -22,5 +22,5 @@ function requireRole(...roles) {
     next();
   };
 }
-
+requireRole.requireRole = requireRole;
 module.exports = requireRole;

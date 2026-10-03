@@ -3,7 +3,7 @@ const env = require('./config/env');
 const { testConnection } = require('./config/database');
 
 async function startServer() {
-  console.log('Connecting to database...');
+  console.log('Connecting to PostgreSQL database...');
   const connected = await testConnection();
   if (!connected) {
     console.error('Fatal: Cannot start server without active database connection.');

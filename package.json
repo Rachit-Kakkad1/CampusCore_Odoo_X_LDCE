@@ -1,35 +1,46 @@
 {
   "name": "odoo_x_ldce",
   "version": "1.0.0",
-  "description": "> **Corrected Build Specification & AI Coding Agent README**   > **24-Hour Hackathon — Odoo × LDCE**   > *Implementation-ready specification derived from the Hackathon requirements with transaction and reservation concurrency issues corrected.*",
-  "main": "index.js",
+  "description": "Student Organization System - 24-Hour Hackathon — Odoo x LDCE",
+  "main": "backend/server.js",
   "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
     "test": "node backend/tests/runAllTests.js",
-    "db:test": "node backend/config/database.js",
-    "db:verify": "node backend/db/verify.js",
     "test:auth": "node backend/tests/auth.test.js",
     "test:membership": "node backend/tests/membership.test.js",
     "test:announcements": "node backend/tests/announcements.test.js",
-    "test:events": "node backend/tests/events.test.js"
+    "test:events": "node backend/tests/events.test.js",
+    "test:merch": "node backend/scripts/test_merchandise.js",
+    "db:test": "node backend/config/database.js",
+    "db:verify": "node backend/db/verify.js",
+    "db:migrate": "node backend/db/migrate.js",
+    "db:seed": "node backend/db/seed.js",
+    "migrate": "node backend/db/migrate.js",
+    "seed": "node backend/db/seed.js",
+    "verify": "node backend/scripts/verify_phase1.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Rachit-Kakkad1/Odoo_X_LDCE.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "odoo",
+    "student-organization"
+  ],
+  "author": "Odoo x LDCE Team",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/Rachit-Kakkad1/Odoo_X_LDCE/issues"
-  },
-  "homepage": "https://github.com/Rachit-Kakkad1/Odoo_X_LDCE#readme",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
     "dotenv": "^18.0.5",
-    "express": "^5.2.1",
+    "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }

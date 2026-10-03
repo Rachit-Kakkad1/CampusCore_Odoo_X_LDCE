@@ -57,4 +57,5 @@ async function createTransaction(
   return existing.rows[0];
 }
 
+createTransaction.createTransaction = createTransaction;
 module.exports = createTransaction;
