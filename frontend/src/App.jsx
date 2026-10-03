@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
-import { ArrowRight, Activity, CreditCard, LayoutDashboard, CheckCircle2 } from 'lucide-react';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Navbar from './components/common/Navbar';
@@ -9,13 +9,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleGuard from './components/dashboard/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
-<<<<<<< HEAD
-import Membership from './pages/membership/Membership';
-import MembershipPass from './pages/membership/MembershipPass';
-import Announcements from './pages/announcements/Announcements';
 import heroVideo from './assests/login/1003.mp4';
-=======
->>>>>>> 0f72c2e1d5fa44cdbd502e0e5e50038e4fb1ebd6
 import MemberDashboard from './pages/dashboard/MemberDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
@@ -25,7 +19,6 @@ import MerchandisePage from './pages/merchandise/MerchandisePage';
 import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
 import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
 import authService from './services/auth.service';
-import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -76,7 +69,7 @@ const LandingPage = () => {
 
           <div className="flex items-center gap-6">
             <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.3em] hidden sm:block hover:text-primary transition-colors">Sign In</Link>
-            <Link to="/login?mode=register" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em] inline-block">
+            <Link to="/register" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-6 py-3 transition-all duration-700 hover:tracking-[0.4em] inline-block">
               <span className="relative z-10 flex items-center gap-2">Join Organization <ArrowRight className="w-3 h-3" /></span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
             </Link>
@@ -113,9 +106,9 @@ const Hero = () => {
             A unified platform to seamlessly manage memberships, events, and organizational finances.
           </p>
 
-          <button className="bg-primary text-white font-mono text-xs uppercase tracking-widest px-8 py-4 hover:opacity-90 transition-opacity">
-            Explore Platform
-          </button>
+          <Link to="/events" className="bg-primary text-white font-mono text-xs uppercase tracking-widest px-8 py-4 hover:opacity-90 transition-opacity inline-block">
+            Explore Events
+          </Link>
         </div>
 
         {/* Right Side: Video */}
@@ -656,10 +649,10 @@ const FinalCTA = () => {
           Bring memberships, events, merchandise, volunteers and finances into one connected platform.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-          <button className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-10 py-5 transition-all duration-700 hover:tracking-[0.4em] w-full sm:w-auto">
-            <span className="relative z-10 flex items-center gap-2">Join The Organization <ArrowRight className="w-4 h-4" /></span>
+          <Link to="/register" className="group relative overflow-hidden bg-primary text-white font-mono text-[10px] uppercase tracking-[0.25em] px-10 py-5 transition-all duration-700 hover:tracking-[0.4em] w-full sm:w-auto inline-block text-center">
+            <span className="relative z-10 flex items-center justify-center gap-2">Join The Organization <ArrowRight className="w-4 h-4" /></span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" />
-          </button>
+          </Link>
           <Link to="/login" className="font-mono text-[10px] uppercase tracking-[0.2em] px-10 py-5 border border-border hover:bg-white transition-colors duration-700 w-full sm:w-auto inline-block text-center">
             Sign In
           </Link>
@@ -728,14 +721,6 @@ export default function App() {
         <Route path="/events" element={<PublicEvents />} />
         <Route path="/events/:id" element={<PublicEventDetails />} />
         <Route path="/login" element={<LoginPage />} />
-<<<<<<< HEAD
-        <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
-        <Route
-          path="/membership"
-          element={
-            <ProtectedRoute>
-              <MainLayout><Membership /></MainLayout>
-=======
         <Route path="/register" element={<Register />} />
         <Route path="/membership" element={<Navigate to="/dashboard/member" replace />} />
         <Route path="/membership/pass" element={<Navigate to="/dashboard/member" replace />} />
@@ -747,21 +732,10 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardRouter />
->>>>>>> 0f72c2e1d5fa44cdbd502e0e5e50038e4fb1ebd6
             </ProtectedRoute>
           }
         />
         <Route
-<<<<<<< HEAD
-          path="/membership/pass"
-          element={
-            <ProtectedRoute>
-              <MainLayout><MembershipPass /></MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/announcements" element={<MainLayout><Announcements /></MainLayout>} />
-=======
           path="/dashboard/admin/*"
           element={
             <RoleGuard allowedRoles={['admin']}>
@@ -812,7 +786,6 @@ export default function App() {
         <Route path="/store" element={<MerchandisePage />} />
         <Route path="/merchandise" element={<MerchandisePage />} />
 
->>>>>>> 0f72c2e1d5fa44cdbd502e0e5e50038e4fb1ebd6
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
