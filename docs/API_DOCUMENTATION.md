@@ -204,7 +204,96 @@ All endpoints are served under the `/api` prefix.
 
 ---
 
-## 4. Shared Backend Utilities
+## 4. Announcements Module (`/api/announcements`) — *Owner: Nishit*
+
+### `GET /api/announcements`
+- **Auth**: Public
+- **Description**: Returns all announcement bulletins in reverse chronological order (newest first), with author details.
+- **Response**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "count": 2,
+      "data": [
+        {
+          "id": 2,
+          "title": "Spring Gala Registration Open",
+          "body": "Early bird tickets are now live for the annual Spring Gala flagship event!",
+          "created_by": 3,
+          "created_at": "2026-10-03T05:00:00.000Z",
+          "author_name": "Ethan Events",
+          "author_role": "event_manager"
+        },
+        {
+          "id": 1,
+          "title": "Welcome to Skyline Student Organization!",
+          "body": "Welcome everyone to the new semester! Check out upcoming events and official club merchandise.",
+          "created_by": 1,
+          "created_at": "2026-10-01T04:00:00.000Z",
+          "author_name": "Admin User",
+          "author_role": "admin"
+        }
+      ]
+    }
+    ```
+
+### `GET /api/announcements/:id`
+- **Auth**: Public
+- **Description**: Returns details for a single announcement by its numeric ID.
+- **Parameters**: `id` (integer in URL path)
+- **Responses**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "id": 1,
+        "title": "Welcome to Skyline Student Organization!",
+        "body": "Welcome everyone to the new semester! Check out upcoming events and official club merchandise.",
+        "created_by": 1,
+        "created_at": "2026-10-01T04:00:00.000Z",
+        "author_name": "Admin User",
+        "author_role": "admin"
+      }
+    }
+    ```
+  - `400 Bad Request`: `{"error": {"message": "Invalid announcement ID.", "status": 400}}`
+  - `404 Not Found`: `{"error": {"message": "Announcement with ID 999 not found.", "status": 404}}`
+
+### `POST /api/announcements`
+- **Auth**: Public (Development fallback: uses User 1 or `x-user-id` header until auth is wired)
+- **Description**: Publishes a new announcement bulletin to the organization feed.
+- **Request Body**:
+  ```json
+  {
+    "title": "Executive Board Election Results",
+    "body": "Congratulations to our newly elected student representatives for the upcoming academic year!"
+  }
+  ```
+  *(Note: `content` is also accepted as an alias for `body`)*
+- **Responses**:
+  - `201 Created`:
+    ```json
+    {
+      "success": true,
+      "message": "Announcement created successfully",
+      "data": {
+        "id": 3,
+        "title": "Executive Board Election Results",
+        "body": "Congratulations to our newly elected student representatives for the upcoming academic year!",
+        "created_by": 1,
+        "created_at": "2026-10-03T12:00:00.000Z",
+        "author_name": "Admin User",
+        "author_role": "admin"
+      }
+    }
+    ```
+  - `400 Bad Request`: Missing title, title > 255 chars, or missing body
+
+---
+
+## 5. Shared Backend Utilities
 
 ### `isActiveMember(userId)`
 - **Path**: `backend/shared/membership/isActiveMember.js`
@@ -230,8 +319,7 @@ All endpoints are served under the `/api` prefix.
 
 ---
 
-## 5. Upcoming Modules (Planned)
-- **Announcements Module (`/api/announcements`)** — Nishit (Next Prompt)
+## 6. Upcoming Modules (Planned)
 - **Events & Ticketing (`/api/events`, `/api/tickets`)** — Rachit
 - **Merchandise & Orders (`/api/products`, `/api/orders`)** — Harshit
 - **Finance, Fundraisers, Expenses (`/api/finance`, `/api/fundraisers`, `/api/tasks`, `/api/expenses`)** — Tapan

@@ -6,10 +6,11 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Navbar from './components/common/Navbar';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import Login from './pages/auth/Login';
+import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
+import Announcements from './pages/announcements/Announcements';
 import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
@@ -657,7 +658,7 @@ export default function App() {
             <Footer />
           </div>
         } />
-        <Route path="/login" element={<MainLayout><Login /></MainLayout>} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
         <Route
           path="/membership"
@@ -675,6 +676,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/announcements" element={<MainLayout><Announcements /></MainLayout>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
