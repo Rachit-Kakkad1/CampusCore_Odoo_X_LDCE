@@ -61,7 +61,7 @@ async function runAuthTests() {
     });
     assert(regRes.status === 201, 'POST /auth/register returns 201 Created');
     assert(regRes.body.user && regRes.body.user.email === testEmail, 'Returned user email matches input');
-    assert(regRes.body.user.role === 'guest', 'New user role defaults safely to guest');
+    assert(regRes.body.user.role === 'member', 'New user role defaults safely to member');
     assert(regRes.body.user.password_hash === undefined, 'password_hash is strictly excluded from response');
     assert(typeof regRes.body.token === 'string', 'Registration issues valid JWT token');
 

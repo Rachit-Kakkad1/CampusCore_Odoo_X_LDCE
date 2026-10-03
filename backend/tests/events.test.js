@@ -80,7 +80,7 @@ async function runTestSuite() {
     const volunteerToken = makeToken(users['vik@odoo-ldce.org']);
     const mayaMemberToken = makeToken(users['maya@odoo-ldce.org']);
     const eddieExpiredToken = makeToken(users['eddie@odoo-ldce.org']);
-    const gregGuestToken = makeToken(users['greg@odoo-ldce.org']);
+    const piaMemberToken = makeToken(users['pia@odoo-ldce.org']);
 
     // -------------------------------------------------------------------------
     // 1. SHARED MEMBERSHIP FUNCTION
@@ -92,8 +92,8 @@ async function runTestSuite() {
     const eddieActive = await isActiveMember(users['eddie@odoo-ldce.org'].id);
     assert(eddieActive === false, 'isActiveMember(Eddie) returns false (expired Dec 31 2025)');
 
-    const gregActive = await isActiveMember(users['greg@odoo-ldce.org'].id);
-    assert(gregActive === false, 'isActiveMember(Greg) returns false (no membership)');
+    const guestActive = await isActiveMember(null);
+    assert(guestActive === false, 'isActiveMember(Guest Attendee/null) returns false (no membership)');
 
     const eddieStatus = await getMembershipStatus(users['eddie@odoo-ldce.org'].id);
     assert(eddieStatus.status === 'EXPIRED', 'getMembershipStatus(Eddie) correctly identifies EXPIRED state');
@@ -180,10 +180,10 @@ async function runTestSuite() {
     assert(createRes.status === 201 && createRes.body.event.id, 'POST /events by event_manager creates new event');
     const createdEventId = createRes.body.event.id;
 
-    // 4b. Create Event with guest role (should fail with 403)
-    const guestCreateRes = await api('/events', {
+    // 4b. Create Event by non-staff member (should fail with 403)
+    const unauthorizedCreateRes = await api('/events', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${gregGuestToken}` },
+      headers: { Authorization: `Bearer ${piaMemberToken}` },
       body: {
         title: 'Unauthorized Event',
         venue: 'Park',
@@ -193,7 +193,7 @@ async function runTestSuite() {
         non_member_price: 200,
       },
     });
-    assert(guestCreateRes.status === 403, 'POST /events by guest returns 403 Forbidden');
+    assert(unauthorizedCreateRes.status === 403, 'POST /events by non-staff returns 403 Forbidden');
 
     // 4c. List all events (public)
     const listRes = await api('/events');
@@ -233,14 +233,20 @@ async function runTestSuite() {
     const galaAfterCheckout = (await pool.query('SELECT seats_remaining FROM events WHERE id = $1;', [springGala.id])).rows[0];
     assert(parseInt(galaAfterCheckout.seats_remaining, 10) === parseInt(springGala.seats_remaining, 10), 'Seats are NOT decremented on pending checkout');
 
-    // 5b. Guest Checkout (Greg)
-    const gregCheckout = await api(`/events/${springGala.id}/tickets`, {
+    // 5b. Public Guest Attendee Checkout (Flow B: name, email, mobile without login)
+    const guestCheckout = await api(`/events/${springGala.id}/tickets`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${gregGuestToken}` },
-      body: { checkout_session_id: `SES-GREG-${Date.now()}` },
+      body: {
+        name: 'Public Attendee',
+        email: 'public_attendee@example.com',
+        mobile: '9876543210',
+        checkout_session_id: `SES-GUEST-${Date.now()}`,
+      },
     });
-    assert(parseFloat(gregCheckout.body.ticket.price) === 500.00, 'Guest receives non-member price (₹500.00)');
-    assert(gregCheckout.body.ticket.price_type === 'non_member', 'Guest price_type is non_member');
+    assert(guestCheckout.status === 201, 'POST /events/:id/tickets creates checkout for guest attendee');
+    assert(parseFloat(guestCheckout.body.ticket.price) === 500.00, 'Guest receives non-member price (₹500.00)');
+    assert(guestCheckout.body.ticket.price_type === 'non_member', 'Guest price_type is non_member');
+    assert(guestCheckout.body.ticket.attendee_id !== null && guestCheckout.body.ticket.user_id === null, 'Ticket has attendee_id populated and user_id NULL');
 
     // 5c. Expired Member Checkout (Eddie)
     const eddieCheckout = await api(`/events/${springGala.id}/tickets`, {
@@ -296,21 +302,29 @@ async function runTestSuite() {
     // 7. QR CODE ACCESS FOR TICKETS
     // -------------------------------------------------------------------------
     console.log('--- 7. Testing QR Code Retrieval ---');
-    const gregPendingTicketId = gregCheckout.body.ticket.id;
+    const guestPendingTicketId = guestCheckout.body.ticket.id;
 
-    // Unpaid ticket cannot retrieve QR
-    const unpaidQrRes = await api(`/tickets/${gregPendingTicketId}/qr`, {
-      headers: { Authorization: `Bearer ${gregGuestToken}` },
-    });
+    // Unpaid ticket cannot retrieve QR (tested for guest attendee)
+    const unpaidQrRes = await api(`/tickets/${guestPendingTicketId}/qr`);
     assert(unpaidQrRes.status === 400 && unpaidQrRes.body.error === 'TICKET_NOT_PAID', 'Unpaid ticket cannot get QR (returns 400 TICKET_NOT_PAID)');
 
-    // Paid ticket retrieves signed QR
+    // Paid member ticket retrieves signed QR
     const paidQrRes = await api(`/tickets/${mayaTicketId}/qr`, {
       headers: { Authorization: `Bearer ${mayaMemberToken}` },
     });
     assert(paidQrRes.status === 200, 'Paid ticket successfully retrieves signed QR');
     assert(paidQrRes.body.qr && paidQrRes.body.qr.payload, 'QR response contains payload');
     const mayaQrPayload = paidQrRes.body.qr.payload;
+
+    // Pay guest attendee ticket and retrieve signed QR
+    const guestPayRes = await api(`/tickets/${guestPendingTicketId}/pay`, {
+      method: 'POST',
+      body: { payment_mode: 'online' },
+    });
+    assert(guestPayRes.status === 200, 'POST /tickets/:id/pay succeeds for guest attendee ticket');
+    const guestQrRes = await api(`/tickets/${guestPendingTicketId}/qr`);
+    assert(guestQrRes.status === 200, 'Paid guest attendee ticket retrieves signed QR');
+    const guestQrPayload = guestQrRes.body.qr.payload;
     console.log();
 
     // -------------------------------------------------------------------------
@@ -365,6 +379,16 @@ async function runTestSuite() {
     });
     assert(scanEddie.status === 200 && scanEddie.body.result === 'VALID', 'Expired member ticket check-in is admitted (result: VALID)');
     assert(scanEddie.body.member_status === 'EXPIRED', 'Expired member check-in displays member_status: EXPIRED');
+
+    // 8e. Guest Attendee Ticket Admission
+    const scanGuest = await api('/checkin/scan', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${volunteerToken}` },
+      body: { payload: guestQrPayload },
+    });
+    assert(scanGuest.status === 200 && scanGuest.body.result === 'VALID', 'Guest attendee ticket check-in is admitted (result: VALID)');
+    assert(scanGuest.body.holder.type === 'attendee', 'Guest check-in identifies holder as attendee');
+    assert(scanGuest.body.member_status === 'NONE', 'Guest check-in displays member_status: NONE');
     console.log();
 
     // -------------------------------------------------------------------------

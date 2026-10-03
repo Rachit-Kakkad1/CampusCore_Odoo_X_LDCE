@@ -114,26 +114,56 @@ class EventRepository {
   }
 
   /**
+   * Creates an event attendee record.
+   */
+  async createAttendee({ name, email, mobile }, client = pool) {
+    const queryText = `
+      INSERT INTO event_attendees (name, email, mobile)
+      VALUES ($1, $2, $3)
+      RETURNING *;
+    `;
+    const result = await client.query(queryText, [name, email, mobile]);
+    return result.rows[0];
+  }
+
+  /**
+   * Retrieves an event attendee by email.
+   */
+  async getAttendeeByEmail(email, client = pool) {
+    const queryText = `
+      SELECT * FROM event_attendees
+      WHERE LOWER(email) = LOWER($1)
+      ORDER BY id DESC
+      LIMIT 1;
+    `;
+    const result = await client.query(queryText, [email]);
+    return result.rows[0] || null;
+  }
+
+  /**
    * Creates a ticket record (defaults to payment_status = 'pending').
+   * Exactly one of user_id or attendee_id must be provided per chk_ticket_owner.
    */
   async createTicket({
     ticket_code,
     event_id,
-    user_id,
+    user_id = null,
+    attendee_id = null,
     price,
     price_type,
     payment_status = 'pending',
     checkout_session_id = null,
   }, client = pool) {
     const queryText = `
-      INSERT INTO tickets (ticket_code, event_id, user_id, price, price_type, payment_status, checkout_session_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status, checkout_session_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
     const result = await client.query(queryText, [
       ticket_code,
       event_id,
       user_id,
+      attendee_id,
       price,
       price_type,
       payment_status,
@@ -143,12 +173,18 @@ class EventRepository {
   }
 
   /**
-   * Retrieves a ticket by its ID.
+   * Retrieves a ticket by its ID with user/attendee and event details.
    */
   async getTicketById(id, client = pool) {
     const queryText = `
-      SELECT t.*, e.title as event_title, e.venue as event_venue, e.starts_at as event_starts_at
+      SELECT t.*,
+             COALESCE(u.name, a.name) as user_name,
+             COALESCE(u.email, a.email) as user_email,
+             a.mobile as attendee_mobile,
+             e.title as event_title, e.venue as event_venue, e.starts_at as event_starts_at
       FROM tickets t
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN event_attendees a ON t.attendee_id = a.id
       JOIN events e ON t.event_id = e.id
       WHERE t.id = $1;
     `;
@@ -170,15 +206,18 @@ class EventRepository {
   }
 
   /**
-   * Retrieves a ticket by ticket_code.
+   * Retrieves a ticket by ticket_code supporting both registered user and attendee tickets.
    */
   async getTicketByCode(ticketCode, client = pool) {
     const queryText = `
       SELECT t.*,
-             u.name as user_name, u.email as user_email,
+             COALESCE(u.name, a.name) as user_name,
+             COALESCE(u.email, a.email) as user_email,
+             a.mobile as attendee_mobile,
              e.title as event_title, e.venue as event_venue, e.starts_at as event_starts_at
       FROM tickets t
-      JOIN users u ON t.user_id = u.id
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN event_attendees a ON t.attendee_id = a.id
       JOIN events e ON t.event_id = e.id
       WHERE t.ticket_code = $1;
     `;

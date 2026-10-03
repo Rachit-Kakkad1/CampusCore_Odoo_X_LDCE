@@ -8,7 +8,7 @@ class AuthRepository {
   /**
    * Inserts a new user into the database.
    */
-  async createUser({ name, email, password_hash, role = 'guest' }, client = pool) {
+  async createUser({ name, email, password_hash, role = 'member' }, client = pool) {
     const queryText = `
       INSERT INTO users (name, email, password_hash, role)
       VALUES ($1, $2, $3, $4)

@@ -11,7 +11,7 @@ const authRepository = require('./auth.repository');
  */
 class AuthService {
   /**
-   * Registers a new user with safe default role ('guest') and initializes a pending membership.
+   * Registers a new user with default role ('member') and initializes a pending membership.
    */
   async register({ name, email, password }) {
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -59,13 +59,13 @@ class AuthService {
     try {
       await client.query('BEGIN');
 
-      // 1. Create user with default role 'guest'
+      // 1. Create user with default role 'member'
       const user = await authRepository.createUser(
         {
           name: name.trim(),
           email: cleanEmail,
           password_hash: passwordHash,
-          role: 'guest',
+          role: 'member',
         },
         client
       );
@@ -77,9 +77,9 @@ class AuthService {
 
       await client.query(
         `
-        INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-        VALUES ($1, $2, 500.00, 'pending', NULL, NULL, NULL)
-        ON CONFLICT (user_id) DO NOTHING;
+        INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount)
+        VALUES ($1, $2, 'pending', 'pending', 500.00)
+        ON CONFLICT (member_code) DO NOTHING;
       `,
         [user.id, memberCode]
       );

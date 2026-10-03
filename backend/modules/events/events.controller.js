@@ -50,10 +50,22 @@ class EventsController {
   async checkoutTicket(req, res) {
     try {
       const eventId = req.params.id;
-      const userId = req.user.id;
-      const { checkout_session_id } = req.body;
+      const userId = req.user ? req.user.id : null;
+      const { checkout_session_id, attendee, name, email, mobile } = req.body;
 
-      const ticket = await ticketService.checkoutTicket(eventId, userId, checkout_session_id);
+      let attendeeData = attendee || null;
+      if (!attendeeData && (name || email || mobile)) {
+        attendeeData = { name, email, mobile };
+      }
+
+      if (!userId && !attendeeData) {
+        return res.status(400).json({
+          error: 'MISSING_ATTENDEE_INFO',
+          message: 'Guest checkout requires attendee details (name, email, mobile), or login',
+        });
+      }
+
+      const ticket = await ticketService.checkoutTicket(eventId, userId, checkout_session_id, attendeeData);
       return res.status(201).json({ ticket });
     } catch (err) {
       const status = err.status || 500;
@@ -64,7 +76,7 @@ class EventsController {
   async payTicket(req, res) {
     try {
       const ticketId = req.params.id;
-      const userId = req.user.id;
+      const userId = req.user ? req.user.id : null;
       const { payment_mode } = req.body;
 
       const ticket = await ticketService.payTicket(ticketId, userId, payment_mode || 'online');
@@ -89,7 +101,7 @@ class EventsController {
   async getTicketQR(req, res) {
     try {
       const ticketId = req.params.id;
-      const userId = req.user.id;
+      const userId = req.user ? req.user.id : null;
 
       const qrResult = await ticketService.getTicketQR(ticketId, userId);
       return res.status(200).json(qrResult);

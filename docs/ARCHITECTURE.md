@@ -104,11 +104,107 @@ const isMember = await isActiveMember(userId);
 const price = isMember ? event.member_price : event.non_member_price;
 ```
 * **Immutability**: Ticket price is locked at purchase time. Subsequent membership expiration never alters the purchased ticket price.
-* **Admission**: An expired member's valid ticket is still admitted at the door, but the scanner clearly indicates `Member: EXPIRED`.
+* **Admission**: An expired member's valid ticket is still admitted at the door, but the scanner clearly indicates `Member: EXPIRED`. For guest attendees (`user_id = null`), `isActiveMember` is false, and scanner displays `Member: NONE`.
 
 ---
 
-## 4. Module Directory Structure
+## 4. Identity Separation: System User vs. Event Attendee
+
+A fundamental architectural principle of this system is that **event guests are NOT system users**. An attendee can register for a public event with minimal friction without creating an account.
+
+```text
+SYSTEM USER (users table)
+    ├── admin
+    ├── treasurer
+    ├── event_manager
+    ├── volunteer
+    └── member
+    (Controls system permissions & authentication)
+
+EVENT ATTENDEE (event_attendees table)
+    ├── name
+    ├── email
+    └── mobile
+    (Transient person attending an event; no passwords or roles)
+```
+
+---
+
+## 5. Ticket Ownership Model (XOR Constraint)
+
+Every event ticket belongs to either a registered user or a guest attendee, enforced at the database level:
+
+```sql
+CONSTRAINT chk_ticket_owner CHECK (
+    (user_id IS NOT NULL AND attendee_id IS NULL)
+    OR
+    (user_id IS NULL AND attendee_id IS NOT NULL)
+)
+```
+
+```text
+REGISTERED USER
+      ↓
+tickets.user_id (attendee_id = NULL)
+
+EVENT ATTENDEE
+      ↓
+tickets.attendee_id (user_id = NULL)
+```
+
+* **Auditability & Integrity**: Foreign keys `tickets.user_id` and `tickets.attendee_id` are configured with `ON DELETE RESTRICT` to ensure ticket and financial audit histories are never silently deleted.
+
+---
+
+## 6. Core Entity-Relationship Architecture
+
+```text
+USERS
+  │
+  ├──────── MEMBERSHIPS
+  │
+  ├──────── TICKETS
+  │
+  ├──────── ORDERS
+  │
+  ├──────── TRANSACTIONS
+  │
+  └──────── STAFF/AUTHOR ACTIONS
+
+
+EVENT_ATTENDEES
+  │
+  └──────── TICKETS
+
+
+EVENTS
+  │
+  └──────── TICKETS
+
+
+PRODUCTS
+  │
+  └──────── PRODUCT_SIZES
+                  │
+                  └──────── ORDER_ITEMS
+                              │
+                              └──────── ORDERS
+
+
+FUNDRAISERS
+  │
+  ├──────── TASKS
+  └──────── FUNDRAISER_INCOME
+
+
+EXPENSES
+  │
+  └──────── TRANSACTIONS
+```
+
+---
+
+## 7. Module Directory Structure
 
 ```text
 backend/
@@ -118,14 +214,16 @@ backend/
 │   ├── database.js                 — PostgreSQL connection pool via pg
 │   └── env.js                      — Environment variables loader
 ├── db/
-│   ├── schema.sql                  — 14 core database tables, constraints, indexes
+│   ├── schema.sql                  — 15 core database tables, constraints, indexes
 │   ├── seed.sql                    — Seed data with demo personas
-│   └── verify.js                   — 60 automated database verification tests
+│   ├── migrations/                 — Ordered migration files (001-015)
+│   └── verify.js                   — 88 automated database verification tests
 ├── shared/                         — Shared auth, membership, transaction, and QR contracts
 ├── modules/
 │   ├── auth/                       — User registration, login, and /auth/me
 │   ├── membership/                 — Dues payment, member pass, and renewal reminders
 │   ├── announcements/              — Broadcast announcements feed and admin creation
-│   └── events/                     — Events management, ticketing, and door check-in
+│   ├── events/                     — Events management, ticketing, and door check-in
+│   └── merchandise/                — Catalog, stock management, member discounts, and orders
 └── tests/                          — Comprehensive automated test suites
 ```

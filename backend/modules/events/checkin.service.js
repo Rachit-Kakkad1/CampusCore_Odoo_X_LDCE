@@ -45,18 +45,25 @@ class CheckinService {
     }
 
     // 4. Check if ticket has already been used
+    const membershipInfo = ticket.user_id
+      ? await getMembershipStatus(ticket.user_id)
+      : { status: 'NONE', membership: null };
+
+    const holderInfo = {
+      id: ticket.user_id || ticket.attendee_id,
+      type: ticket.user_id ? 'user' : 'attendee',
+      name: ticket.user_name,
+      email: ticket.user_email,
+      mobile: ticket.attendee_mobile || null,
+    };
+
     if (ticket.checked_in_at) {
-      const membershipInfo = await getMembershipStatus(ticket.user_id);
       return {
         result: 'ALREADY_USED',
         message: 'Ticket has already been checked in',
         ticket_code: ticket.ticket_code,
         checked_in_at: ticket.checked_in_at,
-        holder: {
-          id: ticket.user_id,
-          name: ticket.user_name,
-          email: ticket.user_email,
-        },
+        holder: holderInfo,
         event: {
           id: ticket.event_id,
           title: ticket.event_title,
@@ -71,35 +78,24 @@ class CheckinService {
     const updatedTicket = await eventRepository.atomicCheckIn(ticket.id, checkedInBy);
     if (!updatedTicket) {
       const reloaded = await eventRepository.getTicketByCode(qrVerification.ticketCode);
-      const membershipInfo = await getMembershipStatus(ticket.user_id);
       return {
         result: 'ALREADY_USED',
         message: 'Ticket was just checked in concurrently',
         ticket_code: ticket.ticket_code,
         checked_in_at: reloaded ? reloaded.checked_in_at : null,
-        holder: {
-          id: ticket.user_id,
-          name: ticket.user_name,
-          email: ticket.user_email,
-        },
+        holder: holderInfo,
         member_status: membershipInfo.status,
       };
     }
 
-    // 6. Query ticket holder membership status (shows ACTIVE or EXPIRED per Business Rule 10)
-    const membershipInfo = await getMembershipStatus(ticket.user_id);
-
+    // 6. Query ticket holder membership status (shows ACTIVE, EXPIRED, or NONE for guest attendees)
     return {
       result: 'VALID',
       message: 'Check-in successful',
       ticket_code: updatedTicket.ticket_code,
       checked_in_at: updatedTicket.checked_in_at,
       checked_in_by: checkedInBy,
-      holder: {
-        id: ticket.user_id,
-        name: ticket.user_name,
-        email: ticket.user_email,
-      },
+      holder: holderInfo,
       event: {
         id: ticket.event_id,
         title: ticket.event_title,

@@ -56,45 +56,48 @@ async function seed() {
       {
         userId: userMap['maya@skyline.org'].id,
         memberCode: 'MEM-2026-MAYA',
+        status: 'active',
         duesAmount: MEMBERSHIP_DUES,
         duesStatus: 'paid',
-        startDate: '2026-01-01',
-        expiryDate: '2027-12-31',
-        paidAt: '2026-01-01T10:00:00Z',
+        startedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+        expiryDate: new Date(Date.now() + 335 * 24 * 3600 * 1000).toISOString(),
+        paymentTimestamp: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
       },
       {
         userId: userMap['eddie@skyline.org'].id,
         memberCode: 'MEM-2025-EDDIE',
+        status: 'expired',
         duesAmount: MEMBERSHIP_DUES,
         duesStatus: 'paid',
-        startDate: '2025-01-01',
-        expiryDate: '2025-12-31',
-        paidAt: '2025-01-01T10:00:00Z',
+        startedAt: new Date(Date.now() - 730 * 24 * 3600 * 1000).toISOString(),
+        expiryDate: new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString(),
+        paymentTimestamp: new Date(Date.now() - 730 * 24 * 3600 * 1000).toISOString(),
       },
       {
         userId: userMap['pia@skyline.org'].id,
         memberCode: 'MEM-2026-PIA',
+        status: 'pending',
         duesAmount: MEMBERSHIP_DUES,
         duesStatus: 'pending',
-        startDate: null,
+        startedAt: null,
         expiryDate: null,
-        paidAt: null,
+        paymentTimestamp: null,
       },
     ];
 
     for (const m of membershipsToSeed) {
       await client.query(
-        `INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (user_id)
+        `INSERT INTO memberships (user_id, member_code, status, dues_amount, dues_status, started_at, expiry_date, payment_timestamp)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (member_code)
          DO UPDATE SET
-           member_code = EXCLUDED.member_code,
+           status = EXCLUDED.status,
            dues_amount = EXCLUDED.dues_amount,
            dues_status = EXCLUDED.dues_status,
-           start_date = EXCLUDED.start_date,
+           started_at = EXCLUDED.started_at,
            expiry_date = EXCLUDED.expiry_date,
-           paid_at = EXCLUDED.paid_at;`,
-        [m.userId, m.memberCode, m.duesAmount, m.duesStatus, m.startDate, m.expiryDate, m.paidAt]
+           payment_timestamp = EXCLUDED.payment_timestamp;`,
+        [m.userId, m.memberCode, m.status, m.duesAmount, m.duesStatus, m.startedAt, m.expiryDate, m.paymentTimestamp]
       );
     }
 

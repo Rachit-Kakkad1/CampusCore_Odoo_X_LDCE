@@ -12,9 +12,10 @@ const generateQR = require('../../shared/qr/generateQR');
 class TicketService {
   /**
    * Creates a pending ticket at checkout time.
+   * Supports both Flow A (Registered User) and Flow B (Event Guest Attendee).
    * Does NOT decrement seat capacity.
    */
-  async checkoutTicket(eventId, userId, checkoutSessionId = null) {
+  async checkoutTicket(eventId, userId = null, checkoutSessionId = null, attendeeData = null) {
     const parsedEventId = parseInt(eventId, 10);
     if (isNaN(parsedEventId)) {
       const err = new Error('Invalid event ID');
@@ -38,24 +39,56 @@ class TicketService {
       throw err;
     }
 
-    // Determine pricing dynamically based on current membership status
-    const isMember = await isActiveMember(userId);
-    const price = isMember ? event.member_price : event.non_member_price;
-    const priceType = isMember ? 'member' : 'non_member';
-
     // Unique ticket code formatted as TCK-<timestamp>-<random_hex>
     const randomHex = crypto.randomBytes(4).toString('hex').toUpperCase();
     const ticketCode = `TCK-${Date.now()}-${randomHex}`;
 
-    return await eventRepository.createTicket({
-      ticket_code: ticketCode,
-      event_id: parsedEventId,
-      user_id: userId,
-      price,
-      price_type: priceType,
-      payment_status: 'pending',
-      checkout_session_id: checkoutSessionId,
-    });
+    if (userId) {
+      // FLOW A — REGISTERED USER / MEMBER
+      const isMember = await isActiveMember(userId);
+      const price = isMember ? event.member_price : event.non_member_price;
+      const priceType = isMember ? 'member' : 'non_member';
+
+      return await eventRepository.createTicket({
+        ticket_code: ticketCode,
+        event_id: parsedEventId,
+        user_id: userId,
+        attendee_id: null,
+        price,
+        price_type: priceType,
+        payment_status: 'pending',
+        checkout_session_id: checkoutSessionId,
+      });
+    } else {
+      // FLOW B — EVENT GUEST / ATTENDEE (No system account required)
+      if (!attendeeData || !attendeeData.name || !attendeeData.email || !attendeeData.mobile) {
+        const err = new Error('Event guest registration requires name, email, and mobile');
+        err.code = 'INVALID_ATTENDEE_DATA';
+        err.status = 400;
+        throw err;
+      }
+
+      const attendee = await eventRepository.createAttendee({
+        name: attendeeData.name.trim(),
+        email: attendeeData.email.trim().toLowerCase(),
+        mobile: attendeeData.mobile.trim(),
+      });
+
+      // Guest attendee is always non-member price
+      const price = event.non_member_price;
+      const priceType = 'non_member';
+
+      return await eventRepository.createTicket({
+        ticket_code: ticketCode,
+        event_id: parsedEventId,
+        user_id: null,
+        attendee_id: attendee.id,
+        price,
+        price_type: priceType,
+        payment_status: 'pending',
+        checkout_session_id: checkoutSessionId,
+      });
+    }
   }
 
   /**
@@ -84,8 +117,8 @@ class TicketService {
         throw err;
       }
 
-      // Check ownership if userId is supplied
-      if (userId && ticket.user_id !== userId) {
+      // Check ownership if ticket belongs to a registered user and userId is supplied
+      if (userId && ticket.user_id && ticket.user_id !== userId) {
         const err = new Error('You do not own this ticket');
         err.code = 'FORBIDDEN';
         err.status = 403;
@@ -132,7 +165,7 @@ class TicketService {
       await createTransaction({
         source_type: 'ticket',
         source_id: paidTicket.id,
-        user_id: paidTicket.user_id,
+        user_id: paidTicket.user_id || null,
         amount: paidTicket.price,
         direction: 'in',
         payment_mode: paymentMode,
@@ -176,7 +209,7 @@ class TicketService {
       throw err;
     }
 
-    if (userId && ticket.user_id !== userId) {
+    if (userId && ticket.user_id && ticket.user_id !== userId) {
       const err = new Error('Access denied to this ticket');
       err.code = 'FORBIDDEN';
       err.status = 403;

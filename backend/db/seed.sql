@@ -6,7 +6,7 @@
 -- Clear existing data cleanly before seeding
 TRUNCATE TABLE transactions, expenses, fundraiser_income, tasks, fundraisers,
                order_items, orders, product_sizes, products,
-               tickets, events, announcements, memberships, users
+               tickets, event_attendees, events, announcements, memberships, users
                RESTART IDENTITY CASCADE;
 
 -- -----------------------------------------------------------------------------
@@ -19,25 +19,30 @@ INSERT INTO users (name, email, password_hash, role) VALUES
   ('Vik Volunteer',  'vik@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'volunteer'),
   ('Maya Member',    'maya@odoo-ldce.org',      '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
   ('Eddie Expired',  'eddie@odoo-ldce.org',     '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
-  ('Greg Guest',     'greg@odoo-ldce.org',      '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'guest'),
-  ('Pia Pending',    'pia@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'guest');
+  ('Pia Pending',    'pia@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member');
 
 -- -----------------------------------------------------------------------------
--- 2. SEED MEMBERSHIPS
+-- 2. SEED EVENT ATTENDEES (Public guest attendees without user accounts)
 -- -----------------------------------------------------------------------------
--- Maya Member: ACTIVE (paid, expiry Dec 31 of current year)
-INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-SELECT id, 'MEM-2026-MAYA', 500.00, 'paid', '2026-01-01', '2026-12-31', '2026-01-01 10:00:00+05:30'
+INSERT INTO event_attendees (name, email, mobile) VALUES
+  ('Guest Attendee', 'guest@odoo-ldce.org', '9876543210');
+
+-- -----------------------------------------------------------------------------
+-- 3. SEED MEMBERSHIPS (Complete Lifecycle States)
+-- -----------------------------------------------------------------------------
+-- Maya Member: ACTIVE (paid, started 1 month ago, expires in 11 months)
+INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp)
+SELECT id, 'MEM-2026-MAYA', 'active', 'paid', 500.00, NOW() - INTERVAL '1 month', NOW() + INTERVAL '11 months', NOW() - INTERVAL '1 month'
 FROM users WHERE email = 'maya@odoo-ldce.org';
 
--- Eddie Expired: EXPIRED (paid in past year, expired Dec 31 2025)
-INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-SELECT id, 'MEM-2025-EDDIE', 500.00, 'paid', '2025-01-01', '2025-12-31', '2025-01-01 10:00:00+05:30'
+-- Eddie Expired: EXPIRED (paid 2 years ago, expired 1 year ago)
+INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp)
+SELECT id, 'MEM-2025-EDDIE', 'expired', 'paid', 500.00, NOW() - INTERVAL '2 years', NOW() - INTERVAL '1 year', NOW() - INTERVAL '2 years'
 FROM users WHERE email = 'eddie@odoo-ldce.org';
 
--- Pia Pending: PENDING (dues not yet paid)
-INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-SELECT id, 'MEM-2026-PIA', 500.00, 'pending', NULL, NULL, NULL
+-- Pia Pending: PENDING (dues not yet paid, no start or expiry date)
+INSERT INTO memberships (user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp)
+SELECT id, 'MEM-2026-PIA', 'pending', 'pending', 500.00, NULL, NULL, NULL
 FROM users WHERE email = 'pia@odoo-ldce.org';
 
 -- -----------------------------------------------------------------------------
@@ -83,7 +88,17 @@ VALUES (
 );
 
 -- -----------------------------------------------------------------------------
--- 5. SEED PRODUCTS & PRODUCT SIZES
+-- 5. SEED TICKETS (Guest Attendee Ticket linked via attendee_id)
+-- -----------------------------------------------------------------------------
+INSERT INTO tickets (ticket_code, event_id, attendee_id, price, price_type, payment_status)
+SELECT 'TCK-SEED-GUEST-001', e.id, a.id, e.non_member_price, 'non_member', 'pending'
+FROM events e
+CROSS JOIN event_attendees a
+WHERE e.title = 'Spring Gala 2026' AND a.email = 'guest@odoo-ldce.org'
+LIMIT 1;
+
+-- -----------------------------------------------------------------------------
+-- 6. SEED PRODUCTS & PRODUCT SIZES
 -- -----------------------------------------------------------------------------
 -- Club Hoodie: Rs 1200 with Size L stock = 1 (for oversell tests)
 WITH hoodie AS (
