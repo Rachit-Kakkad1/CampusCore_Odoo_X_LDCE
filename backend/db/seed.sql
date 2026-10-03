@@ -23,37 +23,89 @@ INSERT INTO users (name, email, password_hash, role) VALUES
   ('Pia Pending',    'pia@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'guest');
 
 -- -----------------------------------------------------------------------------
--- 2. SEED MEMBERSHIPS
+-- 2. SEED MEMBERSHIPS (Covers all 5 core states + renewal + expiring)
 -- -----------------------------------------------------------------------------
--- Maya Member: ACTIVE (paid, expiry Dec 31 of current year)
-INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-SELECT id, 'MEM-2026-MAYA', 500.00, 'paid', '2026-01-01', '2026-12-31', '2026-01-01 10:00:00+05:30'
+-- 1. Maya Member (user_id = 5): ACTIVE (paid, future expiry)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+SELECT 1, id, 'SKY-MEM-005-MAYA', 'active', 'paid', 500.00,
+  NOW() - INTERVAL '3 months',
+  NOW() + INTERVAL '9 months',
+  NOW() - INTERVAL '3 months',
+  NOW() - INTERVAL '3 months',
+  NOW() - INTERVAL '3 months'
 FROM users WHERE email = 'maya@odoo-ldce.org';
 
--- Eddie Expired: EXPIRED (paid in past year, expired Dec 31 2025)
-INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-SELECT id, 'MEM-2025-EDDIE', 500.00, 'paid', '2025-01-01', '2025-12-31', '2025-01-01 10:00:00+05:30'
+-- 2. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 1: Historical Expired)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+SELECT 2, id, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00,
+  NOW() - INTERVAL '14 months',
+  NOW() - INTERVAL '2 months',
+  NOW() - INTERVAL '14 months',
+  NOW() - INTERVAL '14 months',
+  NOW() - INTERVAL '2 months'
 FROM users WHERE email = 'eddie@odoo-ldce.org';
 
--- Pia Pending: PENDING (dues not yet paid)
-INSERT INTO memberships (user_id, member_code, dues_amount, dues_status, start_date, expiry_date, paid_at)
-SELECT id, 'MEM-2026-PIA', 500.00, 'pending', NULL, NULL, NULL
+-- 3. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 2: Active Renewal referencing ID 2)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, renewed_from_membership_id, created_at, updated_at)
+SELECT 3, id, 'SKY-MEM-006-EDDIE-2026', 'active', 'paid', 500.00,
+  NOW() - INTERVAL '2 months',
+  NOW() + INTERVAL '10 months',
+  NOW() - INTERVAL '2 months',
+  2,
+  NOW() - INTERVAL '2 months',
+  NOW() - INTERVAL '2 months'
+FROM users WHERE email = 'eddie@odoo-ldce.org';
+
+-- 4. Pia Pending (user_id = 8): PENDING (unpaid, dues pending)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+SELECT 4, id, 'SKY-MEM-008-PIA', 'pending', 'pending', 500.00,
+  NULL, NULL, NULL,
+  NOW() - INTERVAL '5 days',
+  NOW() - INTERVAL '5 days'
 FROM users WHERE email = 'pia@odoo-ldce.org';
 
--- -----------------------------------------------------------------------------
--- 3. SEED INITIAL DUES TRANSACTIONS (FOR ACTIVE & EXPIRED MEMBERS WHO PAID)
--- -----------------------------------------------------------------------------
-INSERT INTO transactions (source_type, source_id, user_id, amount, direction, payment_mode, status)
-SELECT 'dues', m.id, u.id, 500.00, 'in', 'online', 'paid'
-FROM memberships m
-JOIN users u ON m.user_id = u.id
-WHERE u.email = 'maya@odoo-ldce.org';
+-- 5. Vik Volunteer (user_id = 4): EXPIRED (past expiry, dues were paid)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+SELECT 5, id, 'SKY-MEM-004-VIK', 'expired', 'paid', 500.00,
+  NOW() - INTERVAL '13 months',
+  NOW() - INTERVAL '1 month',
+  NOW() - INTERVAL '13 months',
+  NOW() - INTERVAL '13 months',
+  NOW() - INTERVAL '1 month'
+FROM users WHERE email = 'vik@odoo-ldce.org';
 
+-- 6. Greg Guest (user_id = 7): CANCELLED (was active, cancelled with reason)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, cancelled_at, cancellation_reason, payment_timestamp, created_at, updated_at)
+SELECT 6, id, 'SKY-MEM-007-GREG', 'cancelled', 'paid', 500.00,
+  NOW() - INTERVAL '4 months',
+  NOW() + INTERVAL '8 months',
+  NOW() - INTERVAL '10 days',
+  'Member requested cancellation due to transfer to another campus',
+  NOW() - INTERVAL '4 months',
+  NOW() - INTERVAL '4 months',
+  NOW() - INTERVAL '10 days'
+FROM users WHERE email = 'greg@odoo-ldce.org';
+
+-- 7. Tara Treasurer (user_id = 2): EXPIRING SOON (Active, expires in 5 days)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+SELECT 7, id, 'SKY-MEM-002-TARA', 'active', 'paid', 500.00,
+  NOW() - INTERVAL '360 days',
+  NOW() + INTERVAL '5 days',
+  NOW() - INTERVAL '360 days',
+  NOW() - INTERVAL '360 days',
+  NOW() - INTERVAL '360 days'
+FROM users WHERE email = 'tara@odoo-ldce.org';
+
+SELECT setval('memberships_id_seq', (SELECT MAX(id) FROM memberships));
+
+-- -----------------------------------------------------------------------------
+-- 3. SEED INITIAL DUES TRANSACTIONS
+-- -----------------------------------------------------------------------------
 INSERT INTO transactions (source_type, source_id, user_id, amount, direction, payment_mode, status)
-SELECT 'dues', m.id, u.id, 500.00, 'in', 'online', 'paid'
+SELECT 'dues', m.id, m.user_id, m.dues_amount, 'in', 'online', 'paid'
 FROM memberships m
-JOIN users u ON m.user_id = u.id
-WHERE u.email = 'eddie@odoo-ldce.org';
+WHERE m.dues_status = 'paid';
+
 
 -- -----------------------------------------------------------------------------
 -- 4. SEED EVENTS

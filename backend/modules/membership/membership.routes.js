@@ -2,22 +2,28 @@
 const express = require('express');
 const router = express.Router();
 const membershipController = require('./membership.controller');
-const { requireAuth } = require('../../shared/auth/requireAuth');
-const { requireRole } = require('../../shared/auth/requireRole');
 
-// Get current authenticated user's membership details
-router.get('/me', requireAuth, membershipController.getMe);
+// 1. Static and Dashboard endpoints (Must precede /:userId to prevent param collision)
+router.get('/dashboard', membershipController.getDashboard);
+router.get('/me', membershipController.getMe);
+router.get('/pass', membershipController.getPass);
+router.get('/all', membershipController.getAll);
 
-// Initiate / create membership for current user
-router.post('/', requireAuth, membershipController.create);
+// 2. Member status and history by User ID
+router.get('/:userId/history', membershipController.getHistory);
+router.get('/:userId', membershipController.getByUserId);
 
-// Pay membership dues (MVP workflow)
-router.post('/dues/pay', requireAuth, membershipController.payDues);
+// 3. Create new membership
+router.post('/', membershipController.create);
 
-// Get Member Pass card
-router.get('/pass', requireAuth, membershipController.getPass);
+// 4. Payment / Activation
+router.post('/dues/pay', membershipController.payDues);
+router.post('/:id/pay', membershipController.pay);
 
-// Admin & Treasurer: View all memberships
-router.get('/all', requireAuth, requireRole('admin', 'treasurer'), membershipController.getAll);
+// 5. Cancellation
+router.patch('/:id/cancel', membershipController.cancel);
+
+// 6. Renewal
+router.post('/:id/renew', membershipController.renew);
 
 module.exports = router;

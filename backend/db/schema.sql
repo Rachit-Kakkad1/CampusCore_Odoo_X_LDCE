@@ -34,16 +34,40 @@ CREATE TABLE users (
 -- -----------------------------------------------------------------------------
 CREATE TABLE memberships (
   id SERIAL PRIMARY KEY,
-  user_id INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   member_code VARCHAR(50) UNIQUE NOT NULL,
-  dues_amount NUMERIC(10,2) NOT NULL DEFAULT 500.00 CHECK (dues_amount >= 0),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (
+      status IN (
+        'pending',
+        'active',
+        'expired',
+        'cancelled'
+      )
+    ),
   dues_status VARCHAR(20) NOT NULL DEFAULT 'pending'
-    CHECK (dues_status IN ('pending', 'paid')),
-  start_date DATE,
-  expiry_date DATE,
-  paid_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    CHECK (
+      dues_status IN (
+        'pending',
+        'paid'
+      )
+    ),
+  dues_amount NUMERIC(10,2) NOT NULL DEFAULT 500.00
+    CHECK (dues_amount >= 0),
+  started_at TIMESTAMP WITH TIME ZONE,
+  expiry_date TIMESTAMP WITH TIME ZONE,
+  cancelled_at TIMESTAMP WITH TIME ZONE,
+  cancellation_reason TEXT,
+  payment_timestamp TIMESTAMP WITH TIME ZONE,
+  renewed_from_membership_id INT REFERENCES memberships(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_memberships_active_user
+  ON memberships(user_id)
+  WHERE status IN ('active', 'pending');
+
 
 -- -----------------------------------------------------------------------------
 -- 3. ANNOUNCEMENTS
