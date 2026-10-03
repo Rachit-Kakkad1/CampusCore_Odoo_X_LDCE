@@ -1,3 +1,4 @@
+// backend/modules/events/events.controller.js
 const eventsService = require('./events.service');
 const ticketService = require('./ticket.service');
 const checkinService = require('./checkin.service');
@@ -9,8 +10,17 @@ const checkinService = require('./checkin.service');
 class EventsController {
   async createEvent(req, res) {
     try {
-      const event = await eventsService.createEvent(req.body);
-      return res.status(201).json({ event });
+      const createdBy = req.user?.id || req.user?.userId || req.body.created_by || 1;
+      const event = await eventsService.createEvent({
+        ...req.body,
+        created_by: createdBy,
+      });
+      return res.status(201).json({
+        success: true,
+        message: 'Event created successfully',
+        event,
+        data: event,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -20,7 +30,12 @@ class EventsController {
   async getAllEvents(req, res) {
     try {
       const events = await eventsService.getAllEvents();
-      return res.status(200).json({ events });
+      return res.status(200).json({
+        success: true,
+        count: events.length,
+        events,
+        data: events,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -30,7 +45,11 @@ class EventsController {
   async getEventById(req, res) {
     try {
       const event = await eventsService.getEventById(req.params.id);
-      return res.status(200).json({ event });
+      return res.status(200).json({
+        success: true,
+        event,
+        data: event,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -40,7 +59,11 @@ class EventsController {
   async getEventStats(req, res) {
     try {
       const stats = await eventsService.getEventStats(req.params.id);
-      return res.status(200).json({ stats });
+      return res.status(200).json({
+        success: true,
+        stats,
+        data: stats,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -50,7 +73,7 @@ class EventsController {
   async checkoutTicket(req, res) {
     try {
       const eventId = req.params.id;
-      const userId = req.user ? req.user.id : null;
+      const userId = req.user ? (req.user.id || req.user.userId) : null;
       const { checkout_session_id, attendee, name, email, mobile } = req.body;
 
       let attendeeData = attendee || null;
@@ -66,7 +89,30 @@ class EventsController {
       }
 
       const ticket = await ticketService.checkoutTicket(eventId, userId, checkout_session_id, attendeeData);
-      return res.status(201).json({ ticket });
+      return res.status(201).json({
+        success: true,
+        ticket,
+        data: ticket,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async purchaseTicket(req, res) {
+    try {
+      const eventId = req.params.id || req.body.event_id;
+      const userId = req.user ? (req.user.id || req.user.userId) : req.body.user_id;
+      const { payment_mode = 'online' } = req.body || {};
+
+      const ticket = await eventsService.purchaseTicket(eventId, userId, { payment_mode });
+      return res.status(201).json({
+        success: true,
+        message: 'Ticket purchased successfully',
+        ticket,
+        data: ticket,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -76,11 +122,16 @@ class EventsController {
   async payTicket(req, res) {
     try {
       const ticketId = req.params.id;
-      const userId = req.user ? req.user.id : null;
+      const userId = req.user ? (req.user.id || req.user.userId) : null;
       const { payment_mode } = req.body;
 
       const ticket = await ticketService.payTicket(ticketId, userId, payment_mode || 'online');
-      return res.status(200).json({ message: 'Payment successful', ticket });
+      return res.status(200).json({
+        success: true,
+        message: 'Payment successful',
+        ticket,
+        data: ticket,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -89,9 +140,14 @@ class EventsController {
 
   async getMyTickets(req, res) {
     try {
-      const userId = req.user.id;
-      const tickets = await ticketService.getUserTickets(userId);
-      return res.status(200).json({ tickets });
+      const userId = req.user ? (req.user.id || req.user.userId) : req.headers['x-user-id'];
+      const tickets = await eventsService.getUserTickets(userId);
+      return res.status(200).json({
+        success: true,
+        count: tickets.length,
+        tickets,
+        data: tickets,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
@@ -101,7 +157,7 @@ class EventsController {
   async getTicketQR(req, res) {
     try {
       const ticketId = req.params.id;
-      const userId = req.user ? req.user.id : null;
+      const userId = req.user ? (req.user.id || req.user.userId) : null;
 
       const qrResult = await ticketService.getTicketQR(ticketId, userId);
       return res.status(200).json(qrResult);
@@ -118,7 +174,7 @@ class EventsController {
         return res.status(400).json({ error: 'MISSING_PAYLOAD', message: 'Payload or ticket code is required for check-in' });
       }
 
-      const checkedInBy = req.user ? req.user.id : null;
+      const checkedInBy = req.user ? (req.user.id || req.user.userId) : null;
       const expectedEventId = req.body.event_id || req.params.id || null;
       const result = await checkinService.processScan(payload, checkedInBy, expectedEventId);
       return res.status(200).json(result);

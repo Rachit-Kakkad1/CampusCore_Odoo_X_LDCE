@@ -1,4 +1,5 @@
-const { pool } = require('../../config/database');
+// backend/modules/events/event.repository.js
+const { pool, query } = require('../../config/database');
 
 /**
  * Event and Ticket Repository
@@ -7,23 +8,38 @@ const { pool } = require('../../config/database');
 class EventRepository {
   /**
    * Creates a new event record.
-   * seats_remaining is initialized to capacity.
    */
-  async createEvent({ title, venue, starts_at, capacity, member_price, non_member_price }) {
-    const queryText = `
-      INSERT INTO events (title, venue, starts_at, capacity, seats_remaining, member_price, non_member_price)
-      VALUES ($1, $2, $3, $4, $4, $5, $6)
-      RETURNING *;
-    `;
-    const result = await pool.query(queryText, [
+  async createEvent(data, client = null) {
+    const {
       title,
+      description = null,
       venue,
       starts_at,
       capacity,
+      seats_remaining,
       member_price,
       non_member_price,
-    ]);
-    return result.rows[0];
+      created_by = null,
+    } = data;
+
+    const queryText = `
+      INSERT INTO events (title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_by, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      RETURNING *;
+    `;
+    const params = [
+      title,
+      description,
+      venue,
+      starts_at,
+      capacity,
+      seats_remaining !== undefined ? seats_remaining : capacity,
+      member_price,
+      non_member_price,
+      created_by,
+    ];
+    const res = client ? await client.query(queryText, params) : await pool.query(queryText, params);
+    return res.rows[0];
   }
 
   /**
@@ -31,7 +47,7 @@ class EventRepository {
    */
   async getAllEvents() {
     const queryText = `
-      SELECT id, title, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_at
+      SELECT id, title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_by, created_at
       FROM events
       ORDER BY starts_at ASC;
     `;
@@ -39,12 +55,16 @@ class EventRepository {
     return result.rows;
   }
 
+  async findAll() {
+    return this.getAllEvents();
+  }
+
   /**
    * Retrieves a single event by ID.
    */
   async getEventById(id, client = pool) {
     const queryText = `
-      SELECT id, title, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_at
+      SELECT id, title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price, created_by, created_at
       FROM events
       WHERE id = $1;
     `;
@@ -52,12 +72,16 @@ class EventRepository {
     return result.rows[0] || null;
   }
 
+  async findById(id, client = null) {
+    return this.getEventById(id, client || pool);
+  }
+
   /**
    * Selects an event row with row-level lock (FOR UPDATE) within a transaction.
    */
   async getEventByIdForUpdate(id, client) {
     const queryText = `
-      SELECT id, title, venue, starts_at, capacity, seats_remaining, member_price, non_member_price
+      SELECT id, title, description, venue, starts_at, capacity, seats_remaining, member_price, non_member_price
       FROM events
       WHERE id = $1
       FOR UPDATE;
@@ -78,6 +102,10 @@ class EventRepository {
     `;
     const result = await client.query(queryText, [id]);
     return result.rows[0] || null;
+  }
+
+  async decrementSeats(eventId, client = null) {
+    return this.decrementSeat(eventId, client || pool);
   }
 
   /**
@@ -141,22 +169,23 @@ class EventRepository {
   }
 
   /**
-   * Creates a ticket record (defaults to payment_status = 'pending').
-   * Exactly one of user_id or attendee_id must be provided per chk_ticket_owner.
+   * Creates a ticket record.
    */
-  async createTicket({
-    ticket_code,
-    event_id,
-    user_id = null,
-    attendee_id = null,
-    price,
-    price_type,
-    payment_status = 'pending',
-    checkout_session_id = null,
-  }, client = pool) {
+  async createTicket(data, client = pool) {
+    const {
+      ticket_code,
+      event_id,
+      user_id = null,
+      attendee_id = null,
+      price,
+      price_type,
+      payment_status = 'paid',
+      checkout_session_id = null,
+    } = data;
+
     const queryText = `
-      INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status, checkout_session_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO tickets (ticket_code, event_id, user_id, attendee_id, price, price_type, payment_status, checkout_session_id, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
       RETURNING *;
     `;
     const result = await client.query(queryText, [
@@ -190,6 +219,10 @@ class EventRepository {
     `;
     const result = await client.query(queryText, [id]);
     return result.rows[0] || null;
+  }
+
+  async findTicketById(id, client = null) {
+    return this.getTicketById(id, client || pool);
   }
 
   /**
@@ -242,6 +275,10 @@ class EventRepository {
     return result.rows;
   }
 
+  async findTicketsByUserId(userId) {
+    return this.getTicketsByUserId(userId);
+  }
+
   /**
    * Updates a ticket's status to paid.
    */
@@ -258,7 +295,6 @@ class EventRepository {
 
   /**
    * Atomically marks a ticket as checked in if not already checked in.
-   * Returns null if ticket was already checked in.
    */
   async atomicCheckIn(ticketId, checkedInBy, client = pool) {
     const queryText = `

@@ -22,84 +22,88 @@ export const Navbar = () => {
     navigate('/login');
   };
 
+  const navLinkClass = (path) =>
+    `font-mono text-[10px] uppercase tracking-[0.25em] px-3 py-1.5 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      location.pathname === path
+        ? 'text-foreground border-b border-primary font-semibold'
+        : 'text-muted hover:text-foreground'
+    }`;
+
   return (
-    <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur border-b border-slate-800 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border text-foreground">
+      <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo / Org Name */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20 group-hover:bg-indigo-500 transition-colors">
-                S
+              <div className="w-7 h-7 border border-border bg-background flex items-center justify-center font-mono text-xs font-bold text-primary group-hover:bg-hover transition-colors">
+                O
               </div>
-              <span className="font-semibold tracking-tight text-lg text-slate-100 group-hover:text-white transition-colors">
-                Skyline Org
+              <span className="font-serif tracking-tight text-base uppercase font-semibold text-foreground">
+                Odoo × LDCE Org
               </span>
             </Link>
 
             {/* Nav links */}
-            <div className="hidden md:flex items-center gap-4 text-sm font-medium">
-              <Link
-                to="/"
-                className={`px-3 py-1.5 rounded-md transition-colors ${
-                  location.pathname === '/' ? 'text-white bg-slate-800' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
+            <div className="hidden md:flex items-center gap-2">
+              <Link to="/" className={navLinkClass('/')}>
                 Home
               </Link>
-              <Link
-                to="/membership"
-                className={`px-3 py-1.5 rounded-md transition-colors ${
-                  location.pathname === '/membership' ? 'text-white bg-slate-800' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Membership
+              <Link to="/events" className={navLinkClass('/events')}>
+                Events
               </Link>
-              <Link
-                to="/membership/pass"
-                className={`px-3 py-1.5 rounded-md transition-colors ${
-                  location.pathname === '/membership/pass' ? 'text-white bg-slate-800' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Member Pass
+              <Link to="/store" className={navLinkClass('/store')}>
+                Store
               </Link>
-              <Link
-                to="/announcements"
-                className={`px-3 py-1.5 rounded-md transition-colors ${
-                  location.pathname === '/announcements' ? 'text-white bg-slate-800' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
+              <Link to="/announcements" className={navLinkClass('/announcements')}>
                 Announcements
               </Link>
+              {isAuthenticated && (
+                <>
+                  <Link to="/membership" className={navLinkClass('/membership')}>
+                    Membership
+                  </Link>
+                  <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+                    Workspace
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
           {/* User / Auth CTA */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
-                <div className="hidden sm:flex flex-col text-right">
-                  <span className="text-sm font-medium text-slate-200">{user?.name || 'Member'}</span>
-                  <span className="text-xs uppercase tracking-wider text-indigo-400 font-semibold">{user?.role || 'Guest'}</span>
-                </div>
+                <Link
+                  to="/dashboard"
+                  className="hidden sm:flex flex-col text-right group"
+                >
+                  <span className="font-serif text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                    {user?.name || 'Member'}
+                  </span>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-primary">
+                    {user?.role?.replace('_', ' ') || 'Guest'}
+                  </span>
+                </Link>
                 <button
                   onClick={handleLogout}
-                  className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
+                  className="font-mono text-[10px] uppercase tracking-[0.2em] px-3.5 py-1.5 border border-border bg-background hover:bg-hover text-muted hover:text-foreground transition-colors duration-700"
                 >
                   Sign Out
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Link
                   to="/login"
-                  className="px-3.5 py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                  className="font-mono text-[10px] uppercase tracking-[0.2em] px-3.5 py-1.5 text-muted hover:text-foreground transition-colors"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-1.5 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/20 transition-colors"
+                  className="font-mono text-[10px] uppercase tracking-[0.25em] px-4 py-1.5 bg-primary text-white border border-primary hover:bg-primary/90 transition-all duration-700"
                 >
                   Register
                 </Link>

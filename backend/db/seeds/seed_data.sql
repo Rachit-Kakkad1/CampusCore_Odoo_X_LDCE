@@ -8,14 +8,14 @@ TRUNCATE TABLE users, events, products, fundraisers RESTART IDENTITY CASCADE;
 
 -- 1. USERS
 INSERT INTO users (id, name, email, password_hash, role) VALUES
-(1, 'Admin User', 'admin@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'admin'),
-(2, 'Tara Treasurer', 'tara@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'treasurer'),
-(3, 'Ethan Events', 'ethan@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'event_manager'),
-(4, 'Vik Volunteer', 'vik@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'volunteer'),
-(5, 'Maya Member', 'maya@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member'),
-(6, 'Eddie Expired', 'eddie@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member'),
-(7, 'Greg Guest', 'greg@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member'),
-(8, 'Pia Pending', 'pia@skyline.org', '$2a$10$wT8K8U1yR6hP0V2kLpU3ge0h5kYz9H8eJ0aYyW3dZ2tM4yN6pB3m.', 'member')
+(1, 'Admin User', 'admin@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'admin'),
+(2, 'Tara Treasurer', 'tara@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'treasurer'),
+(3, 'Ethan Events', 'ethan@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'event_manager'),
+(4, 'Vik Volunteer', 'vik@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'volunteer'),
+(5, 'Maya Member', 'maya@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'member'),
+(6, 'Eddie Expired', 'eddie@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'member'),
+(7, 'Greg Guest', 'greg@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'guest'),
+(8, 'Pia Pending', 'pia@skyline.org', '$2b$10$/jkWYV1keMbKVGDWYNc7WOAxcQUKecBrNsTMvAWU2jo1PuwkwcFTS', 'guest')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   email = EXCLUDED.email,

@@ -6,11 +6,22 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Navbar from './components/common/Navbar';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import RoleGuard from './components/dashboard/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
 import Membership from './pages/membership/Membership';
 import MembershipPass from './pages/membership/MembershipPass';
 import Announcements from './pages/announcements/Announcements';
+import MemberDashboard from './pages/dashboard/MemberDashboard';
+import AdminDashboard from './pages/dashboard/AdminDashboard';
+import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
+import EventManagerDashboard from './pages/dashboard/EventManagerDashboard';
+import VolunteerDashboard from './pages/dashboard/VolunteerDashboard';
+import MerchandiseDashboard from './pages/dashboard/MerchandiseDashboard';
+import MerchandisePage from './pages/merchandise/MerchandisePage';
+import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
+import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
+import authService from './services/auth.service';
 import { Link } from 'react-router-dom';
 
 function cn(...inputs) {
@@ -648,11 +659,34 @@ const MainLayout = ({ children }) => (
   </div>
 );
 
+const DashboardRouter = () => {
+  const user = authService.getStoredUser();
+  const role = user?.role || 'member';
+
+  switch (role) {
+    case 'admin':
+      return <AdminDashboard />;
+    case 'treasurer':
+      return <TreasurerDashboard />;
+    case 'event_manager':
+      return <EventManagerDashboard />;
+    case 'volunteer':
+      return <VolunteerDashboard />;
+    case 'member':
+    default:
+      return <MemberDashboard />;
+  }
+};
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={
+        <Route path="/" element={<GuestHome />} />
+        <Route path="/guest" element={<GuestHome />} />
+        <Route path="/events" element={<PublicEvents />} />
+        <Route path="/events/:id" element={<PublicEventDetails />} />
+        <Route path="/overview" element={
           <div className="min-h-screen flex flex-col">
             <LandingPage />
             <Footer />
@@ -677,6 +711,67 @@ export default function App() {
           }
         />
         <Route path="/announcements" element={<MainLayout><Announcements /></MainLayout>} />
+        
+        {/* Dashboard Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardRouter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/*"
+          element={
+            <RoleGuard allowedRoles={['admin']}>
+              <AdminDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/finance/*"
+          element={
+            <RoleGuard allowedRoles={['admin', 'treasurer']}>
+              <TreasurerDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/events/*"
+          element={
+            <RoleGuard allowedRoles={['admin', 'event_manager']}>
+              <EventManagerDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/tasks/*"
+          element={
+            <RoleGuard allowedRoles={['admin', 'volunteer']}>
+              <VolunteerDashboard />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/store/*"
+          element={
+            <RoleGuard allowedRoles={['admin']}>
+              <AdminMerchandisePage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/dashboard/member/*"
+          element={
+            <ProtectedRoute>
+              <MemberDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/store" element={<MerchandisePage />} />
+        <Route path="/merchandise" element={<MerchandisePage />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
