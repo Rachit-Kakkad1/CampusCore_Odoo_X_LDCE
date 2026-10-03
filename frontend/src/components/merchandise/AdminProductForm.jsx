@@ -77,7 +77,7 @@ export const AdminProductForm = ({ onProductCreated, onCancel }) => {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Skyline Zip Jacket"
+            placeholder="e.g. CampusCore Zip Jacket"
             className="w-full p-2.5 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
           />
         </div>

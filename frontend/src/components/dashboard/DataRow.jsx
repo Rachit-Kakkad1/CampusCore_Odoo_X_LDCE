@@ -6,7 +6,7 @@ import React from 'react';
  * Structured key-value row display for details, summaries, orders, tickets, and accounts.
  *
  * @param {Object} props
- * @param {string} props.label - Key/Field label (Space Mono, uppercase)
+ * @param {string} props.label - Key/Field label
  * @param {React.ReactNode} props.value - Field value or component
  * @param {string} [props.sublabel] - Optional secondary helper text
  * @param {boolean} [props.borderBottom=true] - 1px bottom border divider
@@ -22,21 +22,21 @@ export const DataRow = ({
   return (
     <div
       className={`py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
-        borderBottom ? 'border-b border-border/80' : ''
+        borderBottom ? 'border-b border-border' : ''
       } ${className}`}
     >
       <div className="space-y-0.5">
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-600">
           {label}
         </div>
         {sublabel && (
-          <div className="font-sans text-xs text-muted/80">
+          <div className="text-xs text-slate-500">
             {sublabel}
           </div>
         )}
       </div>
 
-      <div className="font-sans text-sm text-foreground font-medium sm:text-right">
+      <div className="text-sm text-slate-900 font-semibold sm:text-right">
         {value}
       </div>
     </div>

@@ -63,7 +63,7 @@ export const MemberAnnouncementSection = ({
 
                 <div className="pt-2 flex items-center gap-2 font-mono text-[10px] text-[#5F3F56] uppercase tracking-wider">
                   <span className="w-1.5 h-1.5 bg-[#5F3F56]"></span>
-                  <span>Skyline Executive Board Notice</span>
+                  <span>CampusCore Executive Board Notice</span>
                 </div>
               </div>
             );

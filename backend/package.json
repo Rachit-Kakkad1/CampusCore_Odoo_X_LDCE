@@ -1,7 +1,7 @@
 {
-  "name": "skyline-org-backend",
+  "name": "campuscore-backend",
   "version": "1.0.0",
-  "description": "Student Organization System Backend - Odoo x LDCE Hackathon",
+  "description": "CampusCore - Student Organization System Backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -10,6 +10,7 @@ import RoleGuard from './components/dashboard/RoleGuard';
 import LoginPage from './pages/LoginPage';
 import Register from './pages/auth/Register';
 import heroVideo from './assests/login/1003.mp4';
+import logoEmblem from './assests/CampusCore Academic Emblem.png';
 import MemberDashboard from './pages/dashboard/MemberDashboard';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
@@ -49,13 +50,14 @@ const LandingPage = () => {
         scrolled ? "bg-background/85 backdrop-blur-md border-b border-border py-4" : "py-8 bg-transparent"
       )}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col gap-[8px]">
-              <div className="h-[1px] w-6 bg-foreground" />
-              <div className="h-[1px] w-8 bg-foreground" />
-            </div>
-            <span className="font-serif text-xl tracking-tight leading-none uppercase">
-              Student<br />Organization
+          <div className="flex items-center gap-3">
+            <img
+              src={logoEmblem}
+              alt="CampusCore"
+              className="w-9 h-9 object-contain drop-shadow-sm"
+            />
+            <span className="font-sans font-bold text-xl tracking-tight text-foreground">
+              CampusCore
             </span>
           </div>
 
@@ -673,8 +675,15 @@ const Footer = () => {
   return (
     <footer className="py-12 px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-        <div className="font-serif text-sm uppercase leading-tight text-center md:text-left">
-          Student<br />Organization<br />System
+        <div className="flex items-center gap-3">
+          <img
+            src={logoEmblem}
+            alt="CampusCore"
+            className="w-8 h-8 object-contain drop-shadow-sm"
+          />
+          <span className="font-sans font-bold text-base tracking-tight text-foreground">
+            CampusCore
+          </span>
         </div>
 
         <div className="flex flex-wrap justify-center gap-8 font-mono text-[10px] uppercase tracking-[0.3em] text-muted">
@@ -685,8 +694,8 @@ const Footer = () => {
         </div>
 
         <div className="text-center md:text-right font-mono text-[10px] uppercase tracking-widest text-muted">
-          Odoo × LDCE<br />
-          24-Hour Hackathon<br />
+          CampusCore<br />
+          Student Organization<br />
           2026<br />
           <span className="mt-4 block italic normal-case tracking-normal text-ghost">Built for student communities.</span>
         </div>

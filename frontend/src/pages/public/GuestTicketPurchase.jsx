@@ -704,7 +704,7 @@ export const GuestTicketPurchase = ({ event, onClose, onSuccess }) => {
                       required
                       value={signInEmail}
                       onChange={(e) => setSignInEmail(e.target.value)}
-                      placeholder="member@odoo-ldce.org"
+                      placeholder="member@campuscore.org"
                       className="w-full p-2 bg-white border border-[#e5e4de] font-mono text-xs focus:outline-none focus:border-[#5F3F56]"
                     />
                     <input

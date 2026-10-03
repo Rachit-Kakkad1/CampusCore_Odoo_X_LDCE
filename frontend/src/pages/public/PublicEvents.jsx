@@ -263,8 +263,8 @@ export const PublicEvents = () => {
 
       <footer className="border-t border-[#e5e4de] py-8 px-6 bg-[#f7f6f2] font-mono text-xs text-[#1c1c1c]/60">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span>Skyline Student Organization · Public Events</span>
-          <span>Odoo × LDCE 2026</span>
+          <span>CampusCore Student Organization · Public Events</span>
+          <span>CampusCore 2026</span>
         </div>
       </footer>
     </div>

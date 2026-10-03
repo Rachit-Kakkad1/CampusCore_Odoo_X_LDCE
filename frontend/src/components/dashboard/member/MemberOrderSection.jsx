@@ -24,7 +24,7 @@ export const MemberOrderSection = ({ orders = [], loading = false }) => {
       {orders.length === 0 ? (
         <DashboardEmptyState
           title="No Merchandise Orders"
-          description="You haven't ordered any official Skyline merchandise yet. Browse the club store to order apparel with member discounts."
+          description="You haven't ordered any official CampusCore merchandise yet. Browse the club store to order apparel with member discounts."
         />
       ) : (
         <div className="space-y-4">

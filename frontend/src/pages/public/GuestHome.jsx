@@ -42,7 +42,7 @@ export const GuestHome = () => {
             <div className="inline-flex items-center gap-2 px-3.5 py-1 border border-[#e5e4de] bg-white/60 mb-8">
               <span className="w-2 h-2 rounded-full bg-[#5F3F56] animate-pulse"></span>
               <span className="font-mono text-[10px] uppercase tracking-widest text-[#5F3F56] font-semibold">
-                Skyline Student Organization · Public Portal
+                CampusCore Student Organization · Public Portal
               </span>
             </div>
 
@@ -252,8 +252,8 @@ export const GuestHome = () => {
       {/* Footer */}
       <footer className="border-t border-[#e5e4de] py-8 px-6 bg-[#f7f6f2] font-mono text-xs text-[#1c1c1c]/60">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span>Skyline Student Organization · Public Gateway</span>
-          <span>Odoo × LDCE 2026</span>
+          <span>CampusCore Student Organization · Public Gateway</span>
+          <span>CampusCore 2026</span>
         </div>
       </footer>
     </div>

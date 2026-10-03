@@ -19,8 +19,8 @@ export const MemberPassCard = ({ passData, loading = false }) => {
   ).toUpperCase();
   const isActive = computedStatus === 'ACTIVE';
   const memberCode = passData?.member_code || 'UNASSIGNED';
-  const memberName = passData?.member_name || 'Skyline Member';
-  const userEmail = passData?.user_email || 'member@skyline.org';
+  const memberName = passData?.member_name || 'CampusCore Member';
+  const userEmail = passData?.user_email || 'member@campuscore.org';
   const role = (passData?.role || 'member').toUpperCase();
   const expiryDate = passData?.expiry_date
     ? new Date(passData.expiry_date).toLocaleDateString('en-US', {
@@ -147,7 +147,7 @@ export const MemberPassCard = ({ passData, loading = false }) => {
 
       {/* Bottom Security Footer */}
       <div className="mt-5 pt-3 border-t border-[#e5e4de] flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-[#1c1c1c]/60 gap-2">
-        <span>SKYLINE STUDENT ORGANIZATION · OFFICIAL SYSTEM</span>
+        <span>CAMPUSCORE STUDENT ORGANIZATION · OFFICIAL SYSTEM</span>
         <span className="tracking-widest uppercase">SEC-AUTH-{memberCode.slice(-6)}</span>
       </div>
     </div>

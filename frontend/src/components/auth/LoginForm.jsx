@@ -99,19 +99,6 @@ export default function LoginForm({ mode, setMode }) {
         <PasswordField value={password} onChange={setPassword} />
         {!isRegister && <LoginOptions rememberMe={rememberMe} setRememberMe={setRememberMe} />}
         <LoginButton isLoading={isLoading} />
-        
-        <div className="mt-8 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setMode(isRegister ? 'login' : 'register');
-              setError('');
-            }}
-            className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted hover:text-primary transition-colors"
-          >
-            {isRegister ? "Already have an account? Sign In" : "Don't have an account? Register"}
-          </button>
-        </div>
       </form>
     </div>
   );

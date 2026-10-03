@@ -1,12 +1,21 @@
 import React from 'react';
+import logoEmblem from '../../assests/CampusCore Academic Emblem.png';
 
 export default function LoginHeader({ mode }) {
   const isRegister = mode === 'register';
 
   return (
     <div className="mb-6">
-      <div className="font-serif text-sm md:text-base uppercase leading-tight tracking-tight mb-4">
-        Student<br />Organization<br />System <span className="text-muted">/ 2026</span>
+      <div className="flex items-center gap-2.5 mb-4">
+        <img
+          src={logoEmblem}
+          alt="CampusCore"
+          className="w-8 h-8 object-contain drop-shadow-sm"
+        />
+        <span className="font-sans font-bold text-lg tracking-tight text-foreground">
+          CampusCore
+        </span>
+        <span className="text-muted font-sans text-xs font-normal">/ 2026</span>
       </div>
       
       <div className="font-mono text-[10px] md:text-xs uppercase tracking-[0.3em] text-muted mb-2">

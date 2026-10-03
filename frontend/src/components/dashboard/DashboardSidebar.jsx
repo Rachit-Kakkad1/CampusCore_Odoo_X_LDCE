@@ -19,8 +19,7 @@ import authService from '../../services/auth.service';
 
 /**
  * DashboardSidebar Component
- * Strictly generates role-aware navigation and logout handling.
- * Does NOT display navigation items a role is unauthorized to access.
+ * Professional role-aware navigation and logout handling with high contrast.
  *
  * @param {Object} props
  * @param {string} props.currentRole - 'admin' | 'treasurer' | 'event_manager' | 'volunteer' | 'member' | 'guest'
@@ -36,32 +35,32 @@ export const DashboardSidebar = ({ currentRole }) => {
   };
 
   const navItemClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] border-l-2 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+    `flex items-center gap-3 px-4 py-3 text-sm font-medium border-l-2 transition-colors duration-200 ${
       isActive
-        ? 'border-primary text-foreground bg-hover font-semibold'
-        : 'border-transparent text-muted hover:text-foreground hover:bg-hover'
+        ? 'border-primary text-slate-900 bg-slate-100 font-semibold'
+        : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
     }`;
 
   return (
-    <aside className="w-full md:w-64 border-r border-border bg-background flex flex-col justify-between shrink-0 select-none">
-      <div className="p-6 space-y-8">
+    <aside className="w-full md:w-64 border-r border-border bg-white flex flex-col justify-between shrink-0 select-none">
+      <div className="p-6 space-y-6">
         {/* User Identity & Authority Box */}
-        <div className="border border-border p-4 bg-background">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-[0.25em] text-muted">
+        <div className="border border-border p-4 bg-slate-50/80 rounded-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Authority Profile
             </span>
-            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+            <ShieldCheck className="w-4 h-4 text-primary" />
           </div>
-          <div className="font-serif text-base text-foreground font-semibold truncate">
+          <div className="text-sm font-bold text-slate-900 truncate">
             {user?.name || 'Guest Attendee'}
           </div>
-          <div className="font-sans text-xs text-muted truncate mb-2">
+          <div className="text-xs text-slate-500 truncate mb-3">
             {user?.email || 'unauthenticated'}
           </div>
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 border border-border bg-hover">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-primary font-medium">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-border bg-white shadow-xs rounded-xs">
+            <span className="w-2 h-2 rounded-full bg-primary" />
+            <span className="text-xs uppercase tracking-wider text-primary font-bold">
               {effectiveRole.replace('_', ' ')}
             </span>
           </div>
@@ -69,12 +68,12 @@ export const DashboardSidebar = ({ currentRole }) => {
 
         {/* Dynamic Role-Aware Navigation Section */}
         <nav className="space-y-1">
-          <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mb-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mb-2">
             Core Workspace
           </div>
 
           <NavLink to="/dashboard" end className={navItemClass}>
-            <LayoutDashboard className="w-3.5 h-3.5" />
+            <LayoutDashboard className="w-4 h-4" />
             <span>Overview</span>
           </NavLink>
 
@@ -83,27 +82,27 @@ export const DashboardSidebar = ({ currentRole }) => {
           {/* ========================================================= */}
           {effectiveRole === 'admin' && (
             <>
-              <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mt-6 mb-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Organization
               </div>
               <NavLink to="/dashboard/admin/events" className={navItemClass}>
-                <Calendar className="w-3.5 h-3.5" />
+                <Calendar className="w-4 h-4" />
                 <span>Events Admin</span>
               </NavLink>
               <NavLink to="/dashboard/admin/users" className={navItemClass}>
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-4 h-4" />
                 <span>User Accounts</span>
               </NavLink>
               <NavLink to="/dashboard/admin/store" className={navItemClass}>
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-4 h-4" />
                 <span>Catalog & Stock</span>
               </NavLink>
-              <NavLink to="/membership" className={navItemClass}>
-                <CreditCard className="w-3.5 h-3.5" />
+              <NavLink to="/dashboard/admin/members" className={navItemClass}>
+                <CreditCard className="w-4 h-4" />
                 <span>Membership Roster</span>
               </NavLink>
               <NavLink to="/dashboard/finance" className={navItemClass}>
-                <DollarSign className="w-3.5 h-3.5" />
+                <DollarSign className="w-4 h-4" />
                 <span>Financial Ledger</span>
               </NavLink>
             </>
@@ -114,15 +113,15 @@ export const DashboardSidebar = ({ currentRole }) => {
           {/* ========================================================= */}
           {effectiveRole === 'treasurer' && (
             <>
-              <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mt-6 mb-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Treasury
               </div>
               <NavLink to="/dashboard/finance" className={navItemClass}>
-                <DollarSign className="w-3.5 h-3.5" />
+                <DollarSign className="w-4 h-4" />
                 <span>Central Ledger</span>
               </NavLink>
               <NavLink to="/dashboard/finance/expenses" className={navItemClass}>
-                <FileText className="w-3.5 h-3.5" />
+                <FileText className="w-4 h-4" />
                 <span>Expense Approvals</span>
               </NavLink>
             </>
@@ -133,15 +132,15 @@ export const DashboardSidebar = ({ currentRole }) => {
           {/* ========================================================= */}
           {effectiveRole === 'event_manager' && (
             <>
-              <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mt-6 mb-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Event Operations
               </div>
               <NavLink to="/dashboard/events" className={navItemClass}>
-                <Calendar className="w-3.5 h-3.5" />
+                <Calendar className="w-4 h-4" />
                 <span>Assigned Events</span>
               </NavLink>
               <NavLink to="/dashboard/events/checkin" className={navItemClass}>
-                <QrCode className="w-3.5 h-3.5" />
+                <QrCode className="w-4 h-4" />
                 <span>Door Check-in</span>
               </NavLink>
             </>
@@ -152,15 +151,15 @@ export const DashboardSidebar = ({ currentRole }) => {
           {/* ========================================================= */}
           {effectiveRole === 'volunteer' && (
             <>
-              <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mt-6 mb-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Task Execution
               </div>
               <NavLink to="/dashboard/tasks" className={navItemClass}>
-                <CheckSquare className="w-3.5 h-3.5" />
+                <CheckSquare className="w-4 h-4" />
                 <span>Assigned Tasks</span>
               </NavLink>
               <NavLink to="/dashboard/events/checkin" className={navItemClass}>
-                <QrCode className="w-3.5 h-3.5" />
+                <QrCode className="w-4 h-4" />
                 <span>Check-in Station</span>
               </NavLink>
             </>
@@ -171,30 +170,30 @@ export const DashboardSidebar = ({ currentRole }) => {
           {/* ========================================================= */}
           {(effectiveRole === 'member' || effectiveRole === 'guest') && (
             <>
-              <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mt-6 mb-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Member Services
               </div>
-              <NavLink to="/membership/pass" className={navItemClass}>
-                <QrCode className="w-3.5 h-3.5" />
-                <span>Digital Pass</span>
+              <NavLink to="/dashboard/member" className={navItemClass}>
+                <CreditCard className="w-4 h-4" />
+                <span>Member Portal</span>
               </NavLink>
-              <NavLink to="/membership" className={navItemClass}>
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Membership Status</span>
+              <NavLink to="/events" className={navItemClass}>
+                <Calendar className="w-4 h-4" />
+                <span>Events & Tickets</span>
               </NavLink>
               <NavLink to="/store" className={navItemClass}>
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-4 h-4" />
                 <span>Merchandise Store</span>
               </NavLink>
             </>
           )}
 
-          {/* Common communication link accessible to all authenticated users */}
-          <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-muted px-4 mt-6 mb-2">
+          {/* Common communication link */}
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
             Broadcasts
           </div>
-          <NavLink to="/announcements" className={navItemClass}>
-            <Megaphone className="w-3.5 h-3.5" />
+          <NavLink to="/dashboard" className={navItemClass}>
+            <Megaphone className="w-4 h-4" />
             <span>Announcements</span>
           </NavLink>
         </nav>
@@ -204,9 +203,9 @@ export const DashboardSidebar = ({ currentRole }) => {
       <div className="p-6 border-t border-border">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] border border-border bg-background hover:bg-hover text-muted hover:text-foreground transition-colors duration-700"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-semibold uppercase tracking-wider border border-border bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 transition-colors"
         >
-          <LogOut className="w-3 h-3" />
+          <LogOut className="w-3.5 h-3.5" />
           <span>Sign Out</span>
         </button>
       </div>

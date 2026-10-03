@@ -3,7 +3,7 @@ import React from 'react';
 
 /**
  * PageTabs Component
- * Minimalist horizontal tab bar for switching sub-views within dashboards.
+ * Clean horizontal tab bar with high contrast for switching sub-views within dashboards.
  *
  * @param {Object} props
  * @param {Array<{ id: string, label: string, icon?: React.ElementType, badge?: string|number }>} props.tabs
@@ -23,20 +23,20 @@ export const PageTabs = ({ tabs = [], activeTab, onChange, className = '' }) => 
             key={tab.id}
             type="button"
             onClick={() => onChange && onChange(tab.id)}
-            className={`flex items-center gap-2.5 px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] border-b-2 -mb-[1px] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap focus:outline-none ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-[1px] transition-colors whitespace-nowrap focus:outline-none ${
               isActive
-                ? 'border-primary text-foreground font-semibold bg-hover/50'
-                : 'border-transparent text-muted hover:text-foreground hover:border-border'
+                ? 'border-primary text-slate-900 font-bold bg-slate-50'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
-            {Icon && <Icon className="w-3.5 h-3.5" />}
+            {Icon && <Icon className="w-4 h-4 text-slate-600" />}
             <span>{tab.label}</span>
             {tab.badge !== undefined && (
               <span
-                className={`ml-1 px-1.5 py-0.5 text-[8px] font-mono border ${
+                className={`ml-1 px-2 py-0.5 text-xs font-semibold rounded-full ${
                   isActive
-                    ? 'border-primary/40 bg-primary text-white'
-                    : 'border-border text-muted'
+                    ? 'bg-primary text-white'
+                    : 'bg-slate-200 text-slate-700'
                 }`}
               >
                 {tab.badge}

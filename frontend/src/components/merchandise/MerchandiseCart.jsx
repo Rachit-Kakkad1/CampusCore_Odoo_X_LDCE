@@ -26,7 +26,7 @@ export const MerchandiseCart = ({
       <div className="space-y-6">
         <DashboardEmptyState
           title="Your Cart is Empty"
-          description="You haven't added any official Skyline merchandise or apparel to your cart yet."
+          description="You haven't added any official CampusCore merchandise or apparel to your cart yet."
         />
         <div className="text-center">
           <ActionButton variant="primary" onClick={onContinueShopping}>

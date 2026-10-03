@@ -6,7 +6,7 @@ export default function LoginVisualPanel() {
     <div className="hidden lg:block w-1/2 h-screen relative bg-background overflow-hidden">
       <img 
         src={loginImage} 
-        alt="Student Organization" 
+        alt="CampusCore Student Organization" 
         className="w-full h-full object-cover relative z-10"
         onError={(e) => { e.target.style.display = 'none'; }}
       />

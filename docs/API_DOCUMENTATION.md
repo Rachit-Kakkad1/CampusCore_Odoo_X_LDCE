@@ -1,4 +1,4 @@
-# API Documentation — Skyline Student Organization System
+# API Documentation — CampusCore Student Organization System
 
 This document outlines the working and planned API endpoints for the 24-hour Odoo × LDCE Hackathon.
 All endpoints are served under the `/api` prefix.

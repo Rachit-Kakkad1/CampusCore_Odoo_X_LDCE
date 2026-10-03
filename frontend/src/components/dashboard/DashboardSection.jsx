@@ -3,24 +3,24 @@ import React from 'react';
 
 /**
  * DashboardSection Component
- * Structured container with 1px border, editorial section header, and content area.
+ * Structured container with 1px border, professional section header, and content area.
  *
  * @param {Object} props
- * @param {string} props.title - Section title (Playfair Display)
- * @param {string} [props.subtitle] - Section subtitle (Space Grotesk)
+ * @param {string} props.title - Section title
+ * @param {string} [props.subtitle] - Section subtitle
  * @param {React.ReactNode} [props.action] - Header action (button / link)
  * @param {React.ReactNode} props.children - Section body
  */
 export const DashboardSection = ({ title, subtitle, action, children, className = '' }) => {
   return (
-    <div className={`border border-border bg-background p-6 sm:p-8 ${className}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-border">
+    <div className={`border border-border bg-white p-6 sm:p-8 shadow-sm ${className}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-border">
         <div>
-          <h2 className="font-serif text-xl sm:text-2xl text-foreground uppercase tracking-tight">
+          <h2 className="text-xl sm:text-2xl text-slate-900 font-bold tracking-tight">
             {title}
           </h2>
           {subtitle && (
-            <p className="font-sans text-xs text-muted mt-1">
+            <p className="text-sm text-slate-600 mt-1 font-normal">
               {subtitle}
             </p>
           )}

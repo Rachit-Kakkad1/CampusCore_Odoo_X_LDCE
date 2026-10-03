@@ -164,8 +164,8 @@ export const MerchandisePage = () => {
                   </span>
                 )}
               </div>
-              <h1 className="font-serif text-4xl sm:text-5xl text-[#1c1c1c] tracking-tight">
-                Skyline Apparel & Merchandise
+              <h1 className="font-sans text-3xl sm:text-4xl font-bold text-[#1c1c1c] tracking-tight">
+                CampusCore Apparel & Merchandise
               </h1>
               <p className="font-sans text-xs sm:text-sm text-[#1c1c1c]/70 mt-1 max-w-xl">
                 Official hoodies, t-shirts, and campus gear. Active members automatically receive 10% discount at checkout.
@@ -268,8 +268,8 @@ export const MerchandisePage = () => {
 
       <footer className="border-t border-[#e5e4de] py-8 px-6 bg-[#f7f6f2] font-mono text-xs text-[#1c1c1c]/60">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span>Skyline Student Organization · Merchandise Division</span>
-          <span>Odoo × LDCE 2026</span>
+          <span>CampusCore Student Organization · Merchandise Division</span>
+          <span>CampusCore 2026</span>
         </div>
       </footer>
     </div>

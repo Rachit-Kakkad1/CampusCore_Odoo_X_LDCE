@@ -3,16 +3,11 @@ import React from 'react';
 import { DashboardStat } from '../DashboardStat';
 import { DashboardSection } from '../DashboardSection';
 import { StatusBadge } from '../StatusBadge';
-import { ActionButton } from '../ActionButton';
 import {
   Users,
   Calendar,
   ShoppingBag,
   TrendingUp,
-  Megaphone,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle
 } from 'lucide-react';
 
 export const AdminOverview = ({
@@ -71,45 +66,45 @@ export const AdminOverview = ({
       </div>
 
       {/* Quick Action Navigation Buttons */}
-      <div className="border border-[#e5e4de] bg-[#f7f6f2] p-5">
-        <span className="font-mono text-xs uppercase tracking-wider text-[#5F3F56] font-semibold block mb-3">
+      <div className="border border-border bg-white p-6 shadow-sm">
+        <span className="text-xs uppercase tracking-wider text-primary font-bold block mb-4">
           Quick Management Workspaces
         </span>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <button
             onClick={() => onNavigateTab?.('members')}
-            className="p-3 border border-[#e5e4de] bg-white text-left font-mono text-xs hover:border-[#5F3F56] transition-colors flex flex-col justify-between h-20"
+            className="p-3.5 border border-border bg-slate-50 hover:bg-white text-left text-xs hover:border-primary transition-all flex flex-col justify-between h-20 shadow-2xs rounded-xs cursor-pointer"
           >
-            <span className="text-[#1c1c1c]/50 text-[10px] uppercase">Directory</span>
-            <span className="font-bold text-[#1c1c1c]">Manage Members</span>
+            <span className="text-slate-500 text-[11px] font-semibold uppercase">Directory</span>
+            <span className="font-bold text-slate-900">Manage Members</span>
           </button>
           <button
             onClick={() => onNavigateTab?.('events')}
-            className="p-3 border border-[#e5e4de] bg-white text-left font-mono text-xs hover:border-[#5F3F56] transition-colors flex flex-col justify-between h-20"
+            className="p-3.5 border border-border bg-slate-50 hover:bg-white text-left text-xs hover:border-primary transition-all flex flex-col justify-between h-20 shadow-2xs rounded-xs cursor-pointer"
           >
-            <span className="text-[#1c1c1c]/50 text-[10px] uppercase">Schedule</span>
-            <span className="font-bold text-[#1c1c1c]">Manage Events</span>
+            <span className="text-slate-500 text-[11px] font-semibold uppercase">Schedule</span>
+            <span className="font-bold text-slate-900">Manage Events</span>
           </button>
           <button
             onClick={() => onNavigateTab?.('merchandise')}
-            className="p-3 border border-[#e5e4de] bg-white text-left font-mono text-xs hover:border-[#5F3F56] transition-colors flex flex-col justify-between h-20"
+            className="p-3.5 border border-border bg-slate-50 hover:bg-white text-left text-xs hover:border-primary transition-all flex flex-col justify-between h-20 shadow-2xs rounded-xs cursor-pointer"
           >
-            <span className="text-[#1c1c1c]/50 text-[10px] uppercase">Store</span>
-            <span className="font-bold text-[#1c1c1c]">Catalog & Stock</span>
+            <span className="text-slate-500 text-[11px] font-semibold uppercase">Store</span>
+            <span className="font-bold text-slate-900">Catalog & Stock</span>
           </button>
           <button
             onClick={() => onNavigateTab?.('fundraisers')}
-            className="p-3 border border-[#e5e4de] bg-white text-left font-mono text-xs hover:border-[#5F3F56] transition-colors flex flex-col justify-between h-20"
+            className="p-3.5 border border-border bg-slate-50 hover:bg-white text-left text-xs hover:border-primary transition-all flex flex-col justify-between h-20 shadow-2xs rounded-xs cursor-pointer"
           >
-            <span className="text-[#1c1c1c]/50 text-[10px] uppercase">Projects</span>
-            <span className="font-bold text-[#1c1c1c]">Fundraisers</span>
+            <span className="text-slate-500 text-[11px] font-semibold uppercase">Projects</span>
+            <span className="font-bold text-slate-900">Fundraisers</span>
           </button>
           <button
             onClick={() => onNavigateTab?.('announcements')}
-            className="p-3 border border-[#e5e4de] bg-white text-left font-mono text-xs hover:border-[#5F3F56] transition-colors flex flex-col justify-between h-20"
+            className="p-3.5 border border-border bg-slate-50 hover:bg-white text-left text-xs hover:border-primary transition-all flex flex-col justify-between h-20 shadow-2xs rounded-xs cursor-pointer"
           >
-            <span className="text-[#1c1c1c]/50 text-[10px] uppercase">Broadcast</span>
-            <span className="font-bold text-[#1c1c1c]">Announcements</span>
+            <span className="text-slate-500 text-[11px] font-semibold uppercase">Broadcast</span>
+            <span className="font-bold text-slate-900">Announcements</span>
           </button>
         </div>
       </div>
@@ -122,7 +117,7 @@ export const AdminOverview = ({
           subtitle="Real-time membership roster with verified dues and computed status"
         >
           {members.length === 0 ? (
-            <div className="p-6 border border-[#e5e4de] text-center font-mono text-xs text-[#1c1c1c]/60">
+            <div className="p-6 border border-border text-center text-xs font-medium text-slate-500">
               No registered members found.
             </div>
           ) : (
@@ -130,13 +125,13 @@ export const AdminOverview = ({
               {members.slice(0, 4).map((m) => (
                 <div
                   key={m.id}
-                  className="p-3 bg-[#f7f6f2] border border-[#e5e4de] flex items-center justify-between font-mono text-xs"
+                  className="p-3.5 bg-slate-50 border border-border flex items-center justify-between text-xs"
                 >
                   <div>
-                    <span className="font-bold text-[#1c1c1c] block">
+                    <span className="font-bold text-slate-900 block">
                       {m.user_name || `User #${m.user_id}`}
                     </span>
-                    <span className="text-[11px] text-[#1c1c1c]/60">
+                    <span className="text-xs text-slate-600 font-medium">
                       {m.member_code} · {m.user_email || 'no-email'}
                     </span>
                   </div>
@@ -153,7 +148,7 @@ export const AdminOverview = ({
           subtitle="Active flagship gatherings, workshops, and attendee seats"
         >
           {events.length === 0 ? (
-            <div className="p-6 border border-[#e5e4de] text-center font-mono text-xs text-[#1c1c1c]/60">
+            <div className="p-6 border border-border text-center text-xs font-medium text-slate-500">
               No events scheduled yet.
             </div>
           ) : (
@@ -161,21 +156,21 @@ export const AdminOverview = ({
               {events.slice(0, 4).map((ev) => (
                 <div
                   key={ev.id}
-                  className="p-3 bg-[#f7f6f2] border border-[#e5e4de] flex items-center justify-between font-mono text-xs"
+                  className="p-3.5 bg-slate-50 border border-border flex items-center justify-between text-xs"
                 >
                   <div>
-                    <span className="font-bold text-[#1c1c1c] block">
+                    <span className="font-bold text-slate-900 block">
                       {ev.title}
                     </span>
-                    <span className="text-[11px] text-[#1c1c1c]/60">
+                    <span className="text-xs text-slate-600 font-medium">
                       {ev.venue} · {ev.seats_remaining} seats remaining
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[#5F3F56] font-semibold block">
+                    <span className="text-primary font-bold block">
                       M: ₹{Number(ev.member_price).toFixed(2)}
                     </span>
-                    <span className="text-[#1c1c1c]/50 text-[10px] block">
+                    <span className="text-slate-600 font-medium text-xs block">
                       NM: ₹{Number(ev.non_member_price).toFixed(2)}
                     </span>
                   </div>

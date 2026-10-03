@@ -1,8 +1,8 @@
-// frontend/src/pages/auth/Register.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, UserPlus, ShieldCheck } from 'lucide-react';
 import authService from '../../services/auth.service';
+import logoEmblem from '../../assests/CampusCore Academic Emblem.png';
 
 export const Register = () => {
   const navigate = useNavigate();
@@ -49,13 +49,14 @@ export const Register = () => {
       <div className="w-full max-w-md bg-white border border-[#e5e4de] p-8 md:p-10 shadow-sm relative">
         <div className="absolute top-0 left-0 w-full h-[2px] bg-[#5F3F56]" />
 
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#e5e4de] bg-[#f7f6f2] text-[#5F3F56] font-mono text-[10px] uppercase tracking-widest mb-4">
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>New Student Account</span>
-          </div>
-          <h1 className="font-serif text-3xl md:text-4xl uppercase tracking-tight">
-            Join Skyline
+        <div className="mb-8 text-center flex flex-col items-center">
+          <img
+            src={logoEmblem}
+            alt="CampusCore Emblem"
+            className="w-14 h-14 object-contain mb-3 drop-shadow-sm"
+          />
+          <h1 className="font-sans text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Join CampusCore
           </h1>
           <p className="font-sans text-xs text-neutral-500 mt-2">
             Create your account to unlock membership benefits, event tickets, and club apparel.
@@ -93,7 +94,7 @@ export const Register = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="alex@skyline.org"
+              placeholder="alex@campuscore.org"
               required
               className="w-full px-4 py-3 border border-[#e5e4de] bg-[#f7f6f2] text-sm focus:outline-none focus:border-[#5F3F56] font-mono text-xs transition-colors"
             />

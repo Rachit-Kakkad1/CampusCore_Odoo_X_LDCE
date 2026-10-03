@@ -66,7 +66,7 @@ export const MerchandiseProductCard = ({
             {product.name.charAt(0)}
           </div>
           <span className="font-mono text-[10px] uppercase text-[#1c1c1c]/50 mt-3 tracking-widest">
-            Skyline Apparel Co.
+            CampusCore Apparel Co.
           </span>
 
           {isActiveMember && (
@@ -83,7 +83,7 @@ export const MerchandiseProductCard = ({
             {product.name}
           </h3>
           <p className="font-sans text-xs text-[#1c1c1c]/70 mt-1 line-clamp-2 leading-relaxed">
-            {product.description || 'Official Skyline Student Organization merchandise item.'}
+            {product.description || 'Official CampusCore Student Organization merchandise item.'}
           </p>
         </div>
 

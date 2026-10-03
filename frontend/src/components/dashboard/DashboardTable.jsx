@@ -3,7 +3,7 @@ import React from 'react';
 
 /**
  * DashboardTable Component
- * Data-driven, 1px bordered tabular data presentation for ledgers, rosters, inventory, and orders.
+ * Data-driven, crisp bordered tabular data presentation with high contrast.
  *
  * @param {Object} props
  * @param {Array<{ key: string, header: string, render?: (row: any) => React.ReactNode, align?: 'left'|'center'|'right', width?: string }>} props.columns
@@ -28,16 +28,16 @@ export const DashboardTable = ({
   };
 
   return (
-    <div className={`w-full overflow-x-auto border border-border bg-background ${className}`}>
+    <div className={`w-full overflow-x-auto border border-border bg-white shadow-sm ${className}`}>
       <table className="w-full text-left border-collapse">
         {/* Table Header */}
         <thead>
-          <tr className="border-b border-border bg-background">
+          <tr className="border-b border-border bg-slate-50">
             {columns.map((col, index) => (
               <th
                 key={col.key || index}
                 style={{ width: col.width }}
-                className={`py-3.5 px-5 font-mono text-[9px] uppercase tracking-[0.25em] text-muted font-medium ${
+                className={`py-3.5 px-5 text-xs uppercase tracking-wider text-slate-700 font-bold ${
                   alignClass[col.align || 'left']
                 }`}
               >
@@ -48,12 +48,12 @@ export const DashboardTable = ({
         </thead>
 
         {/* Table Body */}
-        <tbody className="divide-y divide-border/80">
+        <tbody className="divide-y divide-border">
           {data.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length}
-                className="py-12 px-6 text-center font-mono text-xs text-muted"
+                className="py-12 px-6 text-center text-sm font-medium text-slate-600"
               >
                 {emptyMessage}
               </td>
@@ -67,10 +67,10 @@ export const DashboardTable = ({
                 <tr
                   key={rowKey}
                   onClick={() => isClickable && onRowClick(row)}
-                  className={`transition-colors duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  className={`transition-colors duration-200 ${
                     isClickable
-                      ? 'cursor-pointer hover:bg-hover'
-                      : 'hover:bg-hover/40'
+                      ? 'cursor-pointer hover:bg-slate-50'
+                      : 'hover:bg-slate-50/70'
                   }`}
                 >
                   {columns.map((col, colIndex) => {
@@ -83,7 +83,7 @@ export const DashboardTable = ({
                     return (
                       <td
                         key={col.key || colIndex}
-                        className={`py-4 px-5 font-sans text-xs text-foreground ${
+                        className={`py-4 px-5 text-sm text-slate-800 font-normal ${
                           alignClass[col.align || 'left']
                         }`}
                       >

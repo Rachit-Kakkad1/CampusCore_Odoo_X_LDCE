@@ -1,11 +1,11 @@
-// frontend/src/components/dashboard/DashboardShell.jsx
 import React from 'react';
+import Navbar from '../common/Navbar';
 import DashboardSidebar from './DashboardSidebar';
 import authService from '../../services/auth.service';
 
 /**
  * DashboardShell Component
- * Master container for all role dashboards adhering to the 1px-border grid design system.
+ * Master container for all role dashboards adhering to the unified Navbar and 1px-border grid design system.
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children - Main dashboard content
@@ -17,24 +17,8 @@ export const DashboardShell = ({ children, activeRole }) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary selection:text-white">
-      {/* Top Banner Bar */}
-      <header className="border-b border-border bg-background px-6 py-4 flex items-center justify-between z-20">
-        <div className="flex items-center gap-4">
-          <div className="font-serif text-lg tracking-tight uppercase font-semibold">
-            Odoo × LDCE
-          </div>
-          <span className="text-muted font-mono text-xs">/</span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-            Management Portal
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted hidden sm:block">
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </div>
-        </div>
-      </header>
+      {/* Unified Global Navbar */}
+      <Navbar />
 
       {/* Main Workspace Layout */}
       <div className="flex-grow flex flex-col md:flex-row relative z-10">

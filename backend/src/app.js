@@ -11,7 +11,7 @@ app.use(express.json());
 // Root Information Endpoint
 app.get('/', (req, res) => {
   res.json({
-    name: 'Skyline Student Organization System API',
+    name: 'CampusCore Student Organization System API',
     version: '1.0.0',
     phase: 'Phase 1 - Database & Foundation',
     status: 'operational',

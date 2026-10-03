@@ -4,10 +4,10 @@ import { Inbox } from 'lucide-react';
 
 /**
  * DashboardEmptyState Component
- * Clean editorial empty state container for blank tables, queues, or catalogs.
+ * Clean professional empty state container for blank tables, queues, or catalogs.
  *
  * @param {Object} props
- * @param {string} props.title - Empty state title (Playfair Display)
+ * @param {string} props.title - Empty state title
  * @param {string} props.description - Explanatory message
  * @param {React.ElementType} [props.icon=Inbox] - Icon component
  * @param {React.ReactNode} [props.action] - Optional ActionButton
@@ -22,17 +22,17 @@ export const DashboardEmptyState = ({
 }) => {
   return (
     <div
-      className={`border border-border bg-background p-12 flex flex-col items-center justify-center text-center space-y-4 ${className}`}
+      className={`border border-border bg-white p-12 flex flex-col items-center justify-center text-center space-y-4 shadow-sm ${className}`}
     >
-      <div className="w-12 h-12 border border-border flex items-center justify-center bg-hover text-muted">
-        <Icon className="w-5 h-5" />
+      <div className="w-12 h-12 border border-border flex items-center justify-center bg-slate-50 text-slate-600 rounded-sm">
+        <Icon className="w-6 h-6" />
       </div>
 
-      <div className="space-y-1 max-w-sm">
-        <h3 className="font-serif text-lg sm:text-xl text-foreground uppercase tracking-tight">
+      <div className="space-y-1.5 max-w-sm">
+        <h3 className="text-lg font-bold text-slate-900">
           {title}
         </h3>
-        <p className="font-sans text-xs text-muted leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed font-normal">
           {description}
         </p>
       </div>

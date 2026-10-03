@@ -1,7 +1,7 @@
-// frontend/src/components/common/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/auth.service';
+import logoEmblem from '../../assests/CampusCore Academic Emblem.png';
 
 export const Navbar = () => {
   const navigate = useNavigate();
@@ -36,11 +36,13 @@ export const Navbar = () => {
           {/* Logo / Org Name */}
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-7 h-7 border border-border bg-background flex items-center justify-center font-mono text-xs font-bold text-primary group-hover:bg-hover transition-colors">
-                O
-              </div>
-              <span className="font-serif tracking-tight text-base uppercase font-semibold text-foreground">
-                Odoo × LDCE Org
+              <img
+                src={logoEmblem}
+                alt="CampusCore"
+                className="w-9 h-9 object-contain drop-shadow-sm group-hover:scale-105 transition-transform"
+              />
+              <span className="font-sans font-bold text-lg tracking-tight text-foreground">
+                CampusCore
               </span>
             </Link>
 

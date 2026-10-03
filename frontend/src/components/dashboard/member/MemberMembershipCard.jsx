@@ -79,7 +79,7 @@ export const MemberMembershipCard = ({
         <div>
           <div className="flex items-center gap-3 mb-1">
             <span className="font-mono text-xs tracking-wider uppercase text-[#1c1c1c]/60">
-              Skyline Org · Membership Status
+              CampusCore Org · Membership Status
             </span>
             <StatusBadge status={computedStatus} />
           </div>
@@ -204,7 +204,7 @@ export const MemberMembershipCard = ({
                     Action Required: Complete Dues Payment
                   </h4>
                   <p className="font-sans text-sm text-amber-800/90 mt-1 leading-relaxed">
-                    Your membership registration is logged as <strong>PENDING</strong>. Complete your annual dues payment of ₹{duesAmount} to activate your official Skyline membership and unlock member rates.
+                    Your membership registration is logged as <strong>PENDING</strong>. Complete your annual dues payment of ₹{duesAmount} to activate your official CampusCore membership and unlock member rates.
                   </p>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export const MemberMembershipCard = ({
               Pay Annual Membership Dues
             </h3>
             <p className="font-sans text-sm text-[#1c1c1c]/70 mb-6">
-              Total dues amount: <strong>₹{duesAmount}</strong> for 1-year verified Skyline membership.
+              Total dues amount: <strong>₹{duesAmount}</strong> for 1-year verified CampusCore membership.
             </p>
 
             <div className="space-y-4 mb-6">
