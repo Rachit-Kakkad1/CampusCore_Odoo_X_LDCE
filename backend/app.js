@@ -29,8 +29,10 @@ app.use('/api/finance', financeRoutes);
 
 // Centralized error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Unhandled application error:', err);
   const status = err.status || 500;
+  if (status >= 500) {
+    console.error('Server error:', err);
+  }
   res.status(status).json({
     error: {
       message: err.message || 'Internal Server Error',

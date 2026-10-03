@@ -1,56 +1,237 @@
 # API Documentation — Skyline Student Organization System
 
-This document outlines the agreed API route structure and naming conventions for the 24-hour Odoo × LDCE Hackathon.
-
-All endpoints are served under the unified `/api` prefix.
+This document outlines the working and planned API endpoints for the 24-hour Odoo × LDCE Hackathon.
+All endpoints are served under the `/api` prefix.
 
 ---
 
 ## 1. System Health
-- `GET /api/health` — Central health check endpoint (returns `{"status": "ok"}`)
+- `GET /api/health`
+  - **Auth**: None
+  - **Status**: 200 OK
+  - **Response**:
+    ```json
+    { "status": "ok" }
+    ```
 
 ---
 
-## 2. Team Module Boundaries & Prefixes
+## 2. Authentication Module (`/api/auth`) — *Owner: Nishit*
 
-### Auth Module (`/api/auth`) — *Owner: Nishit*
-- `/api/auth/register` — User registration (default: guest)
-- `/api/auth/login` — Authentication and JWT token issuance
-- `/api/auth/me` — Current authenticated user profile and roles
+### `POST /api/auth/register`
+- **Auth**: Public
+- **Description**: Creates a new user account with hashed password (`bcryptjs`, 10 rounds). Automatically issues a 24h JWT.
+- **Request Body**:
+  ```json
+  {
+    "name": "Jane Doe",
+    "email": "jane@ldce.ac.in",
+    "password": "Password123!",
+    "role": "member"
+  }
+  ```
+- **Responses**:
+  - `201 Created`:
+    ```json
+    {
+      "success": true,
+      "user": {
+        "id": 10,
+        "name": "Jane Doe",
+        "email": "jane@ldce.ac.in",
+        "role": "member",
+        "created_at": "2026-10-03T06:00:00.000Z"
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+    ```
+  - `400 Bad Request`: Validation failure (missing fields, invalid email format, password < 6 chars)
+  - `409 Conflict`: Email already registered
 
-### Membership Module (`/api/membership`) — *Owner: Nishit*
-- `/api/membership` — Retrieve user membership status & dues details
-- `/api/membership/dues/pay` — Pay annual membership dues (atomic transaction)
-- `/api/membership/pass` — View verified digital membership pass
+### `POST /api/auth/login`
+- **Auth**: Public
+- **Description**: Validates user credentials and issues a JWT containing `{ userId, email, role }`.
+- **Request Body**:
+  ```json
+  {
+    "email": "jane@ldce.ac.in",
+    "password": "Password123!"
+  }
+  ```
+- **Responses**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "user": {
+        "id": 10,
+        "name": "Jane Doe",
+        "email": "jane@ldce.ac.in",
+        "role": "member",
+        "created_at": "2026-10-03T06:00:00.000Z"
+      },
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+    ```
+  - `400 Bad Request`: Missing email or password
+  - `401 Unauthorized`: Invalid email or password
 
-### Announcements Module (`/api/announcements`) — *Owner: Nishit*
-- `/api/announcements` — List all organization announcements
-- `/api/announcements` — Create announcement (Admin / Event Manager / Treasurer)
-- `/api/announcements/:id` — Announcement details
+### `GET /api/auth/me`
+- **Auth**: Bearer `<token>` (`requireAuth`)
+- **Description**: Returns authenticated profile for the caller.
+- **Responses**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "user": {
+        "id": 10,
+        "name": "Jane Doe",
+        "email": "jane@ldce.ac.in",
+        "role": "member",
+        "created_at": "2026-10-03T06:00:00.000Z"
+      }
+    }
+    ```
+  - `401 Unauthorized`: Missing, invalid, or expired JWT
 
-### Events & Ticketing Module (`/api/events`, `/api/tickets`) — *Owner: Rachit*
-- `/api/events` — List upcoming events with seat availability and tiered pricing
-- `/api/events/:id` — Event details
-- `/api/events` — Create event (Admin / Event Manager)
-- `/api/tickets` — User purchased tickets
-- `/api/tickets/purchase` — Initiate ticket checkout & session
-- `/api/tickets/:id/qr` — Generate / view signed ticket QR code
-- `/api/tickets/checkin` — QR check-in scanner verification
+---
 
-### Merchandise & Shop Module (`/api/products`, `/api/orders`) — *Owner: Harshit*
-- `/api/products` — Product catalog with sizes, pricing, and stock levels
-- `/api/products/:id` — Product details
-- `/api/orders` — View user order history
-- `/api/orders/checkout` — Create order & process checkout (atomic stock deduction upon payment)
+## 3. Membership Module (`/api/membership`) — *Owner: Nishit*
 
-### Finance & Fundraisers Module (`/api/finance`, `/api/fundraisers`, `/api/tasks`, `/api/expenses`) — *Owner: Tapan*
-- `/api/fundraisers` — List active club fundraising campaigns
-- `/api/fundraisers/:id` — Fundraiser details with progress vs goal
-- `/api/fundraisers/:id/income` — Record fundraiser income (`source_type = 'fundraiser'`, `source_id = fundraiser_income.id`)
-- `/api/tasks` — List volunteer tasks for fundraisers (`TODO`, `IN_PROGRESS`, `COMPLETED`)
-- `/api/tasks/:id/status` — Update task status
-- `/api/expenses` — List submitted expenses
-- `/api/expenses/submit` — Submit expense with receipt
-- `/api/expenses/:id/approve` — Approve expense
-- `/api/expenses/:id/reimburse` — Reimburse expense
-- `/api/finance/transactions` — Organization-wide financial ledger (dues, tickets, merch, fundraisers, expenses)
+### `GET /api/membership/me`
+- **Auth**: Bearer `<token>` (`requireAuth`)
+- **Description**: Retrieves current user's membership details, dues status, and active validation.
+- **Response**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "exists": true,
+        "is_active": true,
+        "computed_status": "active",
+        "membership": {
+          "id": 1,
+          "user_id": 5,
+          "member_code": "MEM-2026-MAYA",
+          "dues_amount": "500.00",
+          "dues_status": "paid",
+          "start_date": "2026-01-01",
+          "expiry_date": "2027-12-31",
+          "paid_at": "2026-01-01T10:00:00.000Z",
+          "is_active": true,
+          "computed_status": "active"
+        }
+      }
+    }
+    ```
+
+### `POST /api/membership`
+- **Auth**: Bearer `<token>` (`requireAuth`)
+- **Description**: Initiates a new membership record for the caller in `pending` dues status.
+- **Responses**:
+  - `201 Created`: Membership created with `dues_status: 'pending'`, `dues_amount: 500.00`
+  - `409 Conflict`: Membership already exists for this user
+
+### `POST /api/membership/dues/pay`
+- **Auth**: Bearer `<token>` (`requireAuth`)
+- **Description**: Simulates dues payment (`online`, `upi`, `card`, `cash`), sets `dues_status = 'paid'`, assigns end-of-year expiry (`YYYY-12-31`), and creates an atomic transaction entry in `transactions` (`source_type = 'dues'`, `direction = 'in'`, `status = 'paid'`).
+- **Request Body**:
+  ```json
+  {
+    "payment_mode": "online"
+  }
+  ```
+- **Response**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "message": "Membership dues paid successfully. Membership is now active.",
+      "data": {
+        "id": 1,
+        "user_id": 10,
+        "member_code": "MEM-2026-10",
+        "dues_amount": "500.00",
+        "dues_status": "paid",
+        "start_date": "2026-10-03",
+        "expiry_date": "2026-12-31",
+        "is_active": true,
+        "computed_status": "active"
+      }
+    }
+    ```
+
+### `GET /api/membership/pass`
+- **Auth**: Bearer `<token>` (`requireAuth`)
+- **Description**: Returns safe digital membership card verification data.
+- **Response**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "membership_id": 1,
+        "member_code": "MEM-2026-10",
+        "member_name": "Jane Doe",
+        "user_email": "jane@ldce.ac.in",
+        "role": "member",
+        "dues_status": "paid",
+        "dues_amount": "500.00",
+        "start_date": "2026-10-03",
+        "expiry_date": "2026-12-31",
+        "is_active": true,
+        "computed_status": "active"
+      }
+    }
+    ```
+  - `404 Not Found`: No membership record exists for this user
+
+### `GET /api/membership/all`
+- **Auth**: Bearer `<token>` (`requireAuth` + `requireRole('admin', 'treasurer')`)
+- **Description**: Admin and Treasurer oversight endpoint returning all registered memberships.
+- **Responses**:
+  - `200 OK`:
+    ```json
+    {
+      "success": true,
+      "count": 3,
+      "data": [ ... ]
+    }
+    ```
+  - `403 Forbidden`: Authenticated user does not have `admin` or `treasurer` role
+
+---
+
+## 4. Shared Backend Utilities
+
+### `isActiveMember(userId)`
+- **Path**: `backend/shared/membership/isActiveMember.js`
+- **Contract**:
+  ```javascript
+  const { isActiveMember } = require('../../shared/membership/isActiveMember');
+  const active = await isActiveMember(userId); // returns boolean
+  ```
+- **Rule**:
+  `dues_status === 'paid' AND expiry_date >= CURRENT_DATE`
+
+### `requireAuth`
+- **Path**: `backend/shared/auth/requireAuth.js`
+- **Usage**: Express route middleware verifying `Authorization: Bearer <token>` and attaching `req.user`.
+
+### `requireRole(...allowedRoles)`
+- **Path**: `backend/shared/auth/requireRole.js`
+- **Usage**: Express route middleware verifying `req.user.role`.
+
+### `createTransaction(txData, client)`
+- **Path**: `backend/shared/transactions/createTransaction.js`
+- **Usage**: Records financial ledger records into PostgreSQL `transactions` table with idempotency constraint `UNIQUE(source_type, source_id)`.
+
+---
+
+## 5. Upcoming Modules (Planned)
+- **Announcements Module (`/api/announcements`)** — Nishit (Next Prompt)
+- **Events & Ticketing (`/api/events`, `/api/tickets`)** — Rachit
+- **Merchandise & Orders (`/api/products`, `/api/orders`)** — Harshit
+- **Finance, Fundraisers, Expenses (`/api/finance`, `/api/fundraisers`, `/api/tasks`, `/api/expenses`)** — Tapan
