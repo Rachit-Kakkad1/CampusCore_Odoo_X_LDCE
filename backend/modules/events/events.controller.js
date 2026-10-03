@@ -175,7 +175,7 @@ class EventsController {
 
   async scanCheckIn(req, res) {
     try {
-      const payload = req.body.payload || req.body.code || req.body.ticket_code;
+      const payload = req.body.payload || req.body.code || req.body.ticket_code || req.body.qr_data || req.body.qrData;
       if (!payload) {
         return res.status(400).json({ error: 'MISSING_PAYLOAD', message: 'Payload or ticket code is required for check-in' });
       }

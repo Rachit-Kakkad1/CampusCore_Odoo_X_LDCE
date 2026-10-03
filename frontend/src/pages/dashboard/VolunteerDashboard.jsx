@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
-import { PageTabs } from '../../components/dashboard/PageTabs';
 import { DashboardLoadingState } from '../../components/dashboard/DashboardLoadingState';
 import { DashboardErrorState } from '../../components/dashboard/DashboardErrorState';
 import {
@@ -194,13 +193,6 @@ export const VolunteerDashboard = () => {
         />
       ) : (
         <div className="space-y-8">
-          {/* Top Tabs */}
-          <PageTabs
-            tabs={tabs}
-            activeTab={activeTab}
-            onChange={handleTabChange}
-          />
-
           {/* Tab 1: Tasks List */}
           {activeTab === 'tasks' && (
             <VolunteerTaskList

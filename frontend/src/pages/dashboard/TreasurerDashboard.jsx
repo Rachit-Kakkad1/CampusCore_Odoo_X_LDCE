@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
-import { PageTabs } from '../../components/dashboard/PageTabs';
 import { DashboardLoadingState } from '../../components/dashboard/DashboardLoadingState';
 import { DashboardErrorState } from '../../components/dashboard/DashboardErrorState';
 import {
@@ -291,13 +290,6 @@ export const TreasurerDashboard = () => {
         <div className="space-y-8">
           {/* Authoritative Financial Overview Summary */}
           <FinanceSummary summary={summary} />
-
-          {/* Section Navigation Tabs */}
-          <PageTabs
-            tabs={tabs}
-            activeTab={activeTab}
-            onChange={handleTabChange}
-          />
 
           {/* Tab 1: Central Financial Transaction Ledger */}
           {activeTab === 'ledger' && (

@@ -10,8 +10,13 @@ import MerchandiseOrderHistory from '../../components/merchandise/MerchandiseOrd
 import { PageTabs } from '../../components/dashboard/PageTabs';
 import merchandiseService from '../../services/merchandise.service';
 import membershipService from '../../services/membership.service';
-import authService from '../../services/auth.service';
+import authService from '../../services/auth.service';  
 import { ShoppingBag, Tag, History, ArrowLeft, ShieldCheck } from 'lucide-react';
+
+
+
+
+
 
 export const MerchandisePage = () => {
   const user = authService.getStoredUser();

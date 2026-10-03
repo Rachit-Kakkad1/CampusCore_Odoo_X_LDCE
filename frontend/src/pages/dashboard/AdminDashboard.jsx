@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
-import { PageTabs } from '../../components/dashboard/PageTabs';
 import { DashboardLoadingState } from '../../components/dashboard/DashboardLoadingState';
 import { DashboardErrorState } from '../../components/dashboard/DashboardErrorState';
 import {
@@ -227,15 +226,6 @@ export const AdminDashboard = () => {
           onRetry={loadAllData}
         />
       )}
-
-      {/* Top Workspace Navigation Tabs */}
-      <div className="mb-8">
-        <PageTabs
-          tabs={tabs}
-          activeTab={activeTab}
-          onChange={handleTabChange}
-        />
-      </div>
 
       {/* Dynamic Tab Views */}
       {activeTab === 'overview' && (

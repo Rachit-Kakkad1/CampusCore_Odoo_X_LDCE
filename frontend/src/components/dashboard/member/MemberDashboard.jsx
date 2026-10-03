@@ -9,7 +9,6 @@ import {
   MemberOrderSection,
   MemberAnnouncementSection,
 } from './index';
-import { PageTabs } from '../PageTabs';
 import { DashboardStat } from '../DashboardStat';
 import { DashboardLoadingState } from '../DashboardLoadingState';
 import { DashboardErrorState } from '../DashboardErrorState';
@@ -323,13 +322,6 @@ export const MemberDashboard = () => {
           </button>
         </div>
       )}
-
-      {/* Top Workspace Navigation Tabs */}
-      <PageTabs
-        tabs={tabs}
-        activeTab={activeTab}
-        onChange={handleTabChange}
-      />
 
       {/* ========================================================================= */}
       {/* TAB 1: OVERVIEW                                                           */}
