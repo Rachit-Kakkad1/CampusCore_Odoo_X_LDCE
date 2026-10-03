@@ -108,12 +108,28 @@ class SmtpEmailProvider extends BaseEmailProvider {
         },
       });
 
+      const sender = (mailOptions.from || env.EMAIL_FROM || this.user);
+      const formattedFrom = sender.includes('<') ? sender : `"LDCE Student Organization" <${sender}>`;
+
+      const attachments = [];
+      if (mailOptions.qrDataUrl && mailOptions.qrDataUrl.startsWith('data:image')) {
+        attachments.push({
+          filename: 'ticket-qr.png',
+          path: mailOptions.qrDataUrl,
+          cid: 'ticket_qr_code',
+        });
+      }
+      if (mailOptions.attachments) {
+        attachments.push(...mailOptions.attachments);
+      }
+
       const info = await transporter.sendMail({
-        from: mailOptions.from || env.EMAIL_FROM,
+        from: formattedFrom,
         to: mailOptions.to,
         subject: mailOptions.subject,
         text: mailOptions.text,
         html: mailOptions.html,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
 
       return {
@@ -121,6 +137,7 @@ class SmtpEmailProvider extends BaseEmailProvider {
         messageId: info.messageId,
         provider: 'smtp',
       };
+
     } catch (err) {
       console.error('[EMAIL ERROR] Failed to deliver via SMTP:', err.message);
       throw err;

@@ -223,6 +223,7 @@ function renderTicketEmail({
 
       <div class="instructions-card">
         <h4>Door Check-in Instructions</h4>
+        <p style="font-weight: 700; margin: 4px 0 8px 0;">Show this QR code at the entrance.</p>
         <ol>
           <li>Have this QR code displayed on your screen at full brightness when approaching the entrance.</li>
           <li>Our staff or volunteers will scan your code to grant admission.</li>
@@ -256,8 +257,10 @@ Ticket Type:      ${priceType}
 Amount Paid:      ₹${parseFloat(price).toFixed(2)}
 
 ------------------------------------------------------------
+INSTRUCTION: Show this QR code at the entrance.
 MANUAL FALLBACK CODE: ${ticketCode}
 ------------------------------------------------------------
+
 
 CHECK-IN INSTRUCTIONS:
 1. Present your signed QR code at the door for entry.

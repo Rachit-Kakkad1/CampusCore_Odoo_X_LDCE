@@ -286,13 +286,20 @@ async function runQREmailTests() {
     assert(guestPayRes.status === 200, 'Guest ticket payment succeeds (200 OK)');
     assert(guestPayRes.body.ticket.payment_status === 'paid', 'Ticket status becomes paid');
     assert(typeof guestPayRes.body.ticket.qr_payload === 'string', 'Paid ticket response includes signed QR payload');
-    assert(guestPayRes.body.ticket.qr_data_url.startsWith('data:image/png;base64,'), 'Paid ticket response includes QR image');
+    assert(verifyQR(guestPayRes.body.ticket.qr_payload).valid === true, 'Generated QR payload cryptographically verified via verifyQR()');
+    assert(guestPayRes.body.ticket.qr_data_url.startsWith('data:image/png;base64,'), 'Paid ticket response includes QR image data URL');
     assert(guestPayRes.body.ticket.email_delivery.success === true, 'Ticket email successfully delivered to guest');
 
     // 3. Verify email delivery details in development mailbox
     const guestSentEmail = devProvider.getSentEmails().find((e) => e.to === guestEmail);
     assert(guestSentEmail !== undefined, 'Guest confirmation email present in mailbox');
-    assert(guestSentEmail.html.includes(guestTicket.ticket_code), 'Guest email contains fallback ticket code');
+    assert(guestSentEmail.to === guestEmail, 'Email recipient matches ticket attendee email');
+    assert(guestSentEmail.html.includes(galaEvent.title), 'Email contains event name');
+    assert(guestSentEmail.html.includes(guestTicket.ticket_code), 'Email contains ticket code');
+    assert(guestSentEmail.html.includes('data:image/png;base64,'), 'Email contains embedded QR image/data URL');
+    assert(guestSentEmail.html.includes(guestTicket.ticket_code), 'Email contains manual fallback ticket code');
+    assert(guestSentEmail.html.includes('Show this QR code at the entrance.'), 'Email contains entrance instruction: "Show this QR code at the entrance."');
+    assert(!guestSentEmail.text.includes('test delivery') && guestSentEmail.text.includes('OFFICIAL ADMISSION TICKET'), 'Email sent is the official ticket email, NOT the generic test email');
     assert(guestSentEmail.html.includes('Grace Guest'), 'Guest email contains guest name');
 
     // 4. Door check-in via QR payload
@@ -305,13 +312,24 @@ async function runQREmailTests() {
     assert(guestScanRes.body.holder.type === 'attendee', 'Check-in identifies ticket holder as attendee');
     assert(guestScanRes.body.member_status === 'NONE', 'Guest check-in displays member_status: NONE');
 
-    // 5. Second scan rejected
+    // 5. Tampered QR rejected
+    const tamperedGuestPayload = guestPayRes.body.ticket.qr_payload.slice(0, -2) + '99';
+    const tamperedScanRes = await api('/checkin/scan', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: { payload: tamperedGuestPayload },
+    });
+    assert(tamperedScanRes.body.result === 'INVALID', 'Tampered QR code rejected with result: INVALID');
+
+
+    // 6. Second scan rejected
     const guestSecondScan = await api('/checkin/scan', {
       method: 'POST',
       headers: { Authorization: `Bearer ${adminToken}` },
       body: { payload: guestPayRes.body.ticket.qr_payload },
     });
     assert(guestSecondScan.status === 200 && guestSecondScan.body.result === 'ALREADY_USED', 'Second scan of guest ticket rejected with ALREADY_USED');
+
 
     // =========================================================================
     // SECTION 5: END-TO-END FLOW: ACTIVE MEMBER (Checkout -> Pay -> QR -> Email -> Check-in)

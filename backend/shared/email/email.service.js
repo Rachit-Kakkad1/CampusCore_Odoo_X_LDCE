@@ -55,12 +55,14 @@ class EmailService {
         subject,
         html,
         text,
+        qrDataUrl,
         metadata: {
           ticket_id: ticket.id,
           ticket_code: ticket.ticket_code,
           event_id: event.id,
         },
       });
+
 
       return {
         success: true,
