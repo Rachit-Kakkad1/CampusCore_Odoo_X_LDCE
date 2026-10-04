@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="CampusCore OS Banner" width="100%" />
+  <img src="https://raw.githubusercontent.com/Rachit-Kakkad1/CampusCore_Odoo_X_LDCE/main/docs/assets/banner.svg" alt="CampusCore OS Banner" width="100%" />
 </p>
 
 # 🏛️ CampusCore OS
@@ -104,7 +104,7 @@ Campus organizations frequently struggle with fragmented operational silos: Goog
 ### Zero-Race Concurrency & Ledger Pipeline Visual
 
 <p align="center">
-  <img src="docs/assets/architecture_flow.svg" alt="Zero-Race Concurrency Pipeline" width="100%" />
+  <img src="https://raw.githubusercontent.com/Rachit-Kakkad1/CampusCore_Odoo_X_LDCE/main/docs/assets/architecture_flow.svg" alt="Zero-Race Concurrency Pipeline" width="100%" />
 </p>
 
 ### Full Component Architecture (Mermaid)
