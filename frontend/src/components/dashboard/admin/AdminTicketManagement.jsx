@@ -70,14 +70,28 @@ export const AdminTicketManagement = () => {
       const params = {
         page: pagination.page,
         pageSize: pagination.pageSize,
+        sort: sortBy,
         sortBy,
+        sortDirection: sortOrder,
         sortOrder,
       };
       if (search.trim()) params.search = search.trim();
-      if (buyerType !== 'ALL') params.buyerType = buyerType;
-      if (paymentStatus !== 'ALL') params.paymentStatus = paymentStatus;
-      if (checkinStatus !== 'ALL') params.checkinStatus = checkinStatus;
-      if (eventId) params.eventId = eventId;
+      if (buyerType !== 'ALL') {
+        params.buyer_type = buyerType;
+        params.buyerType = buyerType;
+      }
+      if (paymentStatus !== 'ALL') {
+        params.payment_status = paymentStatus;
+        params.paymentStatus = paymentStatus;
+      }
+      if (checkinStatus !== 'ALL') {
+        params.check_in_status = checkinStatus;
+        params.checkinStatus = checkinStatus;
+      }
+      if (eventId) {
+        params.event_id = eventId;
+        params.eventId = eventId;
+      }
 
       const res = await eventsService.getAllTicketsAdmin(params);
       const items = res.items || res.tickets || res.data || [];

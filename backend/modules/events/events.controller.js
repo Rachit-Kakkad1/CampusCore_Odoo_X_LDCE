@@ -479,7 +479,13 @@ class EventsController {
    */
   async getAllTicketsAdmin(req, res) {
     try {
-      const { search, buyer_type, payment_status, check_in_status, event_id, from_date, to_date } = req.query;
+      const search = req.query.search;
+      const buyer_type = req.query.buyer_type || req.query.buyerType;
+      const payment_status = req.query.payment_status || req.query.paymentStatus;
+      const check_in_status = req.query.check_in_status || req.query.checkinStatus;
+      const event_id = req.query.event_id || req.query.eventId;
+      const from_date = req.query.from_date || req.query.fromDate;
+      const to_date = req.query.to_date || req.query.toDate;
       const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
 
       // Scope to event manager's events if role is event_manager
