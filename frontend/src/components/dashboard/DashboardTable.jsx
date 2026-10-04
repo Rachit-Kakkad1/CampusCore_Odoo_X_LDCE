@@ -3,17 +3,15 @@ import React from 'react';
 
 /**
  * DashboardTable Component
- * Data-driven, crisp bordered tabular data presentation with high contrast.
- *
- * @param {Object} props
- * @param {Array<{ key: string, header: string, render?: (row: any) => React.ReactNode, align?: 'left'|'center'|'right', width?: string }>} props.columns
- * @param {Array<Object>} props.data
- * @param {string} [props.keyField='id']
- * @param {string} [props.emptyMessage='No records found.']
- * @param {Function} [props.onRowClick]
- * @param {string} [props.className]
+ * Supports two usage patterns:
+ *   1. Legacy: headers (string[]) + children (<tr> elements rendered directly)
+ *   2. Column-driven: columns ([{key,header,render}]) + data ([])
  */
 export const DashboardTable = ({
+  // Legacy pattern
+  headers,
+  children,
+  // Column-driven pattern
   columns = [],
   data = [],
   keyField = 'id',
@@ -27,10 +25,35 @@ export const DashboardTable = ({
     right: 'text-right',
   };
 
+  // ── Legacy mode: headers[] + children ──────────────────────────────────────
+  if (headers && Array.isArray(headers)) {
+    return (
+      <div className={`w-full overflow-x-auto border border-border bg-white shadow-sm ${className}`}>
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-border bg-slate-50">
+              {headers.map((h, i) => (
+                <th
+                  key={i}
+                  className="py-3.5 px-5 text-xs uppercase tracking-wider text-slate-700 font-bold text-left"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {children}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // ── Column-driven mode: columns[] + data[] ─────────────────────────────────
   return (
     <div className={`w-full overflow-x-auto border border-border bg-white shadow-sm ${className}`}>
       <table className="w-full text-left border-collapse">
-        {/* Table Header */}
         <thead>
           <tr className="border-b border-border bg-slate-50">
             {columns.map((col, index) => (
@@ -47,7 +70,6 @@ export const DashboardTable = ({
           </tr>
         </thead>
 
-        {/* Table Body */}
         <tbody className="divide-y divide-border">
           {data.length === 0 ? (
             <tr>
