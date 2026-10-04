@@ -5,3 +5,4 @@ export { MemberEventSection } from './MemberEventSection';
 export { MemberTicketSection } from './MemberTicketSection';
 export { MemberOrderSection } from './MemberOrderSection';
 export { MemberAnnouncementSection } from './MemberAnnouncementSection';
+export { MemberVolunteerSection } from './MemberVolunteerSection';

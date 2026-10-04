@@ -239,6 +239,26 @@ export const DashboardSidebar = ({ currentRole }) => {
                 <Heart className="w-4 h-4" />
                 <span>My Donations</span>
               </NavLink>
+
+              {user?.is_volunteer_assigned && (
+                <>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
+                    Volunteer Station
+                  </div>
+                  <NavLink to="/dashboard/tasks" end className={navItemClass}>
+                    <CheckSquare className="w-4 h-4" />
+                    <span>Volunteer Duties</span>
+                  </NavLink>
+                  <NavLink to="/dashboard/tasks/checkin" className={navItemClass}>
+                    <QrCode className="w-4 h-4" />
+                    <span>Check-in Station</span>
+                  </NavLink>
+                  <NavLink to="/dashboard/tasks/expenses" className={navItemClass}>
+                    <FileText className="w-4 h-4" />
+                    <span>Reimbursements</span>
+                  </NavLink>
+                </>
+              )}
             </>
           )}
 

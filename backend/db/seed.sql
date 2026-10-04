@@ -18,6 +18,7 @@ INSERT INTO users (name, email, password_hash, role) VALUES
   ('Ethan Events',   'ethan@odoo-ldce.org',     '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'event_manager'),
   ('Vik Volunteer',  'vik@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'volunteer'),
   ('Maya Member',    'maya@odoo-ldce.org',      '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
+  ('Sam Volunteer-Member', 'sam@odoo-ldce.org', '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
   ('Eddie Expired',  'eddie@odoo-ldce.org',     '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
   ('Greg Guest',     'greg@odoo-ldce.org',      '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member'),
   ('Pia Pending',    'pia@odoo-ldce.org',       '$2b$10$lwqa42ob3jniXSy8RrogvuNbtG.5q6.LYoGHhaTf1Oi6l5O4EKDpu', 'member');
@@ -41,25 +42,25 @@ SELECT 1, id, 'SKY-MEM-005-MAYA', 'active', 'paid', 500.00,
   NOW() - INTERVAL '3 months'
 FROM users WHERE email = 'maya@odoo-ldce.org';
 
--- 2. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 1: Historical Expired)
+-- 2. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 1: Historical 2024 Expired)
 INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-SELECT 2, id, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00,
-  NOW() - INTERVAL '14 months',
-  NOW() - INTERVAL '2 months',
-  NOW() - INTERVAL '14 months',
-  NOW() - INTERVAL '14 months',
-  NOW() - INTERVAL '2 months'
+SELECT 2, id, 'SKY-MEM-006-EDDIE-2024', 'expired', 'paid', 500.00,
+  NOW() - INTERVAL '24 months',
+  NOW() - INTERVAL '12 months',
+  NOW() - INTERVAL '24 months',
+  NOW() - INTERVAL '24 months',
+  NOW() - INTERVAL '12 months'
 FROM users WHERE email = 'eddie@odoo-ldce.org';
 
--- 3. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 2: Active Renewal referencing ID 2)
+-- 3. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 2: Expired 2025 Renewal referencing ID 2)
 INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, renewed_from_membership_id, created_at, updated_at)
-SELECT 3, id, 'SKY-MEM-006-EDDIE-2026', 'active', 'paid', 500.00,
-  NOW() - INTERVAL '2 months',
-  NOW() + INTERVAL '10 months',
-  NOW() - INTERVAL '2 months',
+SELECT 3, id, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00,
+  NOW() - INTERVAL '12 months',
+  NOW() - INTERVAL '1 month',
+  NOW() - INTERVAL '12 months',
   2,
-  NOW() - INTERVAL '2 months',
-  NOW() - INTERVAL '2 months'
+  NOW() - INTERVAL '12 months',
+  NOW() - INTERVAL '1 month'
 FROM users WHERE email = 'eddie@odoo-ldce.org';
 
 -- 4. Pia Pending (user_id = 8): PENDING (unpaid, dues pending)
@@ -111,6 +112,16 @@ SELECT 8, id, 'SKY-MEM-003-ETHAN', 'active', 'paid', 500.00,
   NOW() - INTERVAL '345 days',
   NOW() - INTERVAL '345 days'
 FROM users WHERE email = 'ethan@odoo-ldce.org';
+
+-- 9. Sam Volunteer-Member: ACTIVE (paid, future expiry)
+INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+SELECT 9, id, 'SKY-MEM-009-SAM', 'active', 'paid', 500.00,
+  NOW() - INTERVAL '2 months',
+  NOW() + INTERVAL '10 months',
+  NOW() - INTERVAL '2 months',
+  NOW() - INTERVAL '2 months',
+  NOW() - INTERVAL '2 months'
+FROM users WHERE email = 'sam@odoo-ldce.org';
 
 SELECT setval('memberships_id_seq', (SELECT MAX(id) FROM memberships));
 
@@ -225,6 +236,25 @@ CROSS JOIN (VALUES
   ('Manage sales and cash register',          'todo')
 ) AS t(title, status)
 WHERE u.email = 'vik@odoo-ldce.org';
+
+-- Tasks assigned specifically to Sam Volunteer-Member
+INSERT INTO tasks (fundraiser_id, title, assignee_id, status)
+SELECT f.id, t.title, u.id, t.status
+FROM (SELECT id FROM fundraisers WHERE title = 'Bake Sale' LIMIT 1) f
+CROSS JOIN users u
+CROSS JOIN (VALUES
+  ('Coordinate Spring Gala VIP Check-in Desk', 'in_progress'),
+  ('Stage Sound & Lighting Assistance',       'todo')
+) AS t(title, status)
+WHERE u.email = 'sam@odoo-ldce.org';
+
+-- Event volunteer assignment for Sam Volunteer-Member
+INSERT INTO event_volunteers (event_id, user_id, status)
+SELECT e.id, u.id, 'approved'
+FROM (SELECT id FROM events ORDER BY id ASC LIMIT 1) e
+CROSS JOIN users u
+WHERE u.email = 'sam@odoo-ldce.org'
+ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 7. SEED ANNOUNCEMENTS (priorities, categories, draft/published)

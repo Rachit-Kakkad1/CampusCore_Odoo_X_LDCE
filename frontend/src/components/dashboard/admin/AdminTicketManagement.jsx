@@ -86,7 +86,7 @@ export const AdminTicketManagement = () => {
       }
       if (checkinStatus !== 'ALL') {
         params.check_in_status = checkinStatus;
-        params.checkinStatus = checkinStatus;
+        params.checkinStatus = checkinStatus ;
       }
       if (eventId) {
         params.event_id = eventId;
@@ -94,23 +94,33 @@ export const AdminTicketManagement = () => {
       }
 
       const res = await eventsService.getAllTicketsAdmin(params);
-      const items = res.items || res.tickets || res.data || [];
-      setTickets(Array.isArray(items) ? items : []);
-      if (res.pagination) {
-        setPagination((prev) => ({
-          ...prev,
-          page: res.pagination.page || 1,
-          pageSize: res.pagination.pageSize || 10,
-          total: res.pagination.total || items.length,
-          totalPages: res.pagination.totalPages || 1,
-        }));
-      } else {
-        setPagination((prev) => ({
-          ...prev,
-          total: items.length,
-          totalPages: 1,
-        }));
+      let items = [];
+      if (Array.isArray(res)) {
+        items = res;
+      } else if (Array.isArray(res?.tickets)) {
+        items = res.tickets;
+      } else if (Array.isArray(res?.items)) {
+        items = res.items;
+      } else if (Array.isArray(res?.data)) {
+        items = res.data;
+      } else if (Array.isArray(res?.data?.tickets)) {
+        items = res.data.tickets;
       }
+
+      setTickets(items);
+
+      const total = res?.pagination?.totalItems ?? res?.pagination?.total ?? res?.totalItems ?? res?.total ?? items.length;
+      const totalPages = res?.pagination?.totalPages ?? res?.totalPages ?? Math.max(1, Math.ceil(total / (pagination.pageSize || 10)));
+      const page = res?.pagination?.page ?? res?.page ?? pagination.page;
+      const pageSize = res?.pagination?.pageSize ?? res?.pageSize ?? pagination.pageSize;
+
+      setPagination((prev) => ({
+        ...prev,
+        page,
+        pageSize,
+        total,
+        totalPages,
+      }));
     } catch (err) {
       console.error('Failed to load admin tickets:', err);
       setError(err.response?.data?.error || err.message || 'Failed to fetch tickets.');
@@ -130,7 +140,8 @@ export const AdminTicketManagement = () => {
     setDetailsError(null);
     try {
       const res = await eventsService.getTicketDetailsAdmin(id);
-      setTicketDetails(res.ticket || res.data || res);
+      const ticket = res?.ticket || res?.data?.ticket || res?.data || res;
+      setTicketDetails(ticket);
     } catch (err) {
       setDetailsError(err.response?.data?.error || 'Failed to load ticket details.');
     } finally {

@@ -201,11 +201,14 @@ class AuthService {
       [user.id]
     );
 
+    const fullUser = await authRepository.getUserById(user.id);
+
     const safeUser = {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
+      is_volunteer_assigned: fullUser ? !!fullUser.is_volunteer_assigned : false,
       created_at: user.created_at,
     };
 
@@ -223,6 +226,7 @@ class AuthService {
         name: safeUser.name,
         email: safeUser.email,
         role: safeUser.role,
+        is_volunteer_assigned: safeUser.is_volunteer_assigned,
         sessionId: session ? session.id : null,
       },
       env.JWT_SECRET,

@@ -19,25 +19,25 @@ async function seedMemberships() {
       NOW() - INTERVAL '3 months'
     FROM users WHERE email = 'maya@odoo-ldce.org';
 
-    -- 2. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 1: Historical Expired)
+    -- 2. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 1: Historical 2024 Expired)
     INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
-    SELECT 2, id, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00,
-      NOW() - INTERVAL '14 months',
-      NOW() - INTERVAL '2 months',
-      NOW() - INTERVAL '14 months',
-      NOW() - INTERVAL '14 months',
-      NOW() - INTERVAL '2 months'
+    SELECT 2, id, 'SKY-MEM-006-EDDIE-2024', 'expired', 'paid', 500.00,
+      NOW() - INTERVAL '24 months',
+      NOW() - INTERVAL '12 months',
+      NOW() - INTERVAL '24 months',
+      NOW() - INTERVAL '24 months',
+      NOW() - INTERVAL '12 months'
     FROM users WHERE email = 'eddie@odoo-ldce.org';
 
-    -- 3. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 2: Active Renewal referencing ID 2)
+    -- 3. Eddie Expired (user_id = 6): RENEWAL CHAIN (Part 2: Expired 2025 Renewal referencing ID 2)
     INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, renewed_from_membership_id, created_at, updated_at)
-    SELECT 3, id, 'SKY-MEM-006-EDDIE-2026', 'active', 'paid', 500.00,
-      NOW() - INTERVAL '2 months',
-      NOW() + INTERVAL '10 months',
-      NOW() - INTERVAL '2 months',
+    SELECT 3, id, 'SKY-MEM-006-EDDIE-2025', 'expired', 'paid', 500.00,
+      NOW() - INTERVAL '12 months',
+      NOW() - INTERVAL '1 month',
+      NOW() - INTERVAL '12 months',
       2,
-      NOW() - INTERVAL '2 months',
-      NOW() - INTERVAL '2 months'
+      NOW() - INTERVAL '12 months',
+      NOW() - INTERVAL '1 month'
     FROM users WHERE email = 'eddie@odoo-ldce.org';
 
     -- 4. Pia Pending (user_id = 8): PENDING (unpaid, dues pending)
@@ -89,6 +89,16 @@ async function seedMemberships() {
       NOW() - INTERVAL '345 days',
       NOW() - INTERVAL '345 days'
     FROM users WHERE email = 'ethan@odoo-ldce.org';
+
+    -- 9. Sam Volunteer-Member: ACTIVE (paid, future expiry)
+    INSERT INTO memberships (id, user_id, member_code, status, dues_status, dues_amount, started_at, expiry_date, payment_timestamp, created_at, updated_at)
+    SELECT 9, id, 'SKY-MEM-009-SAM', 'active', 'paid', 500.00,
+      NOW() - INTERVAL '2 months',
+      NOW() + INTERVAL '10 months',
+      NOW() - INTERVAL '2 months',
+      NOW() - INTERVAL '2 months',
+      NOW() - INTERVAL '2 months'
+    FROM users WHERE email = 'sam@odoo-ldce.org';
 
     SELECT setval('memberships_id_seq', (SELECT COALESCE(MAX(id), 1) FROM memberships));
 

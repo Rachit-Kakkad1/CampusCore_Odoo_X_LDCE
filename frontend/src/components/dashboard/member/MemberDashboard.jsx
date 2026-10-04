@@ -8,6 +8,7 @@ import {
   MemberTicketSection,
   MemberOrderSection,
   MemberAnnouncementSection,
+  MemberVolunteerSection,
 } from './index';
 import { DashboardStat } from '../DashboardStat';
 import { DashboardLoadingState } from '../DashboardLoadingState';
@@ -32,18 +33,20 @@ import {
   CheckCircle2,
   XCircle,
   Heart,
+  CheckSquare,
 } from 'lucide-react';
 import membershipService from '../../../services/membership.service';
 import eventsService from '../../../services/events.service';
 import merchandiseService from '../../../services/merchandise.service';
 import announcementsService from '../../../services/announcements.service';
+import tasksService from '../../../services/tasks.service';
 import authService from '../../../services/auth.service';
 
 export const MemberDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Route-aware tab resolution: 'overview' | 'events' | 'store' | 'tickets' | 'orders' | 'announcements' | 'donations'
+  // Route-aware tab resolution: 'overview' | 'events' | 'store' | 'tickets' | 'orders' | 'announcements' | 'donations' | 'volunteer'
   const getTabFromPath = (pathname) => {
     if (pathname.includes('/events')) return 'events';
     if (pathname.includes('/store')) return 'store';
@@ -51,6 +54,7 @@ export const MemberDashboard = () => {
     if (pathname.includes('/orders')) return 'orders';
     if (pathname.includes('/announcements')) return 'announcements';
     if (pathname.includes('/donations')) return 'donations';
+    if (pathname.includes('/volunteer')) return 'volunteer';
     return 'overview';
   };
 
@@ -65,6 +69,8 @@ export const MemberDashboard = () => {
     setActiveTab(newTab);
     if (newTab === 'overview') {
       navigate('/dashboard/member');
+    } else if (newTab === 'volunteer') {
+      navigate('/dashboard/tasks');
     } else {
       navigate(`/dashboard/member/${newTab}`);
     }
@@ -81,6 +87,7 @@ export const MemberDashboard = () => {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [volunteerTasks, setVolunteerTasks] = useState([]);
 
   // Store & Cart Sub-states
   const [storeView, setStoreView] = useState('catalog'); // 'catalog' | 'cart' | 'checkout' | 'payment'
@@ -112,6 +119,7 @@ export const MemberDashboard = () => {
         productsRes,
         ordersRes,
         announcementsRes,
+        tasksRes,
       ] = await Promise.allSettled([
         membershipService.getMembership(),
         membershipService.getMemberPass(),
@@ -120,6 +128,7 @@ export const MemberDashboard = () => {
         merchandiseService.getProducts(),
         merchandiseService.getMyOrders(),
         announcementsService.getAnnouncements(),
+        tasksService.getMyTasks(),
       ]);
 
       // Set Membership
@@ -163,6 +172,12 @@ export const MemberDashboard = () => {
       if (announcementsRes.status === 'fulfilled' && announcementsRes.value) {
         const annList = announcementsRes.value.data || announcementsRes.value || [];
         setAnnouncements(Array.isArray(annList) ? annList : []);
+      }
+
+      // Set Volunteer Tasks
+      if (tasksRes.status === 'fulfilled' && tasksRes.value) {
+        const tList = tasksRes.value.tasks || tasksRes.value.data || tasksRes.value || [];
+        setVolunteerTasks(Array.isArray(tList) ? tList : []);
       }
     } catch (err) {
       console.error('Failed to load member dashboard data:', err);
@@ -332,7 +347,7 @@ export const MemberDashboard = () => {
       {activeTab === 'overview' && (
         <div className="space-y-8">
           {/* Top Statistical Overview Metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${volunteerTasks.length > 0 || user?.is_volunteer_assigned ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
             <DashboardStat
               label="Membership State"
               value={computedStatus}
@@ -357,6 +372,14 @@ export const MemberDashboard = () => {
               change={orders.length > 0 ? 'Store purchase history' : 'No orders placed'}
               icon={ShoppingBag}
             />
+            {(volunteerTasks.length > 0 || user?.is_volunteer_assigned) && (
+              <DashboardStat
+                label="Volunteer Duties"
+                value={String(volunteerTasks.length)}
+                change={volunteerTasks.length > 0 ? 'Assigned tasks active' : 'Volunteer roster'}
+                icon={CheckSquare}
+              />
+            )}
             <DashboardStat
               label="Announcements"
               value={String(announcements.length)}
@@ -387,6 +410,11 @@ export const MemberDashboard = () => {
               />
             </div>
           </div>
+
+          {/* Volunteer Duties & Operations (Only for assigned volunteer members) */}
+          {(volunteerTasks.length > 0 || user?.is_volunteer_assigned) && (
+            <MemberVolunteerSection tasks={volunteerTasks} />
+          )}
 
           {/* Upcoming Events Preview */}
           <MemberEventSection
@@ -644,6 +672,15 @@ export const MemberDashboard = () => {
       {activeTab === 'donations' && (
         <div className="space-y-6">
           <UserDonationsList />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 8: VOLUNTEER STATION                                                  */}
+      {/* ========================================================================= */}
+      {activeTab === 'volunteer' && (
+        <div className="space-y-6">
+          <MemberVolunteerSection tasks={volunteerTasks} />
         </div>
       )}
     </div>

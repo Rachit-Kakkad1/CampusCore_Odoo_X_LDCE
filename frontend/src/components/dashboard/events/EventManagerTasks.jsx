@@ -59,15 +59,32 @@ export const EventManagerTasks = ({ events = [] }) => {
   const [eventVolunteers, setEventVolunteers] = useState([]);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
 
-  // When selected modal event changes, load approved volunteers for that event
+  // When selected modal event changes, load approved volunteers for that event or system volunteers
   useEffect(() => {
     if (formData.event_id) {
       setVolunteersLoading(true);
-      eventsService.getVolunteers(formData.event_id)
-        .then((res) => {
-          const list = res?.volunteers || res?.data || (Array.isArray(res) ? res : []);
-          const approved = list.filter((v) => (v.status || '').toLowerCase() === 'approved');
-          const available = approved.length > 0 ? approved : list;
+      Promise.all([
+        eventsService.getVolunteers(formData.event_id).catch(() => ({ volunteers: [] })),
+        authService.getAllUsers().catch(() => ({ users: [] }))
+      ])
+        .then(([eventVolRes, allUsersRes]) => {
+          const list = eventVolRes?.volunteers || eventVolRes?.data || (Array.isArray(eventVolRes) ? eventVolRes : []);
+          const rawUsers = Array.isArray(allUsersRes) ? allUsersRes : (allUsersRes?.users || allUsersRes?.data || []);
+          const sysVolunteers = rawUsers.filter(u => u.role === 'volunteer' || u.role === 'member');
+          
+          const map = new Map();
+          list.forEach(v => {
+            const uid = v.user_id || v.id;
+            if (uid) map.set(String(uid), { id: uid, user_id: uid, name: v.name || v.user_name || 'Volunteer', email: v.email || v.user_email || '', status: v.status, isEventVol: true });
+          });
+          sysVolunteers.forEach(u => {
+            const uid = u.id;
+            if (uid && !map.has(String(uid))) {
+              map.set(String(uid), { id: uid, user_id: uid, name: u.name || 'Volunteer', email: u.email || '', status: 'available', isEventVol: false });
+            }
+          });
+          
+          const available = Array.from(map.values());
           setEventVolunteers(available);
           if (available.length > 0) {
             setFormData((prev) => {
@@ -138,6 +155,16 @@ export const EventManagerTasks = ({ events = [] }) => {
         const d = new Date(formData.due_date);
         if (!isNaN(d.getTime())) {
           parsedDueDate = d.toISOString();
+        }
+      }
+
+      // If volunteer is not yet an approved event volunteer, add them to event first
+      const selectedVol = eventVolunteers.find(v => String(v.user_id || v.id) === String(formData.assigned_to));
+      if (selectedVol && (!selectedVol.isEventVol || selectedVol.status !== 'approved')) {
+        try {
+          await eventsService.addVolunteer(parseInt(formData.event_id, 10), parseInt(formData.assigned_to, 10));
+        } catch {
+          // Ignore if already present
         }
       }
 

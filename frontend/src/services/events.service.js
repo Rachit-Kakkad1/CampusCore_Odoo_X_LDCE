@@ -237,12 +237,13 @@ export const eventsService = {
   },
 
   /**
+  /**
    * Fetch all tickets for admin panel with pagination, search, and filters
    * Endpoint: GET /events/admin/tickets (or /admin/tickets)
    */
   async getAllTicketsAdmin(params = {}) {
     const res = await api.get('/admin/tickets', { params });
-    return res.data || res;
+    return res;
   },
 
   /**
@@ -251,7 +252,7 @@ export const eventsService = {
    */
   async getTicketDetailsAdmin(ticketId) {
     const res = await api.get(`/admin/tickets/${ticketId}`);
-    return res.data || res;
+    return res;
   }
 };
 

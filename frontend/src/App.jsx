@@ -821,7 +821,7 @@ export default function App() {
         <Route
           path="/dashboard/tasks/*"
           element={
-            <RoleGuard allowedRoles={['admin', 'volunteer']}>
+            <RoleGuard allowedRoles={['admin', 'volunteer', 'member', 'event_manager']}>
               <VolunteerDashboard />
             </RoleGuard>
           }

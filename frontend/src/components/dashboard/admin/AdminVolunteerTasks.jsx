@@ -67,21 +67,45 @@ export const AdminVolunteerTasks = () => {
       .catch(() => {});
   }, []);
 
-  // When event is selected in Create Modal, load volunteers for that event
+  // When event is selected in Create Modal, load volunteers for that event and system volunteers
   useEffect(() => {
     if (createFormData.event_id) {
-      eventsService.getVolunteers(createFormData.event_id)
-        .then((res) => {
-          const vols = res.volunteers || res.data || [];
-          // Filter to approved volunteers
-          const approved = vols.filter((v) => (v.status || '').toLowerCase() === 'approved');
-          setVolunteersList(approved.length > 0 ? approved : vols);
-        })
-        .catch(() => {
-          setVolunteersList([]);
+      Promise.all([
+        eventsService.getVolunteers(createFormData.event_id).catch(() => ({ volunteers: [] })),
+        authService.getAllUsers().catch(() => ({ users: [] }))
+      ]).then(([eventVolRes, allUsersRes]) => {
+        const evList = eventVolRes?.volunteers || eventVolRes?.data || (Array.isArray(eventVolRes) ? eventVolRes : []);
+        const rawUsers = Array.isArray(allUsersRes) ? allUsersRes : (allUsersRes?.users || allUsersRes?.data || []);
+        const sysVolunteers = rawUsers.filter(u => u.role === 'volunteer' || u.role === 'member');
+        
+        // Merge list without duplicates
+        const map = new Map();
+        evList.forEach(v => {
+          const uid = v.user_id || v.id;
+          if (uid) map.set(String(uid), { id: uid, user_id: uid, name: v.name || v.user_name || 'Volunteer', email: v.email || v.user_email || '', isEventVol: true, status: v.status });
         });
+        sysVolunteers.forEach(u => {
+          const uid = u.id;
+          if (uid && !map.has(String(uid))) {
+            map.set(String(uid), { id: uid, user_id: uid, name: u.name || 'Volunteer', email: u.email || '', isEventVol: false, status: 'available' });
+          }
+        });
+        
+        setVolunteersList(Array.from(map.values()));
+      });
     } else {
-      setVolunteersList([]);
+      authService.getAllUsers()
+        .then((res) => {
+          const rawUsers = Array.isArray(res) ? res : (res?.users || res?.data || []);
+          const vols = rawUsers.filter(u => u.role === 'volunteer' || u.role === 'member').map(u => ({
+            id: u.id,
+            user_id: u.id,
+            name: u.name,
+            email: u.email,
+          }));
+          setVolunteersList(vols);
+        })
+        .catch(() => setVolunteersList([]));
     }
   }, [createFormData.event_id]);
 
@@ -99,23 +123,33 @@ export const AdminVolunteerTasks = () => {
       if (eventIdFilter) params.event_id = eventIdFilter;
 
       const res = await tasksService.getAllTasks(params);
-      const items = res.tasks || res.data || [];
-      setTasks(Array.isArray(items) ? items : []);
-      if (res.pagination) {
-        setPagination((prev) => ({
-          ...prev,
-          page: res.pagination.page || 1,
-          pageSize: res.pagination.pageSize || 10,
-          total: res.pagination.total || items.length,
-          totalPages: res.pagination.totalPages || 1,
-        }));
-      } else {
-        setPagination((prev) => ({
-          ...prev,
-          total: items.length,
-          totalPages: 1,
-        }));
+      let items = [];
+      if (Array.isArray(res)) {
+        items = res;
+      } else if (Array.isArray(res?.tasks)) {
+        items = res.tasks;
+      } else if (Array.isArray(res?.items)) {
+        items = res.items;
+      } else if (Array.isArray(res?.data)) {
+        items = res.data;
+      } else if (Array.isArray(res?.data?.tasks)) {
+        items = res.data.tasks;
       }
+
+      setTasks(items);
+
+      const total = res?.pagination?.totalItems ?? res?.pagination?.total ?? res?.totalItems ?? res?.total ?? items.length;
+      const totalPages = res?.pagination?.totalPages ?? res?.totalPages ?? Math.max(1, Math.ceil(total / (pagination.pageSize || 10)));
+      const page = res?.pagination?.page ?? res?.page ?? pagination.page;
+      const pageSize = res?.pagination?.pageSize ?? res?.pageSize ?? pagination.pageSize;
+
+      setPagination((prev) => ({
+        ...prev,
+        page,
+        pageSize,
+        total,
+        totalPages,
+      }));
     } catch (err) {
       console.error('Failed to load tasks:', err);
       setError(err.response?.data?.error || err.message || 'Failed to fetch tasks.');
@@ -143,6 +177,16 @@ export const AdminVolunteerTasks = () => {
         const d = new Date(createFormData.due_date);
         if (!isNaN(d.getTime())) {
           parsedDueDate = d.toISOString();
+        }
+      }
+
+      // If volunteer is not yet an approved event volunteer, add them to event first
+      const selectedVol = volunteersList.find(v => String(v.user_id || v.id) === String(createFormData.assignee_id));
+      if (selectedVol && (!selectedVol.isEventVol || selectedVol.status !== 'approved')) {
+        try {
+          await eventsService.addVolunteer(Number(createFormData.event_id), Number(createFormData.assignee_id));
+        } catch {
+          // Ignore if already present
         }
       }
 
@@ -571,15 +615,18 @@ export const AdminVolunteerTasks = () => {
                   <option value="">
                     {createFormData.event_id
                       ? volunteersList.length > 0
-                        ? 'Select Event Volunteer'
-                        : 'No approved volunteers for this event'
+                        ? 'Select Volunteer Assignee'
+                        : 'No volunteers found'
                       : 'Choose an event first'}
                   </option>
-                  {volunteersList.map((vol) => (
-                    <option key={vol.id} value={vol.user_id}>
-                      {vol.name} ({vol.email})
-                    </option>
-                  ))}
+                  {volunteersList.map((vol) => {
+                    const uid = vol.user_id || vol.id;
+                    return (
+                      <option key={uid} value={uid}>
+                        {vol.name || 'Volunteer'} ({vol.email || 'No email'}) {vol.isEventVol ? (vol.status === 'approved' ? '✓ Approved' : `(${vol.status || 'applied'})`) : '(Available)'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

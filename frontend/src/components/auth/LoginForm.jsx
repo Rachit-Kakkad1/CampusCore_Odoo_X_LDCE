@@ -13,6 +13,7 @@ const DB_ACCOUNTS = [
   { role: 'Treasurer', email: 'tara@odoo-ldce.org', desc: 'Finance & Ledger' },
   { role: 'Event Mgr', email: 'ethan@odoo-ldce.org', desc: 'Events & Tickets' },
   { role: 'Volunteer', email: 'vik@odoo-ldce.org', desc: 'Tasks & Check-in' },
+  { role: 'Member Vol', email: 'sam@odoo-ldce.org', desc: 'Member Assigned Volunteer' },
   { role: 'Active Member', email: 'maya@odoo-ldce.org', desc: 'Active Dues & Pass' },
   { role: 'Expired Member', email: 'eddie@odoo-ldce.org', desc: 'Expired Membership' },
 ];

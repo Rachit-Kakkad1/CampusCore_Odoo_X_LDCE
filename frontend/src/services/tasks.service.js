@@ -7,7 +7,7 @@ export const tasksService = {
    */
   async getAllTasks(filters = {}) {
     const res = await api.get('/tasks', { params: filters });
-    return res.data;
+    return res;
   },
 
   /**

@@ -101,8 +101,7 @@ export const PublicFundraiserDetailsPage = () => {
   const percentage = Math.round(rawPercentage);
   const isGoalReached = raised >= goal;
 
-  const defaultImage =
-    'https://images.unsplash.com/photo-1532629345422-7515f3d16bb7?auto=format&fit=crop&w=1200&q=80';
+  const defaultImage = '/college_fundraiser_event.jpg';
 
   return (
     <div className="min-h-screen bg-[#F7F6F2] flex flex-col font-sans text-[#1c1c1c]">

@@ -68,6 +68,11 @@ export const Navbar = () => {
                   <Link to="/dashboard" className={navLinkClass('/dashboard')}>
                     Workspace
                   </Link>
+                  {(user?.role === 'volunteer' || user?.role === 'admin' || user?.role === 'event_manager' || (user?.role === 'member' && user?.is_volunteer_assigned)) && (
+                    <Link to="/dashboard/tasks" className={navLinkClass('/dashboard/tasks')}>
+                      Volunteer Desk
+                    </Link>
+                  )}
                 </>
               )}
             </div>

@@ -39,7 +39,11 @@ class AuthRepository {
       SELECT 
         u.id, u.name, u.email, u.phone, u.role, u.created_at, u.updated_at,
         m.id AS membership_id, m.member_code, m.status AS membership_status,
-        m.dues_status, m.dues_amount, m.expiry_date
+        m.dues_status, m.dues_amount, m.expiry_date,
+        (
+          EXISTS (SELECT 1 FROM tasks t WHERE t.assignee_id = u.id)
+          OR EXISTS (SELECT 1 FROM event_volunteers ev WHERE ev.user_id = u.id AND LOWER(ev.status) IN ('approved', 'assigned'))
+        ) AS is_volunteer_assigned
       FROM users u
       LEFT JOIN memberships m ON u.id = m.user_id
       WHERE u.id = $1;

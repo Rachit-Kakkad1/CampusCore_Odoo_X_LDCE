@@ -1,6 +1,6 @@
 // frontend/src/pages/dashboard/VolunteerDashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
 import DashboardStat from '../../components/dashboard/DashboardStat';
@@ -27,6 +27,7 @@ import {
   MapPin,
   Clock,
   Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 
 export const VolunteerDashboard = () => {
@@ -85,7 +86,7 @@ export const VolunteerDashboard = () => {
       ]);
 
       if (tasksRes.status === 'fulfilled' && tasksRes.value) {
-        const tList = tasksRes.value?.data || tasksRes.value || [];
+        const tList = tasksRes.value?.tasks || tasksRes.value?.data || tasksRes.value || [];
         setTasks(Array.isArray(tList) ? tList : []);
       }
 
@@ -190,6 +191,23 @@ export const VolunteerDashboard = () => {
         subtitle={`Welcome, ${user?.name || 'Volunteer'}. Manage assigned shift tasks, discover volunteering opportunities, operate door check-in, and submit out-of-pocket expenses.`}
         badge="Execution Workspace"
       />
+
+      {/* Return to Member Portal Banner for Members */}
+      {user?.role === 'member' && (
+        <div className="mb-6 p-4 border border-blue-200 bg-blue-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+          <div className="flex items-center gap-2 text-blue-900">
+            <span className="font-bold">Member Volunteer Station:</span>
+            <span>You are accessing the volunteer operations desk for your assigned shift duties.</span>
+          </div>
+          <Link
+            to="/dashboard/member"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-900 text-white font-bold hover:bg-blue-800 transition-colors uppercase text-[10px] shrink-0"
+          >
+            <span>Back to Member Portal</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toast && (

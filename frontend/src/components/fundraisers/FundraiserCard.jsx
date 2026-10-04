@@ -29,8 +29,7 @@ export const FundraiserCard = ({ fundraiser, onDonateClick }) => {
     }
   }
 
-  const defaultImage =
-    'https://images.unsplash.com/photo-1532629345422-7515f3d16bb7?auto=format&fit=crop&w=800&q=80';
+  const defaultImage = '/college_fundraiser_event.jpg';
 
   return (
     <div className="bg-white border border-border shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group overflow-hidden rounded-xs">
