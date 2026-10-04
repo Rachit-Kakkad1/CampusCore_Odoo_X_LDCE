@@ -274,10 +274,23 @@ class MerchandiseRepository {
   }
 
   /**
-   * Get orders for a specific user
+   * Get orders for a specific user (backwards-compatible alias)
    */
-  async getOrdersByUserId(userId) {
-    const text = `
+  async getOrdersByUserId(userId, options = {}) {
+    return this.getUserOrders(userId, options);
+  }
+
+  async getUserOrders(userId, { page = null, pageSize = null, limit = null, offset = 0 } = {}) {
+    const isPaginated = page !== null || pageSize !== null || limit !== null;
+    const effectiveLimit = pageSize || limit;
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countRes = await query('SELECT COUNT(*)::int AS total FROM orders WHERE user_id = $1', [userId]);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    let text = `
       SELECT 
         o.id,
         o.order_code,
@@ -309,17 +322,63 @@ class MerchandiseRepository {
       LEFT JOIN products p ON ps.product_id = p.id
       WHERE o.user_id = $1
       GROUP BY o.id
-      ORDER BY o.created_at DESC;
+      ORDER BY o.created_at DESC, o.id DESC
     `;
-    const result = await query(text, [userId]);
-    return result.rows;
+
+    const params = [userId];
+    if (isPaginated && effectiveLimit !== null) {
+      params.push(effectiveLimit, offset);
+      text += ` LIMIT $2 OFFSET $3`;
+    }
+
+    const result = await query(text, params);
+    const rows = result.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+    return rows;
   }
 
   /**
-   * Get all orders (Admin / Treasurer)
+   * Get all orders (Admin / Treasurer) with optional pagination
    */
-  async getAllOrders() {
-    const text = `
+  async getAllOrders({ page = null, pageSize = null, limit = null, offset = 0, search = null, status = null } = {}) {
+    const isPaginated = page !== null || pageSize !== null || limit !== null;
+    const effectiveLimit = pageSize || limit;
+
+    const where = [];
+    const params = [];
+
+    if (status && status !== 'all') {
+      params.push(status);
+      where.push(`o.payment_status = $${params.length}`);
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const idx = params.length;
+      where.push(`(o.order_code ILIKE $${idx} OR u.name ILIKE $${idx} OR u.email ILIKE $${idx})`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `
+        SELECT COUNT(*)::int AS total
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        ${whereClause};
+      `;
+      const countRes = await query(countSql, params);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    let text = `
       SELECT 
         o.id,
         o.order_code,
@@ -352,11 +411,27 @@ class MerchandiseRepository {
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN product_sizes ps ON oi.product_size_id = ps.id
       LEFT JOIN products p ON ps.product_id = p.id
+      ${whereClause}
       GROUP BY o.id, u.id
-      ORDER BY o.created_at DESC;
+      ORDER BY o.created_at DESC, o.id DESC
     `;
-    const result = await query(text);
-    return result.rows;
+
+    const dataParams = [...params];
+    if (isPaginated && effectiveLimit !== null) {
+      dataParams.push(effectiveLimit, offset);
+      text += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+    }
+
+    const result = await query(text, dataParams);
+    const rows = result.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+    return rows;
   }
 
   /**

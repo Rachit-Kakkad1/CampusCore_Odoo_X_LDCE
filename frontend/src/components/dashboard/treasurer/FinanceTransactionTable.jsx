@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { DashboardTable } from '../DashboardTable';
 import { DashboardEmptyState } from '../DashboardEmptyState';
 import { StatusBadge } from '../StatusBadge';
+import Pagination from '../../common/Pagination';
 import { 
   ArrowUpRight, 
   ArrowDownRight, 
@@ -10,7 +11,7 @@ import {
   Ticket, 
   ShoppingBag, 
   HeartHandshake, 
-  Receipt,
+  Receipt, 
   Filter
 } from 'lucide-react';
 
@@ -25,6 +26,8 @@ import {
 export const FinanceTransactionTable = ({ transactions = [], loading = false }) => {
   const [sourceFilter, setSourceFilter] = useState('ALL');
   const [directionFilter, setDirectionFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filteredTransactions = transactions.filter((tx) => {
     const matchesSource =
@@ -35,6 +38,11 @@ export const FinanceTransactionTable = ({ transactions = [], loading = false }) 
       tx.direction?.toLowerCase() === directionFilter.toLowerCase();
     return matchesSource && matchesDirection;
   });
+
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   const getSourceIcon = (sourceType) => {
     switch (sourceType?.toLowerCase()) {
@@ -85,7 +93,10 @@ export const FinanceTransactionTable = ({ transactions = [], loading = false }) 
           {/* Source Stream Filter */}
           <select
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
+            onChange={(e) => {
+              setSourceFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="text-xs font-mono bg-slate-50 border border-border px-2.5 py-1.5 focus:outline-none focus:border-primary text-slate-800"
           >
             <option value="ALL">All Sources</option>
@@ -99,7 +110,10 @@ export const FinanceTransactionTable = ({ transactions = [], loading = false }) 
           {/* Direction Filter */}
           <select
             value={directionFilter}
-            onChange={(e) => setDirectionFilter(e.target.value)}
+            onChange={(e) => {
+              setDirectionFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="text-xs font-mono bg-slate-50 border border-border px-2.5 py-1.5 focus:outline-none focus:border-primary text-slate-800"
           >
             <option value="ALL">All Flows (In & Out)</option>
@@ -124,87 +138,104 @@ export const FinanceTransactionTable = ({ transactions = [], loading = false }) 
           }
         />
       ) : (
-        <DashboardTable
-          headers={['TX Code', 'Source Stream', 'Flow & Amount', 'Payment Mode', 'User / Account', 'Timestamp']}
-        >
-          {filteredTransactions.map((tx) => {
-            const isIncoming = tx.direction?.toLowerCase() === 'in';
-            const amountFormatted = Number(tx.amount || 0).toLocaleString('en-IN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
-            const txDate = tx.created_at
-              ? new Date(tx.created_at).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : '—';
+        <div className="space-y-3">
+          <DashboardTable
+            headers={['TX Code', 'Source Stream', 'Flow & Amount', 'Payment Mode', 'User / Account', 'Timestamp']}
+          >
+            {paginatedTransactions.map((tx) => {
+              const isIncoming = tx.direction?.toLowerCase() === 'in';
+              const amountFormatted = Number(tx.amount || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+              const txDate = tx.created_at
+                ? new Date(tx.created_at).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—';
 
-            return (
-              <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors border-b border-border/60">
-                {/* 1. Transaction Code */}
-                <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">
-                  TX-#{String(tx.id).padStart(4, '0')}
-                </td>
+              return (
+                <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors border-b border-border/60">
+                  {/* 1. Transaction Code */}
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">
+                    TX-#{String(tx.id).padStart(4, '0')}
+                  </td>
 
-                {/* 2. Source Type */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    {getSourceIcon(tx.source_type)}
-                    {getSourceBadge(tx.source_type)}
-                    <span className="font-mono text-[11px] text-muted">
-                      #{tx.source_id}
-                    </span>
-                  </div>
-                </td>
-
-                {/* 3. Flow & Amount */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 font-mono text-sm font-bold">
-                    {isIncoming ? (
-                      <span className="text-emerald-700 flex items-center">
-                        <ArrowUpRight className="w-4 h-4 mr-0.5 inline" />
-                        +₹{amountFormatted}
+                  {/* 2. Source Type */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {getSourceIcon(tx.source_type)}
+                      {getSourceBadge(tx.source_type)}
+                      <span className="font-mono text-[11px] text-muted">
+                        #{tx.source_id}
                       </span>
-                    ) : (
-                      <span className="text-rose-700 flex items-center">
-                        <ArrowDownRight className="w-4 h-4 mr-0.5 inline" />
-                        -₹{amountFormatted}
+                    </div>
+                  </td>
+
+                  {/* 3. Flow & Amount */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 font-mono text-sm font-bold">
+                      {isIncoming ? (
+                        <span className="text-emerald-700 flex items-center">
+                          <ArrowUpRight className="w-4 h-4 mr-0.5 inline" />
+                          +₹{amountFormatted}
+                        </span>
+                      ) : (
+                        <span className="text-rose-700 flex items-center">
+                          <ArrowDownRight className="w-4 h-4 mr-0.5 inline" />
+                          -₹{amountFormatted}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* 4. Payment Mode */}
+                  <td className="px-4 py-3 font-mono text-xs uppercase text-slate-700">
+                    <span className="px-2 py-0.5 bg-slate-100 border border-border text-[11px]">
+                      {tx.payment_mode || 'online'}
+                    </span>
+                  </td>
+
+                  {/* 5. User / Account */}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-slate-900 truncate max-w-[180px]">
+                        {tx.user_name || 'System / Direct'}
                       </span>
-                    )}
-                  </div>
-                </td>
+                      <span className="font-mono text-[10px] text-muted truncate max-w-[180px]">
+                        {tx.user_email || `ID: ${tx.user_id || 'N/A'}`}
+                      </span>
+                    </div>
+                  </td>
 
-                {/* 4. Payment Mode */}
-                <td className="px-4 py-3 font-mono text-xs uppercase text-slate-700">
-                  <span className="px-2 py-0.5 bg-slate-100 border border-border text-[11px]">
-                    {tx.payment_mode || 'online'}
-                  </span>
-                </td>
+                  {/* 6. Date / Timestamp */}
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
+                    {txDate}
+                  </td>
+                </tr>
+              );
+            })}
+          </DashboardTable>
 
-                {/* 5. User / Account */}
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-slate-900 truncate max-w-[180px]">
-                      {tx.user_name || 'System / Direct'}
-                    </span>
-                    <span className="font-mono text-[10px] text-muted truncate max-w-[180px]">
-                      {tx.user_email || `ID: ${tx.user_id || 'N/A'}`}
-                    </span>
-                  </div>
-                </td>
-
-                {/* 6. Date / Timestamp */}
-                <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
-                  {txDate}
-                </td>
-              </tr>
-            );
-          })}
-        </DashboardTable>
+          {filteredTransactions.length > pageSize && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredTransactions.length / pageSize)}
+              totalItems={filteredTransactions.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
+          )}
+        </div>
       )}
     </div>
   );

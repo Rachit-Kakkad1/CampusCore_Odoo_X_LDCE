@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { DashboardTable } from '../DashboardTable';
 import { DashboardEmptyState } from '../DashboardEmptyState';
 import { ActionButton } from '../ActionButton';
+import Pagination from '../../common/Pagination';
 import { 
   HeartHandshake, 
   Plus, 
@@ -33,6 +34,13 @@ export const FundraiserIncomeSection = ({
 }) => {
   const [showNewFundraiserModal, setShowNewFundraiserModal] = useState(false);
   const [selectedFundraiserForIncome, setSelectedFundraiserForIncome] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+
+  const paginatedFundraisers = fundraisers.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   // New Fundraiser Form State
   const [title, setTitle] = useState('');
@@ -120,71 +128,88 @@ export const FundraiserIncomeSection = ({
           description="There are no active community fundraising campaigns logged in the system."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {fundraisers.map((f) => {
-            const raisedFormatted = Number(f.total_raised || 0).toLocaleString('en-IN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {paginatedFundraisers.map((f) => {
+              const raisedFormatted = Number(f.total_raised || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
 
-            return (
-              <div
-                key={f.id}
-                className="bg-white border border-border p-6 flex flex-col justify-between space-y-4 shadow-xs hover:border-slate-400 transition-colors"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
-                      Campaign ID: FND-#{String(f.id).padStart(3, '0')}
-                    </span>
-                    <span className="px-2 py-0.5 font-mono text-[10px] uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Active Campaign
-                    </span>
+              return (
+                <div
+                  key={f.id}
+                  className="bg-white border border-border p-6 flex flex-col justify-between space-y-4 shadow-xs hover:border-slate-400 transition-colors"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+                        Campaign ID: FND-#{String(f.id).padStart(3, '0')}
+                      </span>
+                      <span className="px-2 py-0.5 font-mono text-[10px] uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Active Campaign
+                      </span>
+                    </div>
+
+                    <h3 className="font-serif text-xl font-bold text-slate-900">
+                      {f.title}
+                    </h3>
+
+                    <p className="font-sans text-xs text-slate-600 leading-relaxed">
+                      {f.description || 'General community fundraising initiative.'}
+                    </p>
                   </div>
 
-                  <h3 className="font-serif text-xl font-bold text-slate-900">
-                    {f.title}
-                  </h3>
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border bg-slate-50 p-3">
+                    <div>
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-muted block">
+                        Total Revenue Raised
+                      </span>
+                      <span className="font-mono text-xl font-bold text-emerald-800 block mt-0.5">
+                        ₹{raisedFormatted}
+                      </span>
+                    </div>
 
-                  <p className="font-sans text-xs text-slate-600 leading-relaxed">
-                    {f.description || 'General community fundraising initiative.'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border bg-slate-50 p-3">
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted block">
-                      Total Revenue Raised
-                    </span>
-                    <span className="font-mono text-xl font-bold text-emerald-800 block mt-0.5">
-                      ₹{raisedFormatted}
-                    </span>
+                    <div>
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-muted block">
+                        Volunteer Tasks
+                      </span>
+                      <span className="font-mono text-xs font-bold text-slate-800 block mt-1.5 flex items-center gap-1">
+                        <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                        {f.completed_tasks || 0} / {f.total_tasks || 0} Completed
+                      </span>
+                    </div>
                   </div>
 
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted block">
-                      Volunteer Tasks
-                    </span>
-                    <span className="font-mono text-xs font-bold text-slate-800 block mt-1.5 flex items-center gap-1">
-                      <CheckSquare className="w-3.5 h-3.5 text-primary" />
-                      {f.completed_tasks || 0} / {f.total_tasks || 0} Completed
-                    </span>
+                  <div className="pt-2">
+                    <ActionButton
+                      variant="primary"
+                      onClick={() => setSelectedFundraiserForIncome(f)}
+                      className="w-full text-center justify-center bg-emerald-800 hover:bg-emerald-900 border-emerald-800"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1 inline" />
+                      Record Income Batch
+                    </ActionButton>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                <div className="pt-2">
-                  <ActionButton
-                    variant="primary"
-                    onClick={() => setSelectedFundraiserForIncome(f)}
-                    className="w-full text-center justify-center bg-emerald-800 hover:bg-emerald-900 border-emerald-800"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1 inline" />
-                    Record Income Batch
-                  </ActionButton>
-                </div>
-              </div>
-            );
-          })}
+          {fundraisers.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(fundraisers.length / pageSize)}
+              totalItems={fundraisers.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[4, 6, 12, 24]}
+            />
+          )}
         </div>
       )}
 

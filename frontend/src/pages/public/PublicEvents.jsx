@@ -5,6 +5,7 @@ import Navbar from '../../components/common/Navbar';
 import eventsService from '../../services/events.service';
 import authService from '../../services/auth.service';
 import membershipService from '../../services/membership.service';
+import Pagination from '../../components/common/Pagination';
 import { Calendar, MapPin, Search, ArrowRight, ShieldCheck, AlertCircle, Ticket, ArrowLeft } from 'lucide-react';
 
 export const PublicEvents = () => {
@@ -12,6 +13,8 @@ export const PublicEvents = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
   const [error, setError] = useState(null);
 
   // User & Membership state (for dynamic member pricing display)
@@ -95,6 +98,11 @@ export const PublicEvents = () => {
     return matchesStatus && matchesSearch;
   });
 
+  const paginatedEvents = filteredEvents.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
+
   return (
     <div className="min-h-screen bg-[#f7f6f2] text-[#1c1c1c] flex flex-col justify-between selection:bg-[#5F3F56] selection:text-white">
       <Navbar />
@@ -135,7 +143,10 @@ export const PublicEvents = () => {
                   type="text"
                   placeholder="Search events or venue..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full pl-9 pr-4 py-2.5 bg-white/70 border border-[#e5e4de] font-mono text-xs text-[#1c1c1c] placeholder-[#1c1c1c]/40 focus:outline-none focus:border-[#5F3F56]"
                 />
               </div>
@@ -153,7 +164,10 @@ export const PublicEvents = () => {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setStatusFilter(tab.id)}
+                onClick={() => {
+                  setStatusFilter(tab.id);
+                  setPage(1);
+                }}
                 className={`px-3.5 py-1.5 text-xs font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-2 ${
                   statusFilter === tab.id
                     ? 'bg-[#5F3F56] text-white border-[#5F3F56] shadow-xs'
@@ -199,8 +213,9 @@ export const PublicEvents = () => {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredEvents.map((event) => {
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {paginatedEvents.map((event) => {
                 const regularPrice = Number(event.non_member_price || 0).toFixed(2);
                 const memberPrice = Number(event.member_price || 0).toFixed(2);
                 const savings = (Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2);
@@ -359,6 +374,24 @@ export const PublicEvents = () => {
                   </div>
                 );
               })}
+              </div>
+
+              {filteredEvents.length > pageSize && (
+                <div className="pt-2">
+                  <Pagination
+                    currentPage={page}
+                    totalPages={Math.ceil(filteredEvents.length / pageSize)}
+                    totalItems={filteredEvents.length}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                    onPageSizeChange={(newSize) => {
+                      setPageSize(newSize);
+                      setPage(1);
+                    }}
+                    pageSizeOptions={[4, 6, 12, 24]}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

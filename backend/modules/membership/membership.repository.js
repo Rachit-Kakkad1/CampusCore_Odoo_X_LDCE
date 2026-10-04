@@ -298,44 +298,99 @@ const membershipRepository = {
   },
 
   /**
-   * Retrieve all memberships with optional status filtering and search.
+   * Retrieve memberships with optional status filtering, search, and server-side pagination.
    */
   async findAll(filter = {}, client = null) {
-    const { status, search } = filter;
+    const {
+      status,
+      search,
+      page = null,
+      pageSize = null,
+      limit = null,
+      offset = 0,
+      sort = 'created_at',
+      sortDirection = 'DESC',
+    } = filter;
+
+    const where = [];
+    const params = [];
+
+    if (status && status !== 'all' && status !== 'ALL') {
+      const normStatus = status.toLowerCase();
+      if (normStatus === 'active') {
+        where.push(`(m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW()) AND m.status != 'cancelled')`);
+      } else if (normStatus === 'expired') {
+        where.push(`(m.dues_status = 'paid' AND m.expiry_date <= NOW() AND m.status != 'cancelled')`);
+      } else if (normStatus === 'pending') {
+        where.push(`(m.dues_status = 'pending' AND m.status != 'cancelled')`);
+      } else if (normStatus === 'cancelled') {
+        where.push(`(m.status = 'cancelled')`);
+      }
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const idx = params.length;
+      where.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx} OR m.member_code ILIKE $${idx})`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = effectiveLimit !== null && effectiveLimit !== undefined;
+
+    // 1. Total count query
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `
+        SELECT COUNT(*)::int AS total
+        FROM memberships m
+        JOIN users u ON m.user_id = u.id
+        ${whereClause};
+      `;
+      const countRes = client ? await client.query(countSql, params) : await query(countSql, params);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    // 2. Data rows query with deterministic ordering
+    const safeSortCol = ['created_at', 'id', 'member_code', 'expiry_date'].includes(sort)
+      ? `m.${sort}`
+      : 'm.created_at';
+    const safeDir = sortDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
     let sql = `
       SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
              CASE
+               WHEN m.status = 'cancelled' THEN 'cancelled'
                WHEN m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW()) THEN 'active'
                WHEN m.dues_status = 'paid' AND m.expiry_date <= NOW() THEN 'expired'
                ELSE 'pending'
              END AS status,
-             (m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW())) as is_active,
+             (m.status != 'cancelled' AND m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW())) as is_active,
              GREATEST(0, CEIL(EXTRACT(EPOCH FROM (m.expiry_date - NOW())) / 86400))::int as days_remaining
       FROM memberships m
       JOIN users u ON m.user_id = u.id
-      WHERE 1=1
+      ${whereClause}
+      ORDER BY ${safeSortCol} ${safeDir}, m.id ${safeDir}
     `;
-    const params = [];
 
-    if (status && status !== 'all') {
-      const normStatus = status.toLowerCase();
-      if (normStatus === 'active') {
-        sql += ` AND (m.dues_status = 'paid' AND (m.expiry_date IS NULL OR m.expiry_date > NOW()))`;
-      } else if (normStatus === 'expired') {
-        sql += ` AND (m.dues_status = 'paid' AND m.expiry_date <= NOW())`;
-      } else if (normStatus === 'pending') {
-        sql += ` AND (m.dues_status = 'pending')`;
-      }
+    const dataParams = [...params];
+    if (isPaginated) {
+      dataParams.push(effectiveLimit, offset);
+      sql += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
     }
 
-    if (search) {
-      params.push(`%${search}%`);
-      sql += ` AND (u.name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR m.member_code ILIKE $${params.length})`;
+    const res = client ? await client.query(sql, dataParams) : await query(sql, dataParams);
+    const rows = res.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
     }
 
-    sql += ' ORDER BY m.created_at DESC';
-    const res = client ? await client.query(sql, params) : await query(sql, params);
-    return res.rows;
+    return rows;
   },
 
   async getAllMembers(filter = {}, client = null) {

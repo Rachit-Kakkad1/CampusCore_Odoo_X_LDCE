@@ -5,6 +5,7 @@ import AdminProductList from '../../merchandise/AdminProductList';
 import AdminProductForm from '../../merchandise/AdminProductForm';
 import { StatusBadge } from '../StatusBadge';
 import { ThreeDCard } from '../charts/ThreeDCharts';
+import Pagination from '../../common/Pagination';
 import {
   Plus,
   ShoppingBag,
@@ -30,6 +31,10 @@ export const AdminMerchandiseManagement = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [search, setSearch] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const [productPageSize, setProductPageSize] = useState(6);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState(10);
 
   // Computed metrics
   const totalProducts = products.length;
@@ -50,6 +55,16 @@ export const AdminMerchandiseManagement = ({
     const q = search.toLowerCase();
     return p.name && p.name.toLowerCase().includes(q);
   });
+
+  const paginatedProducts = filteredProducts.slice(
+    (productPage - 1) * productPageSize,
+    productPage * productPageSize
+  );
+
+  const paginatedOrders = orders.slice(
+    (orderPage - 1) * orderPageSize,
+    orderPage * orderPageSize
+  );
 
   return (
     <div className="space-y-8">
@@ -172,7 +187,10 @@ export const AdminMerchandiseManagement = ({
             type="text"
             placeholder="Search catalog by product name..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setProductPage(1);
+            }}
             className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-primary focus:bg-white font-mono transition-colors"
           />
         </div>
@@ -215,12 +233,28 @@ export const AdminMerchandiseManagement = ({
       {/* ========================================================================= */}
       {/* 4. LIVE INVENTORY SIZE MATRIX GRID                                        */}
       {/* ========================================================================= */}
-      <AdminProductList
-        products={filteredProducts}
-        onUpdateStock={onUpdateStock}
-        onProductUpdated={onProductUpdated}
-        loading={loading}
-      />
+      <div className="space-y-4">
+        <AdminProductList
+          products={paginatedProducts}
+          onUpdateStock={onUpdateStock}
+          onProductUpdated={onProductUpdated}
+          loading={loading}
+        />
+        {filteredProducts.length > productPageSize && (
+          <Pagination
+            currentPage={productPage}
+            totalPages={Math.ceil(filteredProducts.length / productPageSize)}
+            totalItems={filteredProducts.length}
+            pageSize={productPageSize}
+            onPageChange={setProductPage}
+            onPageSizeChange={(newSize) => {
+              setProductPageSize(newSize);
+              setProductPage(1);
+            }}
+            pageSizeOptions={[6, 12, 24]}
+          />
+        )}
+      </div>
 
       {/* ========================================================================= */}
       {/* 5. CUSTOMER ORDERS AUDIT SECTION                                          */}
@@ -245,37 +279,54 @@ export const AdminMerchandiseManagement = ({
             No customer orders placed yet. As students and members place orders, transactions will register live here.
           </div>
         ) : (
-          <div className="border border-border bg-white overflow-x-auto shadow-2xs">
-            <table className="w-full text-left font-mono text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-slate-50/80 text-[10px] uppercase font-bold tracking-wider text-slate-600">
-                  <th className="p-3.5">Order Code</th>
-                  <th className="p-3.5">Customer</th>
-                  <th className="p-3.5">Subtotal</th>
-                  <th className="p-3.5">Discount</th>
-                  <th className="p-3.5">Total Paid</th>
-                  <th className="p-3.5">Payment Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {orders.map((ord) => (
-                  <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-bold text-slate-900">{ord.order_code}</td>
-                    <td className="p-3.5 text-slate-700">
-                      {ord.user_name || `User #${ord.user_id}`}
-                    </td>
-                    <td className="p-3.5">₹{Number(ord.subtotal).toFixed(2)}</td>
-                    <td className="p-3.5 text-primary font-semibold">
-                      {Number(ord.discount) > 0 ? `-₹${Number(ord.discount).toFixed(2)}` : '₹0.00'}
-                    </td>
-                    <td className="p-3.5 font-bold text-emerald-700">₹{Number(ord.total).toFixed(2)}</td>
-                    <td className="p-3.5">
-                      <StatusBadge status={ord.payment_status} />
-                    </td>
+          <div className="space-y-3">
+            <div className="border border-border bg-white overflow-x-auto shadow-2xs">
+              <table className="w-full text-left font-mono text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-slate-50/80 text-[10px] uppercase font-bold tracking-wider text-slate-600">
+                    <th className="p-3.5">Order Code</th>
+                    <th className="p-3.5">Customer</th>
+                    <th className="p-3.5">Subtotal</th>
+                    <th className="p-3.5">Discount</th>
+                    <th className="p-3.5">Total Paid</th>
+                    <th className="p-3.5">Payment Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedOrders.map((ord) => (
+                    <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5 font-bold text-slate-900">{ord.order_code}</td>
+                      <td className="p-3.5 text-slate-700">
+                        {ord.user_name || `User #${ord.user_id}`}
+                      </td>
+                      <td className="p-3.5">₹{Number(ord.subtotal).toFixed(2)}</td>
+                      <td className="p-3.5 text-primary font-semibold">
+                        {Number(ord.discount) > 0 ? `-₹${Number(ord.discount).toFixed(2)}` : '₹0.00'}
+                      </td>
+                      <td className="p-3.5 font-bold text-emerald-700">₹{Number(ord.total).toFixed(2)}</td>
+                      <td className="p-3.5">
+                        <StatusBadge status={ord.payment_status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {orders.length > orderPageSize && (
+              <Pagination
+                currentPage={orderPage}
+                totalPages={Math.ceil(orders.length / orderPageSize)}
+                totalItems={orders.length}
+                pageSize={orderPageSize}
+                onPageChange={setOrderPage}
+                onPageSizeChange={(newSize) => {
+                  setOrderPageSize(newSize);
+                  setOrderPage(1);
+                }}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            )}
           </div>
         )}
       </div>

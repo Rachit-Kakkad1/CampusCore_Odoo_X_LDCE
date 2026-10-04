@@ -3,6 +3,7 @@ import { Navbar } from '../../components/common/Navbar';
 import { FundraiserCard } from '../../components/fundraisers/FundraiserCard';
 import { DonationCheckoutModal } from '../../components/fundraisers/DonationCheckoutModal';
 import fundraiserService from '../../services/fundraiser.service';
+import Pagination from '../../components/common/Pagination';
 import {
   Heart,
   Search,
@@ -21,19 +22,35 @@ export const PublicFundraisersPage = () => {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+  const [paginationInfo, setPaginationInfo] = useState(null);
 
   // Checkout Modal State
   const [selectedFundraiserForDonation, setSelectedFundraiserForDonation] = useState(null);
 
-  const fetchFundraisers = async () => {
+  const fetchFundraisers = async (targetPage = page, targetPageSize = pageSize) => {
     try {
       setLoading(true);
       setError(null);
       const res = await fundraiserService.getPublicFundraisers({
         status: statusFilter === 'all' ? null : statusFilter,
         search: search.trim() || null,
+        page: targetPage,
+        pageSize: targetPageSize,
       });
-      setFundraisers(res.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setFundraisers(list);
+      if (res?.pagination) {
+        setPaginationInfo(res.pagination);
+      } else {
+        setPaginationInfo({
+          page: targetPage,
+          pageSize: targetPageSize,
+          totalItems: list.length,
+          totalPages: Math.ceil(list.length / targetPageSize) || 1,
+        });
+      }
     } catch (err) {
       console.error('Error fetching fundraisers:', err);
       setError('Unable to load campaigns at this time. Please try again.');
@@ -43,12 +60,25 @@ export const PublicFundraisersPage = () => {
   };
 
   useEffect(() => {
-    fetchFundraisers();
+    setPage(1);
+    fetchFundraisers(1, pageSize);
   }, [statusFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchFundraisers();
+    setPage(1);
+    fetchFundraisers(1, pageSize);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchFundraisers(newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setPage(1);
+    fetchFundraisers(1, newPageSize);
   };
 
   const handleDonationSuccess = (donation) => {
@@ -191,14 +221,31 @@ export const PublicFundraisersPage = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {fundraisers.map((f) => (
-              <FundraiserCard
-                key={f.id}
-                fundraiser={f}
-                onDonateClick={(item) => setSelectedFundraiserForDonation(item)}
-              />
-            ))}
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {fundraisers.map((f) => (
+                <FundraiserCard
+                  key={f.id}
+                  fundraiser={f}
+                  onDonateClick={(item) => setSelectedFundraiserForDonation(item)}
+                />
+              ))}
+            </div>
+
+            {paginationInfo && paginationInfo.totalItems > pageSize && (
+              <div className="pt-2">
+                <Pagination
+                  page={page}
+                  currentPage={page}
+                  totalPages={paginationInfo.totalPages}
+                  totalItems={paginationInfo.totalItems}
+                  pageSize={pageSize}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  pageSizeOptions={[3, 6, 12, 24]}
+                />
+              </div>
+            )}
           </div>
         )}
       </main>

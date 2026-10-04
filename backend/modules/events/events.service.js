@@ -87,10 +87,10 @@ class EventsService {
   }
 
   /**
-   * Retrieves all events.
+   * Retrieves events (with optional filtering, search, and pagination).
    */
-  async getAllEvents() {
-    return await eventRepository.getAllEvents();
+  async getAllEvents(filter = {}) {
+    return await eventRepository.getAllEvents(filter);
   }
 
   /**

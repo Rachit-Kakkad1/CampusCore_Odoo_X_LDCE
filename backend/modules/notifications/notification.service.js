@@ -42,12 +42,22 @@ class NotificationService {
     `;
     const res = await pool.query(queryText, [userId, parsedLimit, offset]);
 
+    const totalPages = total > 0 ? Math.ceil(total / parsedLimit) : 0;
     return {
+      data: res.rows,
       notifications: res.rows,
       total,
       page: parsedPage,
       limit: parsedLimit,
-      totalPages: Math.ceil(total / parsedLimit),
+      totalPages,
+      pagination: {
+        page: parsedPage,
+        pageSize: parsedLimit,
+        totalItems: total,
+        totalPages,
+        hasNextPage: parsedPage < totalPages,
+        hasPreviousPage: parsedPage > 1,
+      },
     };
   }
 

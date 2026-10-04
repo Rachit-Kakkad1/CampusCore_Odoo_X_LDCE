@@ -22,13 +22,14 @@ import {
   Terminal
 } from 'lucide-react';
 import api from '../../../services/api';
+import Pagination from '../../common/Pagination';
 
 export const AdminSecurityManagement = () => {
   const [overview, setOverview] = useState({ activeSessions: 0, recentLogs: [] });
   const [logs, setLogs] = useState([]);
   const [totalLogs, setTotalLogs] = useState(0);
   const [page, setPage] = useState(1);
-  const [limit] = useState(15);
+  const [limit, setLimit] = useState(15);
   const [totalPages, setTotalPages] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,21 +48,21 @@ export const AdminSecurityManagement = () => {
     }
   }, []);
 
-  const fetchAuditLogs = useCallback(async (targetPage = 1, filter = '') => {
+  const fetchAuditLogs = useCallback(async (targetPage = 1, filter = '', targetLimit = limit) => {
     try {
       setLoading(true);
       const query = new URLSearchParams({
         page: targetPage.toString(),
-        limit: limit.toString(),
+        limit: targetLimit.toString(),
       });
       if (filter) query.set('action', filter);
 
       const res = await api.get(`/admin/security/audit-logs?${query.toString()}`);
       if (res && res.success) {
-        setLogs(res.logs || []);
-        setTotalLogs(res.total || 0);
-        setPage(res.page || 1);
-        setTotalPages(res.totalPages || 1);
+        setLogs(res.logs || res.data || []);
+        setTotalLogs(res.pagination?.totalItems || res.total || 0);
+        setPage(res.pagination?.page || res.page || 1);
+        setTotalPages(res.pagination?.totalPages || res.totalPages || 1);
       }
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
@@ -335,30 +336,21 @@ export const AdminSecurityManagement = () => {
           </table>
         </div>
 
-        {/* Pagination Bar */}
-        <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <div>
-            Showing page {page} of {totalPages} ({totalLogs} total events)
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fetchAuditLogs(page - 1, actionFilter)}
-              disabled={page <= 1 || loading}
-              className="px-2.5 py-1 border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 cursor-pointer flex items-center gap-1"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              Previous
-            </button>
-            <button
-              onClick={() => fetchAuditLogs(page + 1, actionFilter)}
-              disabled={page >= totalPages || loading}
-              className="px-2.5 py-1 border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 cursor-pointer flex items-center gap-1"
-            >
-              Next
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+        {/* Standard Pagination Bar */}
+        <Pagination
+          page={page}
+          pageSize={limit}
+          totalItems={totalLogs}
+          totalPages={totalPages}
+          loading={loading}
+          pageSizeOptions={[10, 15, 25, 50, 100]}
+          onPageChange={(newPage) => fetchAuditLogs(newPage, actionFilter)}
+          onPageSizeChange={(newLimit) => {
+            setLimit(newLimit);
+            fetchAuditLogs(1, actionFilter, newLimit);
+          }}
+          className="border-t border-slate-200 rounded-none border-x-0 border-b-0"
+        />
       </div>
     </div>
   );

@@ -1,10 +1,13 @@
 // frontend/src/components/dashboard/member/MemberOrderSection.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardSection } from '../DashboardSection';
 import { DashboardEmptyState } from '../DashboardEmptyState';
 import { StatusBadge } from '../StatusBadge';
+import Pagination from '../../common/Pagination';
 
 export const MemberOrderSection = ({ orders = [], loading = false }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
   if (loading) {
     return (
       <DashboardSection
@@ -28,7 +31,8 @@ export const MemberOrderSection = ({ orders = [], loading = false }) => {
         />
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => {
+          <div className="space-y-4">
+            {orders.slice((page - 1) * pageSize, page * pageSize).map((order) => {
             const subtotal = Number(order.subtotal || 0).toFixed(2);
             const discount = Number(order.discount || 0).toFixed(2);
             const total = Number(order.total || 0).toFixed(2);
@@ -102,6 +106,22 @@ export const MemberOrderSection = ({ orders = [], loading = false }) => {
               </div>
             );
           })}
+          </div>
+
+          {orders.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(orders.length / pageSize)}
+              totalItems={orders.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[5, 10, 20]}
+            />
+          )}
         </div>
       )}
     </DashboardSection>

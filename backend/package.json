@@ -9,6 +9,7 @@
     "db:test": "node db/connection.js",
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
+    "db:seed:mega": "node db/seed_mega.js",
     "db:verify": "node db/verify.js",
     "test": "node tests/runAllTests.js",
     "migrate": "node db/migrate.js",

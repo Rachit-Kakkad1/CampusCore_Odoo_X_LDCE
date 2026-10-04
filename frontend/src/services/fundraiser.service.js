@@ -11,7 +11,7 @@ export const fundraiserService = {
    */
   async getPublicFundraisers(params = {}) {
     const res = await api.get('/fundraisers', { params });
-    return res.data;
+    return res;
   },
 
   /**
@@ -19,7 +19,7 @@ export const fundraiserService = {
    */
   async getFundraiser(idOrSlug) {
     const res = await api.get(`/fundraisers/${idOrSlug}`);
-    return res.data;
+    return res;
   },
 
   /**
@@ -27,7 +27,7 @@ export const fundraiserService = {
    */
   async checkoutDonation(fundraiserId, donationData) {
     const res = await api.post(`/fundraisers/${fundraiserId}/donations/checkout`, donationData);
-    return res.data;
+    return res;
   },
 
   /**
@@ -35,7 +35,7 @@ export const fundraiserService = {
    */
   async payDonation(donationId, paymentPayload = {}) {
     const res = await api.post(`/fundraisers/donations/${donationId}/pay`, paymentPayload);
-    return res.data;
+    return res;
   },
 
   /**
@@ -43,7 +43,7 @@ export const fundraiserService = {
    */
   async failDonation(donationId, reason = '') {
     const res = await api.post(`/fundraisers/donations/${donationId}/fail`, { reason });
-    return res.data;
+    return res;
   },
 
   /**
@@ -51,7 +51,7 @@ export const fundraiserService = {
    */
   async getDonation(donationId) {
     const res = await api.get(`/fundraisers/donations/${donationId}`);
-    return res.data;
+    return res;
   },
 
   /**
@@ -59,7 +59,7 @@ export const fundraiserService = {
    */
   async getUserDonations() {
     const res = await api.get('/fundraisers/donations/user/my');
-    return res.data;
+    return res;
   },
 
   /**
@@ -67,7 +67,7 @@ export const fundraiserService = {
    */
   async getAdminFundraisers(params = {}) {
     const res = await api.get('/fundraisers/admin', { params });
-    return res.data;
+    return res;
   },
 
   /**
@@ -75,7 +75,7 @@ export const fundraiserService = {
    */
   async getGlobalStats() {
     const res = await api.get('/fundraisers/admin/stats');
-    return res.data;
+    return res;
   },
 
   /**
@@ -83,7 +83,7 @@ export const fundraiserService = {
    */
   async getAdminDonations(params = {}) {
     const res = await api.get('/fundraisers/donations/admin/list', { params });
-    return res.data;
+    return res;
   },
 
   /**
@@ -91,7 +91,7 @@ export const fundraiserService = {
    */
   async createFundraiser(data) {
     const res = await api.post('/fundraisers', data);
-    return res.data;
+    return res;
   },
 
   /**
@@ -99,7 +99,7 @@ export const fundraiserService = {
    */
   async updateFundraiser(id, data) {
     const res = await api.put(`/fundraisers/${id}`, data);
-    return res.data;
+    return res;
   },
 
   /**
@@ -107,7 +107,7 @@ export const fundraiserService = {
    */
   async setStatus(id, status) {
     const res = await api.patch(`/fundraisers/${id}/status`, { status });
-    return res.data;
+    return res;
   },
 
   /**
@@ -115,7 +115,7 @@ export const fundraiserService = {
    */
   async refundDonation(donationId, reason = '') {
     const res = await api.post(`/fundraisers/donations/${donationId}/refund`, { reason });
-    return res.data;
+    return res;
   },
 };
 

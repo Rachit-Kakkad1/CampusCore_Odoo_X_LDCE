@@ -38,11 +38,57 @@ class AuthController {
 
   async getAllUsers(req, res) {
     try {
-      const users = await authService.getAllUsers();
-      return res.status(200).json({ success: true, data: users });
+      const { role, search } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset, sort, sortDirection } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+          allowedSortFields: ['id', 'name', 'email', 'role', 'created_at'],
+          defaultSort: 'id',
+          defaultSortDirection: 'ASC',
+        });
+
+        const result = await authService.getAllUsers({
+          role,
+          search,
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          sort,
+          sortDirection,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          users: rows,
+        });
+      }
+
+      // Backward-compatible unpaginated query
+      const users = await authService.getAllUsers({ role, search });
+      const list = Array.isArray(users) ? users : (users.rows || []);
+      return res.status(200).json({
+        success: true,
+        count: list.length,
+        data: list,
+        users: list,
+      });
     } catch (err) {
       const status = err.status || 500;
-      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   }
 

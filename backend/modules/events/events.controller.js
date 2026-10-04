@@ -29,16 +29,57 @@ class EventsController {
 
   async getAllEvents(req, res) {
     try {
-      const events = await eventsService.getAllEvents();
+      const { status, search } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset, sort, sortDirection } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+          allowedSortFields: ['starts_at', 'created_at', 'id', 'title', 'capacity'],
+          defaultSort: 'starts_at',
+          defaultSortDirection: 'ASC',
+        });
+
+        const result = await eventsService.getAllEvents({
+          status,
+          search,
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          sort,
+          sortDirection,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          events: rows,
+        });
+      }
+
+      // Backward-compatible unpaginated query
+      const events = await eventsService.getAllEvents({ status, search });
+      const list = Array.isArray(events) ? events : (events.rows || []);
       return res.status(200).json({
         success: true,
-        count: events.length,
-        events,
-        data: events,
+        count: list.length,
+        events: list,
+        data: list,
       });
     } catch (err) {
       const status = err.status || 500;
-      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   }
 
@@ -147,16 +188,39 @@ class EventsController {
   async getMyTickets(req, res) {
     try {
       const userId = req.user ? (req.user.id || req.user.userId) : req.headers['x-user-id'];
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
       const tickets = await eventsService.getUserTickets(userId);
+      const list = Array.isArray(tickets) ? tickets : (tickets.rows || []);
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 10,
+          maxPageSize: 100,
+        });
+
+        const pagedData = list.slice(offset, offset + pageSize);
+        const responsePayload = buildPaginationResponse(pagedData, list.length, page, pageSize);
+        return res.status(200).json({
+          ...responsePayload,
+          tickets: pagedData,
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        count: tickets.length,
-        tickets,
-        data: tickets,
+        count: list.length,
+        tickets: list,
+        data: list,
       });
     } catch (err) {
       const status = err.status || 500;
-      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   }
 
@@ -245,16 +309,39 @@ class EventsController {
   async getEventVolunteers(req, res) {
     try {
       const eventId = req.params.id;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
       const volunteers = await eventsService.getEventVolunteers(eventId);
+      const list = Array.isArray(volunteers) ? volunteers : (volunteers.rows || []);
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 15,
+          maxPageSize: 100,
+        });
+
+        const pagedData = list.slice(offset, offset + pageSize);
+        const responsePayload = buildPaginationResponse(pagedData, list.length, page, pageSize);
+        return res.status(200).json({
+          ...responsePayload,
+          volunteers: pagedData,
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        count: volunteers.length,
-        volunteers,
-        data: volunteers,
+        count: list.length,
+        volunteers: list,
+        data: list,
       });
     } catch (err) {
       const status = err.status || 500;
-      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   }
 
@@ -306,16 +393,39 @@ class EventsController {
         return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Authentication required' });
       }
 
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
       const applications = await eventsService.getUserVolunteerApplications(userId);
+      const list = Array.isArray(applications) ? applications : (applications.rows || []);
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 10,
+          maxPageSize: 100,
+        });
+
+        const pagedData = list.slice(offset, offset + pageSize);
+        const responsePayload = buildPaginationResponse(pagedData, list.length, page, pageSize);
+        return res.status(200).json({
+          ...responsePayload,
+          applications: pagedData,
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        count: applications.length,
-        applications,
-        data: applications,
+        count: list.length,
+        applications: list,
+        data: list,
       });
     } catch (err) {
       const status = err.status || 500;
-      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   }
 

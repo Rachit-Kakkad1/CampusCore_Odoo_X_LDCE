@@ -265,10 +265,10 @@ class AuthService {
   }
 
   /**
-   * Retrieves all users for administrative workspace.
+   * Retrieves all users for administrative workspace (with optional pagination, search, and role filtering).
    */
-  async getAllUsers() {
-    return authRepository.getAllUsers();
+  async getAllUsers(filter = {}) {
+    return authRepository.getAllUsers(filter);
   }
 
   /**

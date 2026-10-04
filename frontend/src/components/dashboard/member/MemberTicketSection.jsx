@@ -5,6 +5,7 @@ import { DashboardSection } from '../DashboardSection';
 import { DashboardEmptyState } from '../DashboardEmptyState';
 import { StatusBadge } from '../StatusBadge';
 import eventsService from '../../../services/events.service';
+import Pagination from '../../common/Pagination';
 import { QrCode, X, Copy, Check, Calendar, MapPin, Ticket, ShieldCheck } from 'lucide-react';
 
 export const MemberTicketSection = ({ tickets = [], loading = false }) => {
@@ -12,6 +13,10 @@ export const MemberTicketSection = ({ tickets = [], loading = false }) => {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrData, setQrData] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  const paginatedTickets = tickets.slice((page - 1) * pageSize, page * pageSize);
 
   const handleOpenQRModal = async (ticket) => {
     setSelectedTicket(ticket);
@@ -56,8 +61,9 @@ export const MemberTicketSection = ({ tickets = [], loading = false }) => {
           description="You have not booked any event tickets yet. Explore upcoming organization events above to reserve your seat."
         />
       ) : (
-        <div className="space-y-3">
-          {tickets.map((t) => {
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {paginatedTickets.map((t) => {
             const price = Number(t.price || 0).toFixed(2);
             const eventDate = t.event_starts_at
               ? new Date(t.event_starts_at).toLocaleDateString('en-US', {
@@ -115,6 +121,22 @@ export const MemberTicketSection = ({ tickets = [], loading = false }) => {
               </div>
             );
           })}
+          </div>
+
+          {tickets.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(tickets.length / pageSize)}
+              totalItems={tickets.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[5, 10, 20]}
+            />
+          )}
         </div>
       )}
 

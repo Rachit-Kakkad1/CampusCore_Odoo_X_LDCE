@@ -1,7 +1,7 @@
-// frontend/src/components/dashboard/admin/AdminMemberManagement.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBadge } from '../StatusBadge';
 import { ThreeDCard } from '../charts/ThreeDCharts';
+import Pagination from '../../common/Pagination';
 import {
   Users,
   CheckCircle2,
@@ -25,6 +25,13 @@ export const AdminMemberManagement = ({
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
   const [cancelModal, setCancelModal] = useState({
     open: false,
     member: null,
@@ -66,6 +73,8 @@ export const AdminMemberManagement = ({
 
     return matchesStatus && matchesSearch;
   });
+
+  const paginatedMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="space-y-8">
@@ -237,7 +246,8 @@ export const AdminMemberManagement = ({
           No member records matched your criteria.
         </div>
       ) : (
-        <div className="border border-border bg-white overflow-x-auto shadow-2xs">
+        <div className="space-y-4">
+          <div className="border border-border bg-white overflow-x-auto shadow-2xs">
           <table className="w-full text-left font-mono text-xs border-collapse">
             <thead>
               <tr className="border-b border-border bg-slate-50/80 text-[10px] uppercase font-bold tracking-wider text-slate-600">
@@ -251,7 +261,7 @@ export const AdminMemberManagement = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredMembers.map((m) => {
+              {paginatedMembers.map((m) => {
                 const status = (m.computed_status || m.status || '').toUpperCase();
                 const expiry = m.expiry_date
                   ? new Date(m.expiry_date).toLocaleDateString('en-US', {
@@ -394,6 +404,21 @@ export const AdminMemberManagement = ({
               })}
             </tbody>
           </table>
+        </div>
+        {filteredMembers.length > pageSize && (
+          <Pagination
+            currentPage={page}
+            totalPages={Math.ceil(filteredMembers.length / pageSize)}
+            totalItems={filteredMembers.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+          />
+        )}
         </div>
       )}
 

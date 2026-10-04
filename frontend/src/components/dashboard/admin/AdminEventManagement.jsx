@@ -1,7 +1,8 @@
 // frontend/src/components/dashboard/admin/AdminEventManagement.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import eventsService from '../../../services/events.service';
+import Pagination from '../../common/Pagination';
 import {
   Plus,
   X,
@@ -135,6 +136,12 @@ export const AdminEventManagement = ({
   // Search & Filter
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   // Computed metrics
   const totalEvents = events.length;
@@ -166,6 +173,8 @@ export const AdminEventManagement = ({
 
     return matchesSearch && matchesStatus;
   });
+
+  const paginatedEvents = filteredEvents.slice((page - 1) * pageSize, page * pageSize);
 
   const handleOpenModal = () => {
     setTitle('');
@@ -430,7 +439,8 @@ export const AdminEventManagement = ({
           No scheduled events matched your criteria. Click "Schedule New Event" to create one.
         </div>
       ) : (
-        <div className="border border-border bg-white overflow-x-auto shadow-xs">
+        <div className="space-y-4">
+          <div className="border border-border bg-white overflow-x-auto shadow-xs">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-border bg-slate-50/80 text-[10px] uppercase font-bold tracking-wider text-slate-600">
@@ -444,7 +454,7 @@ export const AdminEventManagement = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredEvents.map((ev) => {
+              {paginatedEvents.map((ev) => {
                 const dateStr = ev.starts_at
                   ? new Date(ev.starts_at).toLocaleDateString('en-US', {
                       month: 'short',
@@ -563,6 +573,21 @@ export const AdminEventManagement = ({
               })}
             </tbody>
           </table>
+        </div>
+        {filteredEvents.length > pageSize && (
+          <Pagination
+            currentPage={page}
+            totalPages={Math.ceil(filteredEvents.length / pageSize)}
+            totalItems={filteredEvents.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+          />
+        )}
         </div>
       )}
 

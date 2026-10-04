@@ -9,7 +9,16 @@ class FundraiserRepository {
    * Retrieves all public active/completed fundraisers with live real-time financial aggregates.
    * Excludes 'draft' and 'cancelled' unless explicitly requested by admin.
    */
-  async getPublicFundraisers({ status = null, search = '' } = {}) {
+  async getPublicFundraisers({
+    status = null,
+    search = '',
+    page = null,
+    pageSize = null,
+    limit = null,
+    offset = 0,
+    sort = 'created_at',
+    sortDirection = 'DESC',
+  } = {}) {
     let whereConditions = ["f.status IN ('active', 'completed', 'paused')"];
     const values = [];
 
@@ -24,8 +33,22 @@ class FundraiserRepository {
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = effectiveLimit !== null && effectiveLimit !== undefined;
 
-    const sql = `
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `SELECT COUNT(*)::int AS total FROM fundraisers f ${whereClause};`;
+      const countRes = await pool.query(countSql, values);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    const safeSortCol = ['created_at', 'goal_amount', 'title', 'end_at', 'id'].includes(sort)
+      ? `f.${sort}`
+      : 'f.created_at';
+    const safeDir = sortDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    let sql = `
       SELECT 
         f.id,
         f.public_id,
@@ -42,13 +65,13 @@ class FundraiserRepository {
         f.created_at,
         f.updated_at,
         u.name AS organizer_name,
-        COALESCE(stats.gross_amount, 0)::numeric(12,2) AS gross_raised,
+        (COALESCE(stats.gross_amount, 0) + COALESCE(fi.income_amount, 0))::numeric(12,2) AS gross_raised,
         COALESCE(stats.refunded_amount, 0)::numeric(12,2) AS refunded_amount,
-        COALESCE(stats.net_amount, 0)::numeric(12,2) AS total_raised,
-        COALESCE(stats.donor_count, 0)::int AS donor_count,
+        (COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0))::numeric(12,2) AS total_raised,
+        (COALESCE(stats.donor_count, 0) + COALESCE(fi.income_count, 0))::int AS donor_count,
         CASE 
           WHEN f.goal_amount > 0 THEN 
-            ROUND((COALESCE(stats.net_amount, 0) / f.goal_amount * 100)::numeric, 1)
+            ROUND(((COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0)) / f.goal_amount * 100)::numeric, 1)
           ELSE 0.0 
         END AS percentage_raised
       FROM fundraisers f
@@ -63,18 +86,50 @@ class FundraiserRepository {
         FROM donations
         GROUP BY fundraiser_id
       ) stats ON f.id = stats.fundraiser_id
+      LEFT JOIN (
+        SELECT 
+          fundraiser_id,
+          SUM(amount) AS income_amount,
+          COUNT(*) AS income_count
+        FROM fundraiser_income
+        GROUP BY fundraiser_id
+      ) fi ON f.id = fi.fundraiser_id
       ${whereClause}
-      ORDER BY f.created_at DESC;
+      ORDER BY ${safeSortCol} ${safeDir}, f.id ${safeDir}
     `;
 
-    const res = await pool.query(sql, values);
-    return res.rows;
+    const dataParams = [...values];
+    if (isPaginated) {
+      dataParams.push(effectiveLimit, offset);
+      sql += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+    }
+
+    const res = await pool.query(sql, dataParams);
+    const rows = res.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+
+    return rows;
   }
 
   /**
    * Retrieves all fundraisers for admin view, including drafts and cancelled, plus deep stats.
    */
-  async getAdminFundraisers({ status = null, search = '' } = {}) {
+  async getAdminFundraisers({
+    status = null,
+    search = '',
+    page = null,
+    pageSize = null,
+    limit = null,
+    offset = 0,
+    sort = 'created_at',
+    sortDirection = 'DESC',
+  } = {}) {
     let whereConditions = [];
     const values = [];
 
@@ -89,8 +144,22 @@ class FundraiserRepository {
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = effectiveLimit !== null && effectiveLimit !== undefined;
 
-    const sql = `
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `SELECT COUNT(*)::int AS total FROM fundraisers f ${whereClause};`;
+      const countRes = await pool.query(countSql, values);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    const safeSortCol = ['created_at', 'goal_amount', 'title', 'end_at', 'id'].includes(sort)
+      ? `f.${sort}`
+      : 'f.created_at';
+    const safeDir = sortDirection.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    let sql = `
       SELECT 
         f.id,
         f.public_id,
@@ -107,16 +176,19 @@ class FundraiserRepository {
         f.created_at,
         f.updated_at,
         u.name AS organizer_name,
-        COALESCE(stats.gross_amount, 0)::numeric(12,2) AS gross_raised,
+        (COALESCE(stats.gross_amount, 0) + COALESCE(fi.income_amount, 0))::numeric(12,2) AS gross_raised,
         COALESCE(stats.refunded_amount, 0)::numeric(12,2) AS refunded_amount,
-        COALESCE(stats.net_amount, 0)::numeric(12,2) AS total_raised,
-        COALESCE(stats.donor_count, 0)::int AS donor_count,
+        (COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0))::numeric(12,2) AS total_raised,
+        (COALESCE(stats.donor_count, 0) + COALESCE(fi.income_count, 0))::int AS donor_count,
         COALESCE(stats.failed_count, 0)::int AS failed_count,
         COALESCE(stats.anonymous_count, 0)::int AS anonymous_count,
-        COALESCE(stats.avg_donation, 0)::numeric(10,2) AS avg_donation,
+        COALESCE(
+          (COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0)) / NULLIF(COALESCE(stats.donor_count, 0) + COALESCE(fi.income_count, 0), 0),
+          0
+        )::numeric(10,2) AS avg_donation,
         CASE 
           WHEN f.goal_amount > 0 THEN 
-            ROUND((COALESCE(stats.net_amount, 0) / f.goal_amount * 100)::numeric, 1)
+            ROUND(((COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0)) / f.goal_amount * 100)::numeric, 1)
           ELSE 0.0 
         END AS percentage_raised,
         COALESCE(task_stats.total_tasks, 0)::int AS total_tasks,
@@ -139,17 +211,40 @@ class FundraiserRepository {
       LEFT JOIN (
         SELECT 
           fundraiser_id,
+          SUM(amount) AS income_amount,
+          COUNT(*) AS income_count
+        FROM fundraiser_income
+        GROUP BY fundraiser_id
+      ) fi ON f.id = fi.fundraiser_id
+      LEFT JOIN (
+        SELECT 
+          fundraiser_id,
           COUNT(*) AS total_tasks,
           COUNT(CASE WHEN status = 'completed' THEN 1 ELSE NULL END) AS completed_tasks
         FROM tasks
         GROUP BY fundraiser_id
       ) task_stats ON f.id = task_stats.fundraiser_id
       ${whereClause}
-      ORDER BY f.created_at DESC;
+      ORDER BY ${safeSortCol} ${safeDir}, f.id ${safeDir}
     `;
 
-    const res = await pool.query(sql, values);
-    return res.rows;
+    const dataParams = [...values];
+    if (isPaginated) {
+      dataParams.push(effectiveLimit, offset);
+      sql += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+    }
+
+    const res = await pool.query(sql, dataParams);
+    const rows = res.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+
+    return rows;
   }
 
   /**
@@ -176,13 +271,13 @@ class FundraiserRepository {
         f.created_at,
         f.updated_at,
         u.name AS organizer_name,
-        COALESCE(stats.gross_amount, 0)::numeric(12,2) AS gross_raised,
+        (COALESCE(stats.gross_amount, 0) + COALESCE(fi.income_amount, 0))::numeric(12,2) AS gross_raised,
         COALESCE(stats.refunded_amount, 0)::numeric(12,2) AS refunded_amount,
-        COALESCE(stats.net_amount, 0)::numeric(12,2) AS total_raised,
-        COALESCE(stats.donor_count, 0)::int AS donor_count,
+        (COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0))::numeric(12,2) AS total_raised,
+        (COALESCE(stats.donor_count, 0) + COALESCE(fi.income_count, 0))::int AS donor_count,
         CASE 
           WHEN f.goal_amount > 0 THEN 
-            ROUND((COALESCE(stats.net_amount, 0) / f.goal_amount * 100)::numeric, 1)
+            ROUND(((COALESCE(stats.net_amount, 0) + COALESCE(fi.income_amount, 0)) / f.goal_amount * 100)::numeric, 1)
           ELSE 0.0 
         END AS percentage_raised
       FROM fundraisers f
@@ -197,6 +292,14 @@ class FundraiserRepository {
         FROM donations
         GROUP BY fundraiser_id
       ) stats ON f.id = stats.fundraiser_id
+      LEFT JOIN (
+        SELECT 
+          fundraiser_id,
+          SUM(amount) AS income_amount,
+          COUNT(*) AS income_count
+        FROM fundraiser_income
+        GROUP BY fundraiser_id
+      ) fi ON f.id = fi.fundraiser_id
       WHERE ${isNum ? 'f.id = $1 OR f.public_id = $1::text' : 'f.slug = $1 OR f.public_id = $1'}
       LIMIT 1;
     `;
@@ -593,16 +696,36 @@ class FundraiserRepository {
   async getGlobalFinancialStats() {
     const sql = `
       SELECT 
-        COALESCE(SUM(CASE WHEN status IN ('paid', 'refunded') THEN amount ELSE 0 END), 0)::numeric(12,2) AS gross_donations,
-        COALESCE(SUM(CASE WHEN status = 'refunded' THEN refund_amount ELSE 0 END), 0)::numeric(12,2) AS total_refunds,
-        COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0)::numeric(12,2) AS net_raised,
-        COUNT(CASE WHEN status = 'paid' THEN 1 ELSE NULL END)::int AS successful_donations,
-        COUNT(CASE WHEN status = 'payment_failed' THEN 1 ELSE NULL END)::int AS failed_payments,
-        COUNT(CASE WHEN status = 'paid' AND anonymous = TRUE THEN 1 ELSE NULL END)::int AS anonymous_donations,
-        COALESCE(AVG(CASE WHEN status = 'paid' THEN amount ELSE NULL END), 0)::numeric(10,2) AS average_donation,
+        (
+          COALESCE((SELECT SUM(CASE WHEN status IN ('paid', 'refunded') THEN amount ELSE 0 END) FROM donations), 0) +
+          COALESCE((SELECT SUM(amount) FROM fundraiser_income), 0)
+        )::numeric(12,2) AS gross_donations,
+        COALESCE((SELECT SUM(CASE WHEN status = 'refunded' THEN refund_amount ELSE 0 END) FROM donations), 0)::numeric(12,2) AS total_refunds,
+        (
+          COALESCE((SELECT SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) FROM donations), 0) +
+          COALESCE((SELECT SUM(amount) FROM fundraiser_income), 0)
+        )::numeric(12,2) AS net_raised,
+        (
+          COALESCE((SELECT COUNT(*) FROM donations WHERE status = 'paid'), 0) +
+          COALESCE((SELECT COUNT(*) FROM fundraiser_income), 0)
+        )::int AS successful_donations,
+        COALESCE((SELECT COUNT(*) FROM donations WHERE status = 'payment_failed'), 0)::int AS failed_payments,
+        COALESCE((SELECT COUNT(*) FROM donations WHERE status = 'paid' AND anonymous = TRUE), 0)::int AS anonymous_donations,
+        COALESCE(
+          ROUND(
+            (
+              (SELECT COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) FROM donations) +
+              (SELECT COALESCE(SUM(amount), 0) FROM fundraiser_income)
+            ) / NULLIF(
+              (SELECT COUNT(*) FROM donations WHERE status = 'paid') + (SELECT COUNT(*) FROM fundraiser_income),
+              0
+            ),
+            2
+          ),
+          0
+        )::numeric(10,2) AS average_donation,
         (SELECT COUNT(*) FROM fundraisers WHERE status = 'active')::int AS active_campaigns_count,
-        (SELECT COALESCE(SUM(goal_amount), 0)::numeric(12,2) FROM fundraisers WHERE status = 'active') AS active_campaigns_goal
-      FROM donations;
+        (SELECT COALESCE(SUM(goal_amount), 0)::numeric(12,2) FROM fundraisers WHERE status = 'active') AS active_campaigns_goal;
     `;
     const res = await pool.query(sql);
     return res.rows[0];

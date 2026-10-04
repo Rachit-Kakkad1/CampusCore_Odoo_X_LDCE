@@ -13,10 +13,50 @@ class FundraiserController {
   async getPublicFundraisers(req, res) {
     try {
       const { status, search } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset, sort, sortDirection } = parsePaginationParams(req.query, {
+          defaultPageSize: 12,
+          maxPageSize: 100,
+          allowedSortFields: ['created_at', 'goal_amount', 'title', 'end_at'],
+          defaultSort: 'created_at',
+          defaultSortDirection: 'DESC',
+        });
+
+        const result = await fundraiserService.getPublicFundraisers({
+          status,
+          search,
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          sort,
+          sortDirection,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          fundraisers: rows,
+        });
+      }
+
       const fundraisers = await fundraiserService.getPublicFundraisers({ status, search });
-      res.status(200).json({ success: true, count: fundraisers.length, data: fundraisers });
+      const list = Array.isArray(fundraisers) ? fundraisers : (fundraisers.rows || []);
+      res.status(200).json({
+        success: true,
+        count: list.length,
+        data: list,
+        fundraisers: list,
+      });
     } catch (err) {
-      res.status(err.status || 500).json({
+      const statusCode = err.status || 500;
+      res.status(statusCode).json({
         success: false,
         error: { code: err.code || 'INTERNAL_ERROR', message: err.message },
       });
@@ -30,10 +70,50 @@ class FundraiserController {
   async getAdminFundraisers(req, res) {
     try {
       const { status, search } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset, sort, sortDirection } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+          allowedSortFields: ['created_at', 'goal_amount', 'title', 'end_at'],
+          defaultSort: 'created_at',
+          defaultSortDirection: 'DESC',
+        });
+
+        const result = await fundraiserService.getAdminFundraisers({
+          status,
+          search,
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          sort,
+          sortDirection,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          fundraisers: rows,
+        });
+      }
+
       const fundraisers = await fundraiserService.getAdminFundraisers({ status, search });
-      res.status(200).json({ success: true, count: fundraisers.length, data: fundraisers });
+      const list = Array.isArray(fundraisers) ? fundraisers : (fundraisers.rows || []);
+      res.status(200).json({
+        success: true,
+        count: list.length,
+        data: list,
+        fundraisers: list,
+      });
     } catch (err) {
-      res.status(err.status || 500).json({
+      const statusCode = err.status || 500;
+      res.status(statusCode).json({
         success: false,
         error: { code: err.code || 'INTERNAL_ERROR', message: err.message },
       });
@@ -205,10 +285,35 @@ class FundraiserController {
    */
   async getUserDonations(req, res) {
     try {
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
       const donations = await donationService.getUserDonations(req.user.id);
-      res.status(200).json({ success: true, count: donations.length, data: donations });
+      const list = Array.isArray(donations) ? donations : (donations.rows || []);
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 10,
+          maxPageSize: 100,
+        });
+
+        const pagedData = list.slice(offset, offset + pageSize);
+        const responsePayload = buildPaginationResponse(pagedData, list.length, page, pageSize);
+        return res.status(200).json({
+          ...responsePayload,
+          donations: pagedData,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        count: list.length,
+        data: list,
+        donations: list,
+      });
     } catch (err) {
-      res.status(err.status || 500).json({
+      const statusCode = err.status || 500;
+      res.status(statusCode).json({
         success: false,
         error: { code: err.code || 'INTERNAL_ERROR', message: err.message },
       });
@@ -221,17 +326,35 @@ class FundraiserController {
    */
   async getAdminDonations(req, res) {
     try {
-      const { fundraiserId, status, search, limit, offset } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const { fundraiserId, status, search } = req.query;
+
+      const { page, pageSize, offset } = parsePaginationParams(req.query, {
+        defaultPageSize: 25,
+        maxPageSize: 100,
+      });
+
       const result = await donationService.getAdminDonations({
         fundraiserId: fundraiserId ? parseInt(fundraiserId, 10) : null,
         status,
         search,
-        limit: limit ? parseInt(limit, 10) : 25,
-        offset: offset ? parseInt(offset, 10) : 0,
+        limit: pageSize,
+        offset,
       });
-      res.status(200).json({ success: true, ...result });
+
+      const dataRows = result.data || [];
+      const totalCount = result.total || 0;
+      const paginationResponse = buildPaginationResponse(dataRows, totalCount, page, pageSize);
+
+      res.status(200).json({
+        ...paginationResponse,
+        ...result, // keep total, limit, offset for backwards compatibility
+        data: dataRows,
+        donations: dataRows,
+      });
     } catch (err) {
-      res.status(err.status || 500).json({
+      const statusCode = err.status || 500;
+      res.status(statusCode).json({
         success: false,
         error: { code: err.code || 'INTERNAL_ERROR', message: err.message },
       });

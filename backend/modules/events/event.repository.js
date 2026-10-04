@@ -52,10 +52,61 @@ class EventRepository {
   }
 
   /**
-   * Retrieves all events ordered by starts_at ASC with real-time computed_status and volunteer counts.
+   * Retrieves events with optional server-side pagination, status filtering, search, and deterministic ordering.
    */
-  async getAllEvents() {
-    const queryText = `
+  async getAllEvents(filter = {}) {
+    const {
+      status = null,
+      search = null,
+      page = null,
+      pageSize = null,
+      limit = null,
+      offset = 0,
+      sort = 'starts_at',
+      sortDirection = 'ASC',
+    } = filter;
+
+    const where = [];
+    const params = [];
+
+    // Filter by computed/actual status
+    if (status && status !== 'all' && status !== 'ALL') {
+      const s = status.toLowerCase();
+      if (s === 'cancelled') {
+        where.push(`e.status = 'cancelled'`);
+      } else if (s === 'upcoming') {
+        where.push(`e.status != 'cancelled' AND NOW() < e.starts_at`);
+      } else if (s === 'live') {
+        where.push(`e.status != 'cancelled' AND NOW() >= e.starts_at AND NOW() <= COALESCE(e.ends_at, e.starts_at + INTERVAL '3 hours')`);
+      } else if (s === 'past') {
+        where.push(`e.status != 'cancelled' AND NOW() > COALESCE(e.ends_at, e.starts_at + INTERVAL '3 hours')`);
+      }
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const idx = params.length;
+      where.push(`(e.title ILIKE $${idx} OR e.venue ILIKE $${idx} OR e.description ILIKE $${idx})`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = effectiveLimit !== null && effectiveLimit !== undefined;
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `SELECT COUNT(*)::int AS total FROM events e ${whereClause};`;
+      const countRes = await pool.query(countSql, params);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    const safeSortCol = ['starts_at', 'created_at', 'id', 'title', 'capacity'].includes(sort)
+      ? `e.${sort}`
+      : 'e.starts_at';
+    const safeDir = sortDirection.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    let queryText = `
       SELECT e.id, e.title, e.description, e.venue, e.starts_at, e.ends_at, e.capacity, e.seats_remaining,
              e.member_price, e.non_member_price, e.volunteers_enabled, e.volunteers_required,
              e.status, e.cancelled_at, e.cancelled_by, e.cancellation_reason,
@@ -69,14 +120,31 @@ class EventRepository {
              (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved')) AS volunteers_applied,
              GREATEST(0, e.volunteers_required - (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved'))) AS volunteers_remaining
       FROM events e
-      ORDER BY e.starts_at ASC;
+      ${whereClause}
+      ORDER BY ${safeSortCol} ${safeDir}, e.id ${safeDir}
     `;
-    const result = await pool.query(queryText);
-    return result.rows;
+
+    const dataParams = [...params];
+    if (isPaginated) {
+      dataParams.push(effectiveLimit, offset);
+      queryText += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+    }
+
+    const result = await pool.query(queryText, dataParams);
+    const rows = result.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+
+    return rows;
   }
 
-  async findAll() {
-    return this.getAllEvents();
+  async findAll(filter = {}) {
+    return this.getAllEvents(filter);
   }
 
   /**

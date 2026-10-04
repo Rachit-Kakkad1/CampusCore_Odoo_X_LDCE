@@ -5,6 +5,7 @@ import { DashboardEmptyState } from '../DashboardEmptyState';
 import { StatusBadge } from '../StatusBadge';
 import { ActionButton } from '../ActionButton';
 import { ExpenseDetails } from './ExpenseDetails';
+import Pagination from '../../common/Pagination';
 import { 
   FileText, 
   Plus, 
@@ -41,6 +42,8 @@ export const ExpenseApprovalList = ({
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // New Expense Form State
   const [newAmount, setNewAmount] = useState('');
@@ -52,6 +55,11 @@ export const ExpenseApprovalList = ({
     if (selectedStatus === 'ALL') return true;
     return exp.status?.toLowerCase() === selectedStatus.toLowerCase();
   });
+
+  const paginatedExpenses = filteredExpenses.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   const handleCreateExpense = async (e) => {
     e.preventDefault();
@@ -91,7 +99,10 @@ export const ExpenseApprovalList = ({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setSelectedStatus(tab.id)}
+              onClick={() => {
+                setSelectedStatus(tab.id);
+                setPage(1);
+              }}
               className={`px-3 py-1.5 font-mono text-xs uppercase tracking-wider border transition-colors ${
                 selectedStatus === tab.id
                   ? 'border-primary bg-primary text-white font-bold'
@@ -125,105 +136,122 @@ export const ExpenseApprovalList = ({
           }
         />
       ) : (
-        <DashboardTable
-          headers={['Claim ID', 'Claimant', 'Description / Purpose', 'Amount', 'Status', 'Submitted', 'Actions']}
-        >
-          {filteredExpenses.map((exp) => {
-            const amountFormatted = Number(exp.amount || 0).toLocaleString('en-IN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            });
-            const subDate = exp.created_at
-              ? new Date(exp.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : '—';
+        <div className="space-y-3">
+          <DashboardTable
+            headers={['Claim ID', 'Claimant', 'Description / Purpose', 'Amount', 'Status', 'Submitted', 'Actions']}
+          >
+            {paginatedExpenses.map((exp) => {
+              const amountFormatted = Number(exp.amount || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+              const subDate = exp.created_at
+                ? new Date(exp.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '—';
 
-            return (
-              <tr
-                key={exp.id}
-                className="hover:bg-slate-50/80 transition-colors border-b border-border/60"
-              >
-                {/* 1. Claim ID */}
-                <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">
-                  EXP-#{String(exp.id).padStart(4, '0')}
-                </td>
+              return (
+                <tr
+                  key={exp.id}
+                  className="hover:bg-slate-50/80 transition-colors border-b border-border/60"
+                >
+                  {/* 1. Claim ID */}
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">
+                    EXP-#{String(exp.id).padStart(4, '0')}
+                  </td>
 
-                {/* 2. Claimant Details */}
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-900">
-                      {exp.submitter_name}
-                    </span>
-                    <span className="font-mono text-[10px] text-muted">
-                      {exp.submitter_email}
-                    </span>
-                  </div>
-                </td>
+                  {/* 2. Claimant Details */}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-900">
+                        {exp.submitter_name}
+                      </span>
+                      <span className="font-mono text-[10px] text-muted">
+                        {exp.submitter_email}
+                      </span>
+                    </div>
+                  </td>
 
-                {/* 3. Description */}
-                <td className="px-4 py-3 text-xs text-slate-800 max-w-xs truncate">
-                  {exp.description}
-                </td>
+                  {/* 3. Description */}
+                  <td className="px-4 py-3 text-xs text-slate-800 max-w-xs truncate">
+                    {exp.description}
+                  </td>
 
-                {/* 4. Amount */}
-                <td className="px-4 py-3 font-mono text-sm font-bold text-slate-900">
-                  ₹{amountFormatted}
-                </td>
+                  {/* 4. Amount */}
+                  <td className="px-4 py-3 font-mono text-sm font-bold text-slate-900">
+                    ₹{amountFormatted}
+                  </td>
 
-                {/* 5. Status */}
-                <td className="px-4 py-3">
-                  <StatusBadge status={exp.status?.toUpperCase()} />
-                </td>
+                  {/* 5. Status */}
+                  <td className="px-4 py-3">
+                    <StatusBadge status={exp.status?.toUpperCase()} />
+                  </td>
 
-                {/* 6. Submitted Date */}
-                <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
-                  {subDate}
-                </td>
+                  {/* 6. Submitted Date */}
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">
+                    {subDate}
+                  </td>
 
-                {/* 7. Action Buttons */}
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    {/* View Details */}
-                    <button
-                      onClick={() => setSelectedExpense(exp)}
-                      title="View Details"
-                      className="p-1.5 border border-border bg-slate-50 hover:bg-slate-100 text-slate-700 rounded"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Pending Quick Approve */}
-                    {exp.status === 'pending' && (
-                      <button
-                        onClick={() => onApprove(exp.id)}
-                        disabled={processing}
-                        title="Approve Claim"
-                        className="p-1.5 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {/* Approved Quick Reimburse Trigger */}
-                    {exp.status === 'approved' && (
+                  {/* 7. Action Buttons */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {/* View Details */}
                       <button
                         onClick={() => setSelectedExpense(exp)}
-                        disabled={processing}
-                        title="Issue Reimbursement"
-                        className="px-2 py-1 font-mono text-[10px] uppercase font-bold bg-[#5F3F56] text-white hover:bg-[#4a2f42] rounded"
+                        title="View Details"
+                        className="p-1.5 border border-border bg-slate-50 hover:bg-slate-100 text-slate-700 rounded"
                       >
-                        Reimburse
+                        <Eye className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </DashboardTable>
+
+                      {/* Pending Quick Approve */}
+                      {exp.status === 'pending' && (
+                        <button
+                          onClick={() => onApprove(exp.id)}
+                          disabled={processing}
+                          title="Approve Claim"
+                          className="p-1.5 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {/* Approved Quick Reimburse Trigger */}
+                      {exp.status === 'approved' && (
+                        <button
+                          onClick={() => setSelectedExpense(exp)}
+                          disabled={processing}
+                          title="Issue Reimbursement"
+                          className="px-2 py-1 font-mono text-[10px] uppercase font-bold bg-[#5F3F56] text-white hover:bg-[#4a2f42] rounded"
+                        >
+                          Reimburse
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </DashboardTable>
+
+          {filteredExpenses.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(filteredExpenses.length / pageSize)}
+              totalItems={filteredExpenses.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[5, 10, 20, 50]}
+            />
+          )}
+        </div>
       )}
 
       {/* Selected Expense Details Modal */}

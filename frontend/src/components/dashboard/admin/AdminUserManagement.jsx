@@ -1,6 +1,7 @@
 // frontend/src/components/dashboard/admin/AdminUserManagement.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Pagination from '../../common/Pagination';
 import {
   Users,
   ShieldCheck,
@@ -76,6 +77,12 @@ export const AdminUserManagement = ({
   const [membershipFilter, setMembershipFilter] = useState('ALL');
   const [is3DMode, setIs3DMode] = useState(true);
   const [copiedId, setCopiedId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, roleFilter, membershipFilter]);
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -144,6 +151,8 @@ export const AdminUserManagement = ({
 
     return matchesRole && matchesMembership && matchesSearch;
   });
+
+  const paginatedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
 
   const handleCopyText = (text, id) => {
     if (!text) return;
@@ -535,7 +544,8 @@ export const AdminUserManagement = ({
           No user accounts matched your search or filter parameters.
         </div>
       ) : (
-        <div className="border border-border bg-white overflow-x-auto shadow-xs">
+        <div className="space-y-4">
+          <div className="border border-border bg-white overflow-x-auto shadow-xs">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-border bg-slate-50/80 text-[10px] uppercase font-bold tracking-wider text-slate-600">
@@ -549,7 +559,7 @@ export const AdminUserManagement = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredUsers.map((u) => {
+              {paginatedUsers.map((u) => {
                 const isCurrent = currentUser?.id === u.id;
                 const initials = u.name
                   ? u.name
@@ -713,6 +723,21 @@ export const AdminUserManagement = ({
               })}
             </tbody>
           </table>
+        </div>
+        {filteredUsers.length > pageSize && (
+          <Pagination
+            currentPage={page}
+            totalPages={Math.ceil(filteredUsers.length / pageSize)}
+            totalItems={filteredUsers.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+          />
+        )}
         </div>
       )}
 

@@ -127,20 +127,62 @@ const membershipController = {
 
   /**
    * GET /api/membership/all or /api/members
-   * View all memberships (with status/search query filtering)
+   * View all memberships (with status/search query filtering and server-side pagination)
    */
   async getAll(req, res, next) {
     try {
       const { status, search } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+
+      // If page or pageSize/limit is explicitly requested, execute server-side paginated flow
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset, sort, sortDirection } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+          allowedSortFields: ['created_at', 'id', 'member_code', 'expiry_date'],
+          defaultSort: 'created_at',
+          defaultSortDirection: 'DESC',
+        });
+
+        const result = await membershipService.getAllMemberships({
+          status,
+          search,
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          sort,
+          sortDirection,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+        return res.status(200).json({
+          ...responsePayload,
+          members: rows,
+        });
+      }
+
+      // Backward-compatible unpaginated query when no page query params are provided
       const data = await membershipService.getAllMemberships({ status, search });
+      const list = Array.isArray(data) ? data : (data.rows || []);
       return res.status(200).json({
         success: true,
-        count: data.length,
-        data,
-        members: data,
+        count: list.length,
+        data: list,
+        members: list,
       });
     } catch (err) {
-      next(err);
+      const statusCode = err.status || 500;
+      return res.status(statusCode).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   },
 

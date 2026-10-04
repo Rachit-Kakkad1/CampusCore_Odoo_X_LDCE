@@ -693,7 +693,16 @@ class MembershipService {
 
   async getAllMemberships(filter = {}) {
     await syncMembershipStatuses().catch(() => {});
-    const list = await membershipRepository.findAll(filter);
+    const result = await membershipRepository.findAll(filter);
+
+    if (result && typeof result === 'object' && Array.isArray(result.rows)) {
+      return {
+        rows: result.rows.map(m => this.formatMembership(m)),
+        totalItems: result.totalItems,
+      };
+    }
+
+    const list = Array.isArray(result) ? result : [];
     return list.map(m => this.formatMembership(m));
   }
 

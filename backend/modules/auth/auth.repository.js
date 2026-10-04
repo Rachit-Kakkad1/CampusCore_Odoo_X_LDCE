@@ -47,8 +47,55 @@ class AuthRepository {
   /**
    * Retrieves all users with associated membership information and counts.
    */
-  async getAllUsers(client = pool) {
-    const queryText = `
+  async getAllUsers(filter = {}, client = pool) {
+    const {
+      role,
+      search,
+      page = null,
+      pageSize = null,
+      limit = null,
+      offset = 0,
+      sort = 'id',
+      sortDirection = 'ASC',
+    } = filter;
+
+    const where = [];
+    const params = [];
+
+    if (role && role !== 'all' && role !== 'ALL') {
+      params.push(role.toLowerCase());
+      where.push(`LOWER(u.role) = $${params.length}`);
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const idx = params.length;
+      where.push(`(u.name ILIKE $${idx} OR u.email ILIKE $${idx} OR m.member_code ILIKE $${idx})`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = effectiveLimit !== null && effectiveLimit !== undefined;
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `
+        SELECT COUNT(DISTINCT u.id)::int AS total
+        FROM users u
+        LEFT JOIN memberships m ON u.id = m.user_id
+        ${whereClause};
+      `;
+      const countRes = await client.query(countSql, params);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    const safeSortCol = ['id', 'name', 'email', 'role', 'created_at'].includes(sort)
+      ? `u.${sort}`
+      : 'u.id';
+    const safeDir = sortDirection.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+    let queryText = `
       SELECT 
         u.id,
         u.name,
@@ -86,10 +133,27 @@ class AuthRepository {
           END,
           created_at DESC
       ) m ON u.id = m.user_id
-      ORDER BY u.id ASC;
+      ${whereClause}
+      ORDER BY ${safeSortCol} ${safeDir}, u.id ${safeDir}
     `;
-    const result = await client.query(queryText);
-    return result.rows;
+
+    const dataParams = [...params];
+    if (isPaginated) {
+      dataParams.push(effectiveLimit, offset);
+      queryText += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+    }
+
+    const result = await client.query(queryText, dataParams);
+    const rows = result.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+
+    return rows;
   }
 
   /**

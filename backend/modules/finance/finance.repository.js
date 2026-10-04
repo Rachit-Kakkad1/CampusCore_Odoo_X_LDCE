@@ -192,10 +192,42 @@ const financeRepository = {
   },
 
   /**
-   * Get all transactions with optional filter
+   * Get all transactions with optional filter and server-side pagination
    */
-  async getAllTransactions({ limit = 100, offset = 0, sourceType = null, source_type = null, direction = null } = {}) {
+  async getAllTransactions({
+    limit = 100,
+    offset = 0,
+    sourceType = null,
+    source_type = null,
+    direction = null,
+    page = null,
+    pageSize = null,
+  } = {}) {
     const filterSource = sourceType || source_type;
+    const where = [];
+    const params = [];
+
+    if (filterSource && filterSource !== 'all') {
+      params.push(filterSource);
+      where.push(`t.source_type = $${params.length}`);
+    }
+
+    if (direction) {
+      params.push(direction);
+      where.push(`t.direction = $${params.length}`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = page !== null || pageSize !== null;
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `SELECT COUNT(*)::int AS total FROM transactions t ${whereClause};`;
+      const countRes = await query(countSql, params);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
     let sql = `
       SELECT 
         t.*,
@@ -204,34 +236,47 @@ const financeRepository = {
         u.role AS user_role
       FROM transactions t
       LEFT JOIN users u ON t.user_id = u.id
-      WHERE 1=1
+      ${whereClause}
+      ORDER BY t.created_at DESC, t.id DESC
     `;
-    const params = [];
 
-    if (filterSource && filterSource !== 'all') {
-      params.push(filterSource);
-      sql += ` AND t.source_type = $${params.length}`;
+    const dataParams = [...params];
+    dataParams.push(effectiveLimit, offset);
+    sql += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
+
+    const res = await query(sql, dataParams);
+    const rows = res.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
     }
 
-    if (direction) {
-      params.push(direction);
-      sql += ` AND t.direction = $${params.length}`;
-    }
-
-    sql += ' ORDER BY t.created_at DESC';
-
-    params.push(limit, offset);
-    sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
-
-    const res = await query(sql, params);
-    return res.rows;
+    return rows;
   },
 
   /**
-   * Get members who still owe dues
+   * Get members who still owe dues (with optional pagination)
    */
-  async getOwingMembers() {
-    const sql = `
+  async getOwingMembers({ page = null, pageSize = null, limit = null, offset = 0 } = {}) {
+    const isPaginated = page !== null || pageSize !== null;
+    const effectiveLimit = pageSize || limit;
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `
+        SELECT COUNT(*)::int AS total
+        FROM memberships m
+        JOIN users u ON m.user_id = u.id
+        WHERE m.dues_status = 'pending';
+      `;
+      const countRes = await query(countSql);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
+    let sql = `
       SELECT 
         m.id AS membership_id,
         m.user_id,
@@ -245,16 +290,51 @@ const financeRepository = {
       FROM memberships m
       JOIN users u ON m.user_id = u.id
       WHERE m.dues_status = 'pending'
-      ORDER BY m.created_at DESC;
+      ORDER BY m.created_at DESC, m.id DESC
     `;
-    const res = await query(sql);
-    return res.rows;
+
+    const params = [];
+    if (isPaginated || effectiveLimit) {
+      params.push(effectiveLimit, offset);
+      sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    }
+
+    const res = await query(sql, params);
+    const rows = res.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+
+    return rows;
   },
 
   /**
-   * Get all expenses with submitter and approver details
+   * Get all expenses with submitter and approver details and optional pagination
    */
-  async getAllExpenses({ status = null } = {}) {
+  async getAllExpenses({ status = null, page = null, pageSize = null, limit = null, offset = 0 } = {}) {
+    const where = [];
+    const params = [];
+
+    if (status && status !== 'all') {
+      params.push(status);
+      where.push(`e.status = $${params.length}`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+    const effectiveLimit = pageSize || limit;
+    const isPaginated = page !== null || pageSize !== null;
+
+    let totalItems = 0;
+    if (isPaginated) {
+      const countSql = `SELECT COUNT(*)::int AS total FROM expenses e ${whereClause};`;
+      const countRes = await query(countSql, params);
+      totalItems = countRes.rows[0] ? parseInt(countRes.rows[0].total, 10) : 0;
+    }
+
     let sql = `
       SELECT 
         e.*,
@@ -267,18 +347,27 @@ const financeRepository = {
       LEFT JOIN users u_sub ON e.submitted_by = u_sub.id
       LEFT JOIN users u_app ON e.approved_by = u_app.id
       LEFT JOIN users u_reimb ON e.reimbursed_by = u_reimb.id
-      WHERE 1=1
+      ${whereClause}
+      ORDER BY e.created_at DESC, e.id DESC
     `;
-    const params = [];
 
-    if (status) {
-      params.push(status);
-      sql += ` AND e.status = $${params.length}`;
+    const dataParams = [...params];
+    if (isPaginated || effectiveLimit) {
+      dataParams.push(effectiveLimit, offset);
+      sql += ` LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
     }
 
-    sql += ` ORDER BY e.created_at DESC;`;
-    const res = await query(sql, params);
-    return res.rows;
+    const res = await query(sql, dataParams);
+    const rows = res.rows;
+
+    if (isPaginated) {
+      return {
+        rows,
+        totalItems,
+      };
+    }
+
+    return rows;
   },
 
   /**

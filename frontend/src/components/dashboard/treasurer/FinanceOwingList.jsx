@@ -1,8 +1,9 @@
 // frontend/src/components/dashboard/treasurer/FinanceOwingList.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardTable } from '../DashboardTable';
 import { DashboardEmptyState } from '../DashboardEmptyState';
 import { StatusBadge } from '../StatusBadge';
+import Pagination from '../../common/Pagination';
 import { AlertCircle, User, Mail, Calendar, CheckCircle2 } from 'lucide-react';
 
 /**
@@ -14,9 +15,17 @@ import { AlertCircle, User, Mail, Calendar, CheckCircle2 } from 'lucide-react';
  * @param {boolean} props.loading - Loading state
  */
 export const FinanceOwingList = ({ owingMembers = [], loading = false }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const totalOwing = owingMembers.reduce(
     (acc, m) => acc + Number(m.dues_amount || 0),
     0
+  );
+
+  const paginatedMembers = owingMembers.slice(
+    (page - 1) * pageSize,
+    page * pageSize
   );
 
   return (
@@ -52,61 +61,78 @@ export const FinanceOwingList = ({ owingMembers = [], loading = false }) => {
           description="All registered members have paid their annual organization membership dues in full."
         />
       ) : (
-        <DashboardTable
-          headers={['Member ID', 'Member Details', 'Role', 'Registered On', 'Amount Due', 'Dues Status']}
-        >
-          {owingMembers.map((member) => {
-            const regDate = member.registration_date
-              ? new Date(member.registration_date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : '—';
+        <div className="space-y-3">
+          <DashboardTable
+            headers={['Member ID', 'Member Details', 'Role', 'Registered On', 'Amount Due', 'Dues Status']}
+          >
+            {paginatedMembers.map((member) => {
+              const regDate = member.registration_date
+                ? new Date(member.registration_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : '—';
 
-            return (
-              <tr key={member.membership_id} className="hover:bg-slate-50/80 transition-colors border-b border-border/60">
-                {/* 1. Member Code */}
-                <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">
-                  {member.member_code || `MEM-${member.membership_id}`}
-                </td>
+              return (
+                <tr key={member.membership_id} className="hover:bg-slate-50/80 transition-colors border-b border-border/60">
+                  {/* 1. Member Code */}
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">
+                    {member.member_code || `MEM-${member.membership_id}`}
+                  </td>
 
-                {/* 2. Member Name & Email */}
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-900">
-                      {member.user_name}
-                    </span>
-                    <span className="font-mono text-[11px] text-muted flex items-center gap-1 mt-0.5">
-                      <Mail className="w-3 h-3" />
-                      {member.user_email}
-                    </span>
-                  </div>
-                </td>
+                  {/* 2. Member Name & Email */}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-900">
+                        {member.user_name}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted flex items-center gap-1 mt-0.5">
+                        <Mail className="w-3 h-3" />
+                        {member.user_email}
+                      </span>
+                    </div>
+                  </td>
 
-                {/* 3. Role */}
-                <td className="px-4 py-3 font-mono text-[11px] uppercase text-slate-600">
-                  {member.user_role || 'member'}
-                </td>
+                  {/* 3. Role */}
+                  <td className="px-4 py-3 font-mono text-[11px] uppercase text-slate-600">
+                    {member.user_role || 'member'}
+                  </td>
 
-                {/* 4. Registration Date */}
-                <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                  {regDate}
-                </td>
+                  {/* 4. Registration Date */}
+                  <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                    {regDate}
+                  </td>
 
-                {/* 5. Amount Due */}
-                <td className="px-4 py-3 font-mono text-sm font-bold text-rose-700">
-                  ₹{Number(member.dues_amount || 500).toFixed(2)}
-                </td>
+                  {/* 5. Amount Due */}
+                  <td className="px-4 py-3 font-mono text-sm font-bold text-rose-700">
+                    ₹{Number(member.dues_amount || 500).toFixed(2)}
+                  </td>
 
-                {/* 6. Dues Status */}
-                <td className="px-4 py-3">
-                  <StatusBadge status="PENDING" />
-                </td>
-              </tr>
-            );
-          })}
-        </DashboardTable>
+                  {/* 6. Dues Status */}
+                  <td className="px-4 py-3">
+                    <StatusBadge status="PENDING" />
+                  </td>
+                </tr>
+              );
+            })}
+          </DashboardTable>
+
+          {owingMembers.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(owingMembers.length / pageSize)}
+              totalItems={owingMembers.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[5, 10, 25, 50]}
+            />
+          )}
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import fundraiserService from '../../../services/fundraiser.service';
+import Pagination from '../../common/Pagination';
 import {
   Plus,
   X,
@@ -51,6 +52,12 @@ export const AdminFundraiserManagement = ({
   const [donationSearch, setDonationSearch] = useState('');
   const [donationStatusFilter, setDonationStatusFilter] = useState('');
   const [selectedFundraiserFilter, setSelectedFundraiserFilter] = useState('');
+  const [donationPage, setDonationPage] = useState(1);
+  const [donationPageSize, setDonationPageSize] = useState(20);
+
+  // Campaigns pagination state
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignPageSize, setCampaignPageSize] = useState(6);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -73,6 +80,14 @@ export const AdminFundraiserManagement = ({
   const [campaignSearch, setCampaignSearch] = useState('');
 
   const [copiedRef, setCopiedRef] = useState(null);
+
+  useEffect(() => {
+    setCampaignPage(1);
+  }, [campaignSearch]);
+
+  useEffect(() => {
+    setDonationPage(1);
+  }, [donationSearch, donationStatusFilter, selectedFundraiserFilter]);
 
   // Fetch Authoritative Admin Campaigns
   const refreshCampaigns = async () => {
@@ -101,18 +116,21 @@ export const AdminFundraiserManagement = ({
     }
   };
 
-  // Fetch Donations Ledger
-  const refreshDonations = async () => {
+  // Fetch Donations Ledger (with pagination)
+  const refreshDonations = async (page = donationPage, pageSize = donationPageSize) => {
     try {
       setDonationsLoading(true);
       const res = await fundraiserService.getAdminDonations({
         search: donationSearch.trim() || undefined,
         status: donationStatusFilter || undefined,
         fundraiserId: selectedFundraiserFilter || undefined,
-        limit: 50,
+        page,
+        pageSize,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
       });
       setDonations(res.data || []);
-      setDonationsTotal(res.total || 0);
+      setDonationsTotal(res.pagination?.totalItems || res.total || (res.data ? res.data.length : 0));
     } catch (err) {
       console.error('Error fetching donations ledger:', err);
     } finally {
@@ -131,11 +149,11 @@ export const AdminFundraiserManagement = ({
 
   useEffect(() => {
     if (activeTab === 'donations_ledger') {
-      refreshDonations();
+      refreshDonations(donationPage, donationPageSize);
     } else if (activeTab === 'financial_overview') {
       refreshGlobalStats();
     }
-  }, [activeTab, donationStatusFilter, selectedFundraiserFilter]);
+  }, [activeTab, donationPage, donationPageSize, donationStatusFilter, selectedFundraiserFilter]);
 
   // Compute live aggregates from campaignList
   const netRaisedTotal = campaignList.reduce(
@@ -160,6 +178,8 @@ export const AdminFundraiserManagement = ({
       (f.public_id && f.public_id.toLowerCase().includes(q))
     );
   });
+
+  const paginatedCampaigns = filteredCampaigns.slice((campaignPage - 1) * campaignPageSize, campaignPage * campaignPageSize);
 
   // Open Create Modal
   const handleOpenCreateModal = () => {
@@ -439,8 +459,9 @@ export const AdminFundraiserManagement = ({
               No campaigns found. Click "Launch New Campaign" to create one.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredCampaigns.map((f) => {
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {paginatedCampaigns.map((f) => {
                 const raised = parseFloat(f.total_raised) || 0;
                 const goal = parseFloat(f.goal_amount) || 10000;
                 const donors = parseInt(f.donor_count, 10) || 0;
@@ -549,6 +570,21 @@ export const AdminFundraiserManagement = ({
                   </ThreeDCard>
                 );
               })}
+            </div>
+            {filteredCampaigns.length > campaignPageSize && (
+              <Pagination
+                currentPage={campaignPage}
+                totalPages={Math.ceil(filteredCampaigns.length / campaignPageSize)}
+                totalItems={filteredCampaigns.length}
+                pageSize={campaignPageSize}
+                pageSizeOptions={[4, 6, 12, 24]}
+                onPageChange={setCampaignPage}
+                onPageSizeChange={(newSize) => {
+                  setCampaignPageSize(newSize);
+                  setCampaignPage(1);
+                }}
+              />
+            )}
             </div>
           )}
         </div>
@@ -801,6 +837,24 @@ export const AdminFundraiserManagement = ({
                 </tbody>
               </table>
             </div>
+
+            {donationsTotal > donationPageSize && (
+              <Pagination
+                currentPage={donationPage}
+                totalPages={Math.ceil(donationsTotal / donationPageSize)}
+                totalItems={donationsTotal}
+                pageSize={donationPageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                loading={donationsLoading}
+                onPageChange={(newPage) => {
+                  setDonationPage(newPage);
+                }}
+                onPageSizeChange={(newSize) => {
+                  setDonationPageSize(newSize);
+                  setDonationPage(1);
+                }}
+              />
+            )}
           </div>
         </div>
       )}

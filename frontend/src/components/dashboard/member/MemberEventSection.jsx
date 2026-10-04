@@ -1,8 +1,9 @@
 // frontend/src/components/dashboard/member/MemberEventSection.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardSection } from '../DashboardSection';
 import { DashboardEmptyState } from '../DashboardEmptyState';
 import { ActionButton } from '../ActionButton';
+import Pagination from '../../common/Pagination';
 
 export const MemberEventSection = ({
   events = [],
@@ -10,6 +11,8 @@ export const MemberEventSection = ({
   loading = false,
   onRegisterEvent,
 }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(4);
   if (loading) {
     return (
       <DashboardSection
@@ -36,8 +39,9 @@ export const MemberEventSection = ({
           description="There are currently no scheduled events. Please check back later for announcements."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {events.map((event) => {
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {events.slice((page - 1) * pageSize, page * pageSize).map((event) => {
             const memberPrice = Number(event.member_price || 0).toFixed(2);
             const nonMemberPrice = Number(event.non_member_price || 0).toFixed(2);
             const savings = (Number(event.non_member_price || 0) - Number(event.member_price || 0)).toFixed(2);
@@ -138,6 +142,22 @@ export const MemberEventSection = ({
               </div>
             );
           })}
+          </div>
+
+          {events.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(events.length / pageSize)}
+              totalItems={events.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[4, 8, 16]}
+            />
+          )}
         </div>
       )}
     </DashboardSection>

@@ -31,10 +31,19 @@ const announcementsController = {
         success: true,
         count: result.data.length,
         data: result.data,
+        announcements: result.data,
         page: result.page,
         limit: result.limit,
         total: result.total,
         totalPages: result.totalPages,
+        pagination: {
+          page: result.page,
+          pageSize: result.limit,
+          totalItems: result.total,
+          totalPages: result.totalPages,
+          hasNextPage: result.page < result.totalPages,
+          hasPreviousPage: result.page > 1,
+        },
       });
     } catch (err) {
       next(err);

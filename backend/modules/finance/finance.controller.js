@@ -70,16 +70,44 @@ const financeController = {
 
   async getTransactions(req, res, next) {
     try {
-      const limit = parseInt(req.query.limit, 10) || 100;
-      const offset = parseInt(req.query.offset, 10) || 0;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
       const sourceType = req.query.source_type || req.query.sourceType || 'all';
       const direction = req.query.direction;
 
-      const data = await financeService.getTransactions({ limit, offset, sourceType, direction });
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+        });
+
+        const result = await financeService.getTransactions({
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          sourceType,
+          direction,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          transactions: rows,
+        });
+      }
+
+      const data = await financeService.getTransactions({ limit: 100, offset: 0, sourceType, direction });
+      const list = Array.isArray(data) ? data : (data.rows || []);
       return res.status(200).json({
         success: true,
-        count: data.length,
-        data,
+        count: list.length,
+        data: list,
+        transactions: list,
       });
     } catch (err) {
       next(err);
@@ -88,11 +116,39 @@ const financeController = {
 
   async getOwing(req, res, next) {
     try {
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+        });
+
+        const result = await financeService.getOwingMembers({
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          members: rows,
+        });
+      }
+
       const data = await financeService.getOwingMembers();
+      const list = Array.isArray(data) ? data : (data.rows || []);
       return res.status(200).json({
         success: true,
-        count: data.length,
-        data,
+        count: list.length,
+        data: list,
+        members: list,
       });
     } catch (err) {
       next(err);
@@ -101,12 +157,41 @@ const financeController = {
 
   async getExpenses(req, res, next) {
     try {
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
       const { status } = req.query;
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+        });
+
+        const result = await financeService.getExpenses({
+          status,
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          expenses: rows,
+        });
+      }
+
       const data = await financeService.getExpenses({ status });
+      const list = Array.isArray(data) ? data : (data.rows || []);
       return res.status(200).json({
         success: true,
-        count: data.length,
-        data,
+        count: list.length,
+        data: list,
+        expenses: list,
       });
     } catch (err) {
       next(err);

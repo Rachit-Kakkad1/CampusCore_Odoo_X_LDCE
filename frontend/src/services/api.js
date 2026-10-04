@@ -13,7 +13,20 @@ function getToken() {
  * Core HTTP request helper with automatic Authorization header injection.
  */
 async function request(endpoint, options = {}) {
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  let url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  
+  if (options.params && typeof options.params === 'object') {
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(options.params)) {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    }
+    const queryString = queryParams.toString();
+    if (queryString) {
+      url += (url.includes('?') ? '&' : '?') + queryString;
+    }
+  }
   
   const headers = {
     'Content-Type': 'application/json',

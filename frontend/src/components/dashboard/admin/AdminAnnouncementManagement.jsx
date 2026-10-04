@@ -1,7 +1,8 @@
 // frontend/src/components/dashboard/admin/AdminAnnouncementManagement.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import announcementsService from '../../../services/announcements.service';
+import Pagination from '../../common/Pagination';
 import {
   Plus,
   X,
@@ -27,6 +28,12 @@ export const AdminAnnouncementManagement = ({
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const filteredAnnouncements = announcements.filter((a) => {
     const q = search.toLowerCase();
@@ -35,6 +42,8 @@ export const AdminAnnouncementManagement = ({
       (a.body && a.body.toLowerCase().includes(q))
     );
   });
+
+  const paginatedAnnouncements = filteredAnnouncements.slice((page - 1) * pageSize, page * pageSize);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -168,7 +177,7 @@ export const AdminAnnouncementManagement = ({
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredAnnouncements.map((ann) => {
+          {paginatedAnnouncements.map((ann) => {
             const postDate = ann.created_at
               ? new Date(ann.created_at).toLocaleDateString('en-US', {
                   month: 'short',
@@ -210,6 +219,21 @@ export const AdminAnnouncementManagement = ({
               </ThreeDCard>
             );
           })}
+
+          {filteredAnnouncements.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(filteredAnnouncements.length / pageSize)}
+              totalItems={filteredAnnouncements.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[5, 10, 20]}
+            />
+          )}
         </div>
       )}
 

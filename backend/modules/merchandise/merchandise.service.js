@@ -356,20 +356,20 @@ class MerchandiseService {
   /**
    * Get orders for the current user
    */
-  async getUserOrders(userId) {
+  async getUserOrders(userId, options = {}) {
     if (!userId) {
       const error = new Error('User ID required');
       error.status = 401;
       throw error;
     }
-    return await merchandiseRepo.getOrdersByUserId(userId);
+    return await merchandiseRepo.getUserOrders(userId, options);
   }
 
   /**
    * Get all orders across the organization (Admin / Treasurer)
    */
-  async getAllOrders() {
-    return await merchandiseRepo.getAllOrders();
+  async getAllOrders(options = {}) {
+    return await merchandiseRepo.getAllOrders(options);
   }
 
   /**

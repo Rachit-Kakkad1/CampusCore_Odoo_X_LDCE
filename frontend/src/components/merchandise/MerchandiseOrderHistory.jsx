@@ -1,7 +1,8 @@
 // frontend/src/components/merchandise/MerchandiseOrderHistory.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import MerchandiseOrderCard from './MerchandiseOrderCard';
 import { DashboardEmptyState } from '../dashboard/DashboardEmptyState';
+import Pagination from '../common/Pagination';
 
 export const MerchandiseOrderHistory = ({
   orders = [],
@@ -9,6 +10,9 @@ export const MerchandiseOrderHistory = ({
   onPayOrder,
   onBrowseStore,
 }) => {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -33,15 +37,34 @@ export const MerchandiseOrderHistory = ({
     );
   }
 
+  const paginatedOrders = orders.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <div className="space-y-4">
-      {orders.map((order) => (
-        <MerchandiseOrderCard
-          key={order.id}
-          order={order}
-          onPayOrder={onPayOrder}
+      <div className="space-y-4">
+        {paginatedOrders.map((order) => (
+          <MerchandiseOrderCard
+            key={order.id}
+            order={order}
+            onPayOrder={onPayOrder}
+          />
+        ))}
+      </div>
+
+      {orders.length > pageSize && (
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(orders.length / pageSize)}
+          totalItems={orders.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          pageSizeOptions={[5, 10, 20]}
         />
-      ))}
+      )}
     </div>
   );
 };

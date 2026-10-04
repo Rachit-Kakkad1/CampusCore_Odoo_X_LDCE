@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import VolunteerTaskCard from './VolunteerTaskCard';
 import { DashboardEmptyState } from '../DashboardEmptyState';
+import Pagination from '../../common/Pagination';
 import { Search, Filter, CheckCircle2, Clock, CircleDot, ListTodo } from 'lucide-react';
 
 /**
@@ -20,6 +21,8 @@ export const VolunteerTaskList = ({
 }) => {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
 
   const completedCount = tasks.filter(
     (t) => (t.status || '').toUpperCase() === 'COMPLETED'
@@ -48,6 +51,11 @@ export const VolunteerTaskList = ({
       return matchStatus && matchQuery;
     });
   }, [tasks, filterStatus, searchQuery]);
+
+  const paginatedTasks = filteredTasks.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   return (
     <div className="space-y-6">
@@ -113,7 +121,10 @@ export const VolunteerTaskList = ({
             type="text"
             placeholder="Search tasks by title or event..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 border border-border bg-white text-xs font-mono placeholder:text-slate-400 focus:outline-hidden focus:border-slate-900 transition-colors"
           />
         </div>
@@ -128,7 +139,10 @@ export const VolunteerTaskList = ({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setFilterStatus(tab.id)}
+              onClick={() => {
+                setFilterStatus(tab.id);
+                setPage(1);
+              }}
               className={`px-3 py-1.5 font-mono text-xs uppercase tracking-wider border transition-colors shrink-0 ${
                 filterStatus === tab.id
                   ? 'bg-slate-900 text-white border-slate-900 font-semibold'
@@ -152,14 +166,31 @@ export const VolunteerTaskList = ({
           }
         />
       ) : (
-        <div className="space-y-3">
-          {filteredTasks.map((task) => (
-            <VolunteerTaskCard
-              key={task.id}
-              task={task}
-              onStatusChange={onStatusChange}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {paginatedTasks.map((task) => (
+              <VolunteerTaskCard
+                key={task.id}
+                task={task}
+                onStatusChange={onStatusChange}
+              />
+            ))}
+          </div>
+
+          {filteredTasks.length > pageSize && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(filteredTasks.length / pageSize)}
+              totalItems={filteredTasks.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              pageSizeOptions={[4, 6, 12, 24]}
             />
-          ))}
+          )}
         </div>
       )}
     </div>

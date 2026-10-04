@@ -211,10 +211,39 @@ class MerchandiseController {
         });
       }
 
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 10,
+          maxPageSize: 100,
+        });
+
+        const result = await merchandiseService.getUserOrders(parseInt(userId, 10), {
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          orders: rows,
+        });
+      }
+
       const orders = await merchandiseService.getUserOrders(parseInt(userId, 10));
+      const list = Array.isArray(orders) ? orders : (orders.rows || []);
       res.status(200).json({
         success: true,
-        data: orders,
+        count: list.length,
+        data: list,
+        orders: list,
       });
     } catch (error) {
       next(error);
@@ -226,10 +255,42 @@ class MerchandiseController {
    */
   async getAllOrders(req, res, next) {
     try {
-      const orders = await merchandiseService.getAllOrders();
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+      const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
+      const { status, search } = req.query;
+
+      if (hasPagination) {
+        const { page, pageSize, offset } = parsePaginationParams(req.query, {
+          defaultPageSize: 20,
+          maxPageSize: 100,
+        });
+
+        const result = await merchandiseService.getAllOrders({
+          page,
+          pageSize,
+          limit: pageSize,
+          offset,
+          status,
+          search,
+        });
+
+        const rows = result.rows || [];
+        const totalItems = result.totalItems || 0;
+        const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+        return res.status(200).json({
+          ...responsePayload,
+          orders: rows,
+        });
+      }
+
+      const orders = await merchandiseService.getAllOrders({ status, search });
+      const list = Array.isArray(orders) ? orders : (orders.rows || []);
       res.status(200).json({
         success: true,
-        data: orders,
+        count: list.length,
+        data: list,
+        orders: list,
       });
     } catch (error) {
       next(error);
