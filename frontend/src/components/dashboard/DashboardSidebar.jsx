@@ -15,7 +15,8 @@ import {
   Ticket,
   LogOut,
   ShieldCheck,
-  Lock
+  Lock,
+  Heart
 } from 'lucide-react';
 import authService from '../../services/auth.service';
 import AnnouncementsModal from './AnnouncementsModal';
@@ -215,6 +216,10 @@ export const DashboardSidebar = ({ currentRole }) => {
               <NavLink to="/dashboard/member/tickets" className={navItemClass}>
                 <Ticket className="w-4 h-4" />
                 <span>My Tickets</span>
+              </NavLink>
+              <NavLink to="/dashboard/member/donations" className={navItemClass}>
+                <Heart className="w-4 h-4" />
+                <span>My Donations</span>
               </NavLink>
             </>
           )}

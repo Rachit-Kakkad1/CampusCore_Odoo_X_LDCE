@@ -22,6 +22,8 @@ import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
 import MembershipPage from './pages/membership/MembershipPage';
 import MembershipCheckoutPage from './pages/membership/MembershipCheckoutPage';
 import MembershipSuccessPage from './pages/membership/MembershipSuccessPage';
+import PublicFundraisersPage from './pages/fundraisers/PublicFundraisersPage';
+import PublicFundraiserDetailsPage from './pages/fundraisers/PublicFundraiserDetailsPage';
 import authService from './services/auth.service';
 import eventsService from './services/events.service';
 import financeService from './services/finance.service';
@@ -70,6 +72,7 @@ const LandingPage = () => {
             <a href="#overview" className="hover:text-primary transition-colors">Overview</a>
             <Link to="/events" className="hover:text-primary transition-colors">Events</Link>
             <Link to="/store" className="hover:text-primary transition-colors">Store</Link>
+            <Link to="/fundraisers" className="hover:text-primary transition-colors">Donate</Link>
             <a href="#finance" className="hover:text-primary transition-colors">Finance</a>
           </div>
 
@@ -776,6 +779,9 @@ export default function App() {
         <Route path="/membership/success" element={<MembershipSuccessPage />} />
         <Route path="/membership/pass" element={<Navigate to="/dashboard/member" replace />} />
         <Route path="/announcements" element={<Navigate to="/dashboard/member" replace />} />
+        <Route path="/fundraisers" element={<PublicFundraisersPage />} />
+        <Route path="/fundraisers/:id" element={<PublicFundraiserDetailsPage />} />
+        <Route path="/donations" element={<Navigate to="/fundraisers" replace />} />
         
         {/* Dashboard Routes */}
         <Route

@@ -83,12 +83,19 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/checkin', checkinRouter);
 app.use('/api/checkin', checkinRouter);
 
+const fundraiserRoutes = require('./modules/fundraisers/fundraiser.routes');
+
 app.use('/merchandise', merchandiseRoutes);
 app.use('/api/merchandise', merchandiseRoutes);
 app.use('/', merchandiseRoutes); // allows direct /products and /orders
 
 app.use('/finance', financeRoutes);
 app.use('/api/finance', financeRoutes);
+
+app.use('/fundraisers', fundraiserRoutes);
+app.use('/api/fundraisers', fundraiserRoutes);
+app.use('/donations', fundraiserRoutes);
+app.use('/api/donations', fundraiserRoutes);
 
 app.use('/tasks', tasksRouter);
 app.use('/api/tasks', tasksRouter);

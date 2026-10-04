@@ -57,6 +57,9 @@ export const Navbar = () => {
               <Link to="/store" className={navLinkClass('/store')}>
                 Store
               </Link>
+              <Link to="/fundraisers" className={navLinkClass('/fundraisers')}>
+                Donate
+              </Link>
               <Link to="/announcements" className={navLinkClass('/announcements')}>
                 Announcements
               </Link>

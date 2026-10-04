@@ -18,6 +18,7 @@ import MerchandiseCart from '../../merchandise/MerchandiseCart';
 import MerchandiseCheckout from '../../merchandise/MerchandiseCheckout';
 import MerchandisePayment from '../../merchandise/MerchandisePayment';
 import MerchandiseOrderHistory from '../../merchandise/MerchandiseOrderHistory';
+import UserDonationsList from '../../fundraisers/UserDonationsList';
 import {
   CreditCard,
   Ticket,
@@ -30,6 +31,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  Heart,
 } from 'lucide-react';
 import membershipService from '../../../services/membership.service';
 import eventsService from '../../../services/events.service';
@@ -41,13 +43,14 @@ export const MemberDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Route-aware tab resolution: 'overview' | 'events' | 'store' | 'tickets' | 'orders' | 'announcements'
+  // Route-aware tab resolution: 'overview' | 'events' | 'store' | 'tickets' | 'orders' | 'announcements' | 'donations'
   const getTabFromPath = (pathname) => {
     if (pathname.includes('/events')) return 'events';
     if (pathname.includes('/store')) return 'store';
     if (pathname.includes('/tickets')) return 'tickets';
     if (pathname.includes('/orders')) return 'orders';
     if (pathname.includes('/announcements')) return 'announcements';
+    if (pathname.includes('/donations')) return 'donations';
     return 'overview';
   };
 
@@ -632,6 +635,15 @@ export const MemberDashboard = () => {
       {activeTab === 'announcements' && (
         <div className="space-y-6">
           <MemberAnnouncementSection announcements={announcements} />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 7: MY DONATIONS                                                       */}
+      {/* ========================================================================= */}
+      {activeTab === 'donations' && (
+        <div className="space-y-6">
+          <UserDonationsList />
         </div>
       )}
     </div>

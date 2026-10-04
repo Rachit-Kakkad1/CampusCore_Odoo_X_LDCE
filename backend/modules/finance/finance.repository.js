@@ -10,15 +10,27 @@ const financeRepository = {
     const sql = `
       SELECT 
         f.id,
+        f.public_id,
+        f.slug,
         f.title,
+        f.short_description,
         f.description,
+        f.image_url,
+        f.goal_amount,
+        f.currency,
+        f.status,
+        f.start_at,
+        f.end_at,
         f.created_by,
         f.created_at,
-        COALESCE(SUM(DISTINCT fi.amount), 0)::NUMERIC AS total_raised,
+        (
+          COALESCE((SELECT SUM(amount) FROM fundraiser_income WHERE fundraiser_id = f.id), 0) +
+          COALESCE((SELECT SUM(CASE WHEN status = 'paid' THEN amount WHEN status = 'refunded' THEN amount - refund_amount ELSE 0 END) FROM donations WHERE fundraiser_id = f.id), 0)
+        )::NUMERIC(12,2) AS total_raised,
+        COALESCE((SELECT COUNT(*) FROM donations WHERE fundraiser_id = f.id AND status = 'paid'), 0)::INT AS donor_count,
         COUNT(DISTINCT t.id)::INT AS total_tasks,
         COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' OR t.status = 'completed' THEN t.id END)::INT AS completed_tasks
       FROM fundraisers f
-      LEFT JOIN fundraiser_income fi ON f.id = fi.fundraiser_id
       LEFT JOIN tasks t ON f.id = t.fundraiser_id
       GROUP BY f.id
       ORDER BY f.created_at DESC;

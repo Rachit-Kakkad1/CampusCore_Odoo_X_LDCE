@@ -227,14 +227,25 @@ CREATE TABLE order_items (
 );
 
 -- -----------------------------------------------------------------------------
--- 8. FUNDRAISERS, TASKS & FUNDRAISER INCOME
+-- 8. FUNDRAISERS, TASKS, FUNDRAISER INCOME & DONATIONS
 -- -----------------------------------------------------------------------------
 CREATE TABLE fundraisers (
   id SERIAL PRIMARY KEY,
+  public_id VARCHAR(64) UNIQUE,
+  slug VARCHAR(255) UNIQUE,
   title VARCHAR(255) NOT NULL,
+  short_description TEXT,
   description TEXT,
+  image_url TEXT,
+  goal_amount NUMERIC(12,2) NOT NULL DEFAULT 10000.00 CHECK (goal_amount > 0),
+  currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+  status VARCHAR(20) NOT NULL DEFAULT 'active'
+    CHECK (status IN ('draft', 'active', 'paused', 'completed', 'cancelled')),
+  start_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  end_at TIMESTAMP WITH TIME ZONE,
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE tasks (
@@ -254,6 +265,32 @@ CREATE TABLE fundraiser_income (
   note TEXT,
   recorded_by INT REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE donations (
+  id SERIAL PRIMARY KEY,
+  public_id VARCHAR(64) UNIQUE NOT NULL,
+  fundraiser_id INT NOT NULL REFERENCES fundraisers(id) ON DELETE CASCADE,
+  user_id INT REFERENCES users(id) ON DELETE SET NULL,
+  donor_name VARCHAR(255) NOT NULL,
+  donor_email VARCHAR(255) NOT NULL,
+  donor_phone VARCHAR(50) NOT NULL,
+  amount NUMERIC(10,2) NOT NULL CHECK (amount > 0),
+  currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+  status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'paid', 'payment_failed', 'cancelled', 'refunded')),
+  anonymous BOOLEAN NOT NULL DEFAULT FALSE,
+  message TEXT,
+  payment_provider VARCHAR(50) NOT NULL DEFAULT 'online',
+  payment_reference VARCHAR(100),
+  idempotency_key VARCHAR(128) UNIQUE,
+  refund_amount NUMERIC(10,2) DEFAULT 0.00 CHECK (refund_amount >= 0),
+  refund_reason TEXT,
+  refunded_by INT REFERENCES users(id) ON DELETE SET NULL,
+  paid_at TIMESTAMP WITH TIME ZONE,
+  refunded_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- -----------------------------------------------------------------------------
@@ -280,7 +317,7 @@ CREATE TABLE expenses (
 CREATE TABLE transactions (
   id SERIAL PRIMARY KEY,
   source_type VARCHAR(50) NOT NULL
-    CHECK (source_type IN ('dues', 'ticket', 'merch', 'fundraiser', 'expense')),
+    CHECK (source_type IN ('dues', 'ticket', 'merch', 'fundraiser', 'fundraiser_refund', 'expense')),
   source_id INT NOT NULL,
   user_id INT REFERENCES users(id) ON DELETE SET NULL,
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),

@@ -1,5 +1,5 @@
 const { getEmailProvider } = require('./email.provider');
-const { renderTicketEmail } = require('./email.templates');
+const { renderTicketEmail, renderDonationEmail } = require('./email.templates');
 const env = require('../../config/env');
 
 /**
@@ -11,14 +11,6 @@ class EmailService {
   /**
    * Dispatches a ticket confirmation email with embedded QR code and fallback code.
    * Never throws uncaught errors that could roll back successful financial transactions.
-   *
-   * @param {object} params
-   * @param {string} params.recipientEmail - Target email address
-   * @param {string} [params.recipientName] - Attendee / User name
-   * @param {object} params.event - Event metadata { id, title, starts_at, venue }
-   * @param {object} params.ticket - Ticket details { id, ticket_code, price, price_type }
-   * @param {string} [params.qrDataUrl] - base64 PNG data URL of QR code
-   * @returns {Promise<{ success: boolean, messageId?: string, error?: string, provider?: string }>}
    */
   async sendTicketEmail({
     recipientEmail,
@@ -64,6 +56,72 @@ class EmailService {
         },
       });
 
+      return {
+        success: true,
+        messageId: sendResult.messageId,
+        provider: sendResult.provider,
+        recipient: recipientEmail,
+      };
+    } catch (err) {
+      console.warn(`[EMAIL DELIVERY FAILURE] Failed delivering ticket email to ${recipientEmail}:`, err.message);
+      return {
+        success: false,
+        error: 'DELIVERY_FAILED',
+        message: err.message,
+        recipient: recipientEmail,
+      };
+    }
+  }
+
+  /**
+   * Dispatches a donation receipt confirmation email.
+   * Never throws uncaught errors that could roll back successful financial transactions.
+   */
+  async sendDonationEmail({
+    recipientEmail,
+    donorName = 'Valued Supporter',
+    fundraiserTitle = 'Campus Cause',
+    amount = '0.00',
+    currency = 'INR',
+    donationReference = 'DON-UNKNOWN',
+    paymentStatus = 'Paid',
+    date = new Date(),
+    anonymous = false,
+  }) {
+    if (!recipientEmail) {
+      console.warn('[EMAIL WARNING] Cannot send donation email: missing recipient email');
+      return {
+        success: false,
+        error: 'MISSING_RECIPIENT',
+        message: 'No recipient email provided',
+      };
+    }
+
+    try {
+      const { subject, html, text } = renderDonationEmail({
+        donorName,
+        fundraiserTitle,
+        amount,
+        currency,
+        donationReference,
+        paymentStatus,
+        date,
+        anonymous,
+      });
+
+      const provider = getEmailProvider();
+      const sendResult = await provider.sendMail({
+        to: recipientEmail,
+        from: env.EMAIL_FROM,
+        subject,
+        html,
+        text,
+        metadata: {
+          donation_reference: donationReference,
+          amount,
+          currency,
+        },
+      });
 
       return {
         success: true,
@@ -72,8 +130,7 @@ class EmailService {
         recipient: recipientEmail,
       };
     } catch (err) {
-      // Safe failure handling: do NOT crash or bubble up to abort the ticket payment
-      console.warn(`[EMAIL DELIVERY FAILURE] Failed delivering ticket email to ${recipientEmail}:`, err.message);
+      console.warn(`[EMAIL DELIVERY FAILURE] Failed delivering donation email to ${recipientEmail}:`, err.message);
       return {
         success: false,
         error: 'DELIVERY_FAILED',
@@ -108,9 +165,10 @@ class EmailService {
 
 const emailService = new EmailService();
 
-// Export both the service class instance and direct sendTicketEmail helper
+// Export both the service class instance and direct helpers
 module.exports = {
   EmailService,
   emailService,
   sendTicketEmail: (params) => emailService.sendTicketEmail(params),
+  sendDonationEmail: (params) => emailService.sendDonationEmail(params),
 };

@@ -289,6 +289,212 @@ Odoo x LDCE Student Organization System
   return { subject, html, text };
 }
 
+/**
+ * Builds HTML and text versions of the donation confirmation/receipt email.
+ *
+ * @param {object} params
+ * @param {string} params.donorName
+ * @param {string} params.fundraiserTitle
+ * @param {number|string} params.amount
+ * @param {string} params.currency
+ * @param {string} params.donationReference
+ * @param {string} params.paymentStatus
+ * @param {string|Date} params.date
+ * @param {boolean} params.anonymous
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function renderDonationEmail({
+  donorName = 'Valued Supporter',
+  fundraiserTitle = 'Campus Community Initiative',
+  amount = '0.00',
+  currency = 'INR',
+  donationReference = 'DON-0000',
+  paymentStatus = 'Paid',
+  date = new Date(),
+  anonymous = false,
+}) {
+  const formattedDate = formatDate(date);
+  const currencySymbol = currency === 'USD' ? '$' : '₹';
+  const displayAmount = `${currencySymbol}${parseFloat(amount).toFixed(2)}`;
+  const subject = `Donation Receipt: ${fundraiserTitle} [${donationReference}]`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 24px;
+      color: #0f172a;
+    }
+    .receipt-container {
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e2e8f0;
+    }
+    .receipt-header {
+      background: linear-gradient(135deg, #047857 0%, #10b981 100%);
+      color: #ffffff;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .receipt-header h1 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .receipt-header p {
+      margin: 0;
+      opacity: 0.95;
+      font-size: 14px;
+    }
+    .receipt-body {
+      padding: 28px 24px;
+    }
+    .amount-box {
+      text-align: center;
+      margin: 16px 0 24px 0;
+      padding: 20px;
+      background-color: #ecfdf5;
+      border-radius: 8px;
+      border: 1px solid #a7f3d0;
+    }
+    .amount-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: #065f46;
+      margin: 0;
+    }
+    .amount-label {
+      font-size: 12px;
+      color: #047857;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .details-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    .details-table td {
+      padding: 12px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 14px;
+    }
+    .details-label {
+      color: #64748b;
+      font-weight: 500;
+      width: 40%;
+    }
+    .details-value {
+      color: #0f172a;
+      font-weight: 600;
+      text-align: right;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      background-color: #d1fae5;
+      color: #065f46;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .receipt-footer {
+      background-color: #f8fafc;
+      padding: 20px 24px;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <h1>Thank You for Your Generosity!</h1>
+      <p>Your contribution directly supports our community initiative.</p>
+    </div>
+
+    <div class="receipt-body">
+      <div class="amount-box">
+        <div class="amount-value">${displayAmount}</div>
+        <div class="amount-label">Total Donation Processed</div>
+      </div>
+
+      <table class="details-table">
+        <tr>
+          <td class="details-label">Donor Name</td>
+          <td class="details-value">${donorName} ${anonymous ? '(Publicly Anonymous)' : ''}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Fundraiser Cause</td>
+          <td class="details-value">${fundraiserTitle}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Donation Reference</td>
+          <td class="details-value" style="font-family: monospace; font-weight: 700; color: #047857;">${donationReference}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Date & Time</td>
+          <td class="details-value">${formattedDate}</td>
+        </tr>
+        <tr>
+          <td class="details-label">Payment Status</td>
+          <td class="details-value"><span class="status-badge">${paymentStatus}</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="receipt-footer">
+      Odoo × LDCE Student Organization Management System &bull; Official Donation Receipt<br/>
+      Keep this reference for your personal tax and financial records.
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+============================================================
+DONATION RECEIPT — OFFICIAL CONFIRMATION
+============================================================
+
+Thank you, ${donorName}!
+
+Your donation of ${displayAmount} has been successfully processed in support of:
+${fundraiserTitle}
+
+Donation Reference:  ${donationReference}
+Donor Name:          ${donorName} ${anonymous ? '(Anonymous on public board)' : ''}
+Date:                ${formattedDate}
+Payment Status:      ${paymentStatus}
+
+Thank you for making a real impact in our student organization community.
+
+Odoo x LDCE Student Organization System
+============================================================
+  `.trim();
+
+  return { subject, html, text };
+}
+
 module.exports = {
   renderTicketEmail,
+  renderDonationEmail,
 };
+
