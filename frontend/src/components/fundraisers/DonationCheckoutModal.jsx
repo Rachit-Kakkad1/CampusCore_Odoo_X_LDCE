@@ -68,10 +68,9 @@ export const DonationCheckoutModal = ({
 }) => {
   const currentUser = authService.getStoredUser();
 
-  // Selected Amount & Custom Amount
+  // Selected Amount & Custom Amount (default ₹500, directly editable in input box)
   const [selectedAmount, setSelectedAmount] = useState(500);
-  const [customAmount, setCustomAmount] = useState('');
-  const [isCustom, setIsCustom] = useState(false);
+  const [customAmount, setCustomAmount] = useState('500');
 
   // Donor Contact Information
   const [name, setName] = useState(currentUser?.name || '');
@@ -110,19 +109,19 @@ export const DonationCheckoutModal = ({
 
   const currentGoal = parseFloat(fundraiser.goal_amount) || 10000;
   const currentRaised = parseFloat(fundraiser.total_raised) || 0;
-  const activeAmount = isCustom ? parseFloat(customAmount) || 0 : selectedAmount;
+  const activeAmount = parseFloat(customAmount) || 0;
 
   const handleSelectPreset = (amount) => {
     setSelectedAmount(amount);
-    setIsCustom(false);
-    setCustomAmount('');
+    setCustomAmount(String(amount));
     setError(null);
   };
 
   const handleCustomChange = (e) => {
     const val = e.target.value.replace(/[^0-9.]/g, '');
     setCustomAmount(val);
-    setIsCustom(true);
+    const parsed = parseFloat(val);
+    setSelectedAmount(PRESET_AMOUNTS.includes(parsed) ? parsed : null);
     setError(null);
   };
 
@@ -211,16 +210,16 @@ export const DonationCheckoutModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto select-none">
+    <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto select-none">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="relative bg-white border border-border w-full max-w-lg shadow-2xl overflow-hidden my-6 rounded-sm text-slate-900"
+        className="relative bg-white border border-[#e5e4de] w-full max-w-lg shadow-2xl overflow-hidden my-6 rounded-xs text-slate-900"
       >
         {/* Top Accent Gradient */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-600 via-primary to-emerald-500" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#5F3F56] via-purple-600 to-emerald-600" />
 
         {/* --------------------------------------------------------------- */}
         {/* STAGE 1: DONATION FORM                                          */}
@@ -228,13 +227,13 @@ export const DonationCheckoutModal = ({
         {stage === 'form' && (
           <div>
             {/* Header */}
-            <div className="p-6 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-border flex items-center justify-between">
+            <div className="p-6 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-[#e5e4de] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-sm bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-xs">
-                  <Heart className="w-5 h-5 fill-emerald-600/20" />
+                <div className="w-10 h-10 rounded-xs bg-[#5F3F56]/10 border border-[#5F3F56]/20 flex items-center justify-center text-[#5F3F56] shadow-xs">
+                  <Heart className="w-5 h-5 fill-[#5F3F56]/20" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-xs border border-emerald-200">
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-[#5F3F56] bg-[#5F3F56]/10 px-2 py-0.5 rounded-xs border border-[#5F3F56]/20">
                     Verified Campaign
                   </span>
                   <h3 className="text-base font-bold text-slate-900 tracking-tight mt-0.5 line-clamp-1">
@@ -252,7 +251,7 @@ export const DonationCheckoutModal = ({
             </div>
 
             {/* Campaign Summary Bar */}
-            <div className="bg-slate-50 px-6 py-3 border-b border-slate-100 flex items-center justify-between font-mono text-xs text-slate-600">
+            <div className="bg-[#f7f6f2] px-6 py-3 border-b border-[#e5e4de] flex items-center justify-between font-mono text-xs text-slate-600">
               <div>
                 <span className="text-[10px] text-slate-400 block uppercase font-bold">Goal</span>
                 <span className="font-bold text-slate-900">₹{currentGoal.toLocaleString('en-IN')}</span>
@@ -272,48 +271,51 @@ export const DonationCheckoutModal = ({
                 </div>
               )}
 
-              {/* 1. Amount Selection */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Select Donation Amount *
+              {/* 1. Amount Selection & Input Box */}
+              <div className="space-y-3">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  How much do you want to donate? (₹) *
                 </label>
-                <div className="grid grid-cols-5 gap-2 mb-2.5">
-                  {PRESET_AMOUNTS.map((amt) => {
-                    const isSelected = !isCustom && selectedAmount === amt;
-                    return (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => handleSelectPreset(amt)}
-                        className={`py-2 px-1 text-center font-mono font-bold text-xs border rounded-xs transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                        }`}
-                      >
-                        ₹{amt}
-                      </button>
-                    );
-                  })}
-                </div>
 
-                {/* Custom Amount Input */}
+                {/* Direct Custom Amount Input Box */}
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-400 text-xs">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-500 text-sm">
                     ₹
                   </span>
                   <input
                     type="text"
                     inputMode="decimal"
-                    placeholder="Or enter custom amount (e.g. 750)"
+                    placeholder="Enter amount (e.g. 500, 1500, 5000)"
                     value={customAmount}
                     onChange={handleCustomChange}
-                    className={`w-full pl-7 pr-3.5 py-2 border rounded-xs font-mono text-xs outline-none transition-all ${
-                      isCustom && customAmount
-                        ? 'border-emerald-600 bg-emerald-50/20 text-slate-900 font-bold'
-                        : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-primary'
-                    }`}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-[#5F3F56] rounded-xs font-mono text-sm font-bold text-slate-900 outline-none transition-all shadow-2xs"
                   />
+                </div>
+
+                {/* Quick Select Preset Buttons */}
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block mb-1.5 font-medium">
+                    Or select a quick amount:
+                  </span>
+                  <div className="grid grid-cols-5 gap-2">
+                    {PRESET_AMOUNTS.map((amt) => {
+                      const isSelected = selectedAmount === amt;
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => handleSelectPreset(amt)}
+                          className={`py-2 px-1 text-center font-mono font-bold text-xs border rounded-xs transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#5F3F56] text-white border-[#5F3F56] shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          ₹{amt}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

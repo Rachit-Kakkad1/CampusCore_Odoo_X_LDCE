@@ -96,6 +96,27 @@ async function runTestSuite() {
     assert(createRes.body.data.public_id && createRes.body.data.public_id.startsWith('FND-'), 'Campaign receives unique opaque public ID');
     assert(parseFloat(createRes.body.data.goal_amount) === 10000.00, 'Goal amount is saved accurately as 10000.00');
 
+    // Verify non-admin (member) is forbidden from creating a fundraiser
+    const memberCreateRes = await api('/api/fundraisers', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${memberToken}` },
+      body: {
+        title: 'Unauthorized Member Drive',
+        goal_amount: 5000.00,
+      },
+    });
+    assert(memberCreateRes.status === 403, 'Non-admin member cannot create fundraiser (403 Forbidden)');
+
+    // Verify unauthenticated is rejected
+    const unauthCreateRes = await api('/api/fundraisers', {
+      method: 'POST',
+      body: {
+        title: 'Unauthenticated Drive',
+        goal_amount: 5000.00,
+      },
+    });
+    assert(unauthCreateRes.status === 401, 'Unauthenticated user cannot create fundraiser (401 Unauthorized)');
+
     testFundraiserId = createRes.body.data.id;
     testFundraiserSlug = createRes.body.data.slug;
 
@@ -323,6 +344,7 @@ async function runTestSuite() {
     if (server) {
       server.close();
     }
+    await pool.end();
   }
 
   console.log('\n================================================================');
@@ -332,6 +354,7 @@ async function runTestSuite() {
   if (failed > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runTestSuite().catch((err) => {

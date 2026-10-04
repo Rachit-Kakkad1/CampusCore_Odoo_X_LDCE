@@ -67,6 +67,13 @@ class FundraiserService {
    * Creates a new fundraiser campaign (Admin/Treasurer only).
    */
   async createFundraiser(data, creatorUser, req = null) {
+    if (!creatorUser || creatorUser.role !== 'admin') {
+      const err = new Error('Only administrators have authority to create fundraisers');
+      err.code = 'FORBIDDEN';
+      err.status = 403;
+      throw err;
+    }
+
     if (!data.title || !data.title.trim()) {
       const err = new Error('Fundraiser title is required');
       err.code = 'VALIDATION_ERROR';

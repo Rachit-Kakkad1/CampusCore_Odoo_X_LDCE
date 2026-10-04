@@ -70,50 +70,50 @@ export const PublicFundraisersPage = () => {
     <div className="min-h-screen bg-[#F7F6F2] flex flex-col font-sans text-[#1c1c1c]">
       <Navbar />
 
-      {/* 1. HERO BANNER */}
-      <section className="bg-slate-900 text-white border-b border-slate-800 py-16 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />
-        
-        <div className="max-w-7xl mx-auto relative z-10 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[11px] uppercase tracking-widest font-bold">
-            <Heart className="w-3.5 h-3.5 fill-emerald-400" />
-            <span>Community Impact &amp; Giving</span>
+      {/* 1. LIGHT EDITORIAL HERO BANNER */}
+      <section className="bg-[#F7F6F2] border-b border-[#e5e4de] py-14 px-6 relative">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 border border-[#e5e4de] bg-white/70 rounded-xs">
+            <span className="w-2 h-2 rounded-full bg-[#5F3F56] animate-pulse"></span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-[#5F3F56] font-bold">
+              CampusCore Student Giving · Public Causes
+            </span>
           </div>
 
           <div className="max-w-3xl space-y-3">
-            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.1]">
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#1c1c1c] leading-[1.1]">
               Support Our Student Causes.
             </h1>
-            <p className="font-sans text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl">
+            <p className="font-sans text-base sm:text-lg text-[#1c1c1c]/75 leading-relaxed max-w-2xl">
               Every contribution directly empowers academic innovation, community welfare, and student-led initiatives. 100% of donations are recorded transparently in our central financial ledger.
             </p>
           </div>
 
-          {/* Aggregated Real Impact Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 max-w-2xl font-mono">
-            <div className="bg-slate-800/80 border border-slate-700/80 p-4 rounded-xs">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
+          {/* Aggregated Real Database Impact Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 max-w-2xl font-mono">
+            <div className="bg-white border border-[#e5e4de] p-4 rounded-xs shadow-2xs">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-bold">
                 Total Raised
               </span>
-              <span className="text-2xl font-extrabold text-emerald-400">
+              <span className="text-2xl font-extrabold text-emerald-700">
                 ₹{totalRaisedSum.toLocaleString('en-IN')}
               </span>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/80 p-4 rounded-xs">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
+            <div className="bg-white border border-[#e5e4de] p-4 rounded-xs shadow-2xs">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-bold">
                 Supporter Contributions
               </span>
-              <span className="text-2xl font-extrabold text-white">
+              <span className="text-2xl font-extrabold text-[#1c1c1c]">
                 {totalDonorsSum}
               </span>
             </div>
 
-            <div className="col-span-2 sm:col-span-1 bg-slate-800/80 border border-slate-700/80 p-4 rounded-xs">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
+            <div className="col-span-2 sm:col-span-1 bg-white border border-[#e5e4de] p-4 rounded-xs shadow-2xs">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-bold">
                 Active Initiatives
               </span>
-              <span className="text-2xl font-extrabold text-primary-light text-indigo-300">
+              <span className="text-2xl font-extrabold text-[#5F3F56]">
                 {fundraisers.length}
               </span>
             </div>
@@ -122,7 +122,7 @@ export const PublicFundraisersPage = () => {
       </section>
 
       {/* 2. SEARCH & FILTER CONTROLS */}
-      <section className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b border-border py-4 px-6 shadow-2xs">
+      <section className="sticky top-16 z-30 bg-[#F7F6F2]/95 backdrop-blur-md border-b border-[#e5e4de] py-4 px-6 shadow-2xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           {/* Status Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 font-mono text-xs">
@@ -135,10 +135,10 @@ export const PublicFundraisersPage = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-3.5 py-1.5 rounded-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer border ${
                   statusFilter === tab.id
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    ? 'bg-[#5F3F56] text-white border-[#5F3F56] shadow-xs'
+                    : 'bg-white/80 text-[#1c1c1c]/70 border-[#e5e4de] hover:bg-white hover:text-[#1c1c1c]'
                 }`}
               >
                 {tab.label}
@@ -154,11 +154,11 @@ export const PublicFundraisersPage = () => {
               placeholder="Search causes, robotics, charity..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-20 py-2 bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-primary focus:bg-white font-mono rounded-xs transition-colors"
+              className="w-full pl-9 pr-20 py-2 bg-white border border-[#e5e4de] text-xs text-[#1c1c1c] focus:outline-none focus:border-[#5F3F56] font-mono rounded-xs transition-colors"
             />
             <button
               type="submit"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[10px] font-mono font-bold uppercase rounded-xs transition-colors cursor-pointer"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#5F3F56] hover:bg-[#4a2f42] text-white text-[10px] font-mono font-bold uppercase rounded-xs transition-colors cursor-pointer"
             >
               Filter
             </button>

@@ -10,10 +10,10 @@ router.get('/', optionalAuth, (req, res) => fundraiserController.getPublicFundra
 router.get('/admin', requireAuth, requireRole('admin', 'treasurer'), (req, res) => fundraiserController.getAdminFundraisers(req, res));
 router.get('/admin/stats', requireAuth, requireRole('admin', 'treasurer'), (req, res) => fundraiserController.getGlobalStats(req, res));
 
-// --- ADMIN / TREASURER CAMPAIGN MANAGEMENT ---
-router.post('/', requireAuth, requireRole('admin', 'treasurer'), (req, res) => fundraiserController.createFundraiser(req, res));
-router.put('/:id', requireAuth, requireRole('admin', 'treasurer'), (req, res) => fundraiserController.updateFundraiser(req, res));
-router.patch('/:id/status', requireAuth, requireRole('admin', 'treasurer'), (req, res) => fundraiserController.setStatus(req, res));
+// --- ADMIN CAMPAIGN CREATION & MANAGEMENT ---
+router.post('/', requireAuth, requireRole('admin'), (req, res) => fundraiserController.createFundraiser(req, res));
+router.put('/:id', requireAuth, requireRole('admin'), (req, res) => fundraiserController.updateFundraiser(req, res));
+router.patch('/:id/status', requireAuth, requireRole('admin'), (req, res) => fundraiserController.setStatus(req, res));
 
 // --- DONATION CHECKOUT & PAYMENT FLOW (GUEST + AUTHENTICATED) ---
 router.post('/:id/donations/checkout', optionalAuth, (req, res) => fundraiserController.checkoutDonation(req, res));

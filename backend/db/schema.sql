@@ -1,6 +1,7 @@
 -- Drop tables in reverse dependency order if recreating
 DROP TABLE IF EXISTS transactions CASCADE;
 DROP TABLE IF EXISTS expenses CASCADE;
+DROP TABLE IF EXISTS donations CASCADE;
 DROP TABLE IF EXISTS fundraiser_income CASCADE;
 DROP TABLE IF EXISTS tasks CASCADE;
 DROP TABLE IF EXISTS fundraisers CASCADE;
@@ -317,7 +318,7 @@ CREATE TABLE expenses (
 CREATE TABLE transactions (
   id SERIAL PRIMARY KEY,
   source_type VARCHAR(50) NOT NULL
-    CHECK (source_type IN ('dues', 'ticket', 'merch', 'fundraiser', 'fundraiser_refund', 'expense')),
+    CHECK (source_type IN ('dues', 'ticket', 'merch', 'fundraiser', 'fundraiser_refund', 'donation', 'donation_refund', 'expense')),
   source_id INT NOT NULL,
   user_id INT REFERENCES users(id) ON DELETE SET NULL,
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),

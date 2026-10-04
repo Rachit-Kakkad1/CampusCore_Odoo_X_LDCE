@@ -21,7 +21,7 @@ router.post('/expenses/:id/reimburse', requireAuth, requireRole('admin', 'treasu
 
 // Fundraisers & Income
 router.get('/fundraisers', financeController.getFundraisers);
-router.post('/fundraisers', requireAuth, requireRole('admin', 'treasurer'), financeController.createFundraiser);
+router.post('/fundraisers', requireAuth, requireRole('admin'), financeController.createFundraiser);
 router.post('/fundraisers/:id/income', requireAuth, requireRole('admin', 'treasurer'), financeController.addFundraiserIncome);
 
 // Transactions ledger
