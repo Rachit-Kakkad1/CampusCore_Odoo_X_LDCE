@@ -98,10 +98,19 @@ export const DashboardSidebar = ({ currentRole }) => {
                 <CreditCard className="w-4 h-4" />
                 <span>Membership Roster</span>
               </NavLink>
+              <NavLink to="/dashboard/admin/tickets" className={navItemClass}>
+                <Ticket className="w-4 h-4" />
+                <span>Ticket Ledger</span>
+              </NavLink>
+              <NavLink to="/dashboard/admin/tasks" className={navItemClass}>
+                <CheckSquare className="w-4 h-4" />
+                <span>Volunteer Tasks</span>
+              </NavLink>
               <NavLink to="/dashboard/admin/events" className={navItemClass}>
                 <Calendar className="w-4 h-4" />
                 <span>Events Admin</span>
               </NavLink>
+
               <NavLink to="/dashboard/admin/store" className={navItemClass}>
                 <ShoppingBag className="w-4 h-4" />
                 <span>Catalog & Stock</span>
@@ -159,9 +168,17 @@ export const DashboardSidebar = ({ currentRole }) => {
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
                 Event Operations
               </div>
-              <NavLink to="/dashboard/events" className={navItemClass}>
+              <NavLink to="/dashboard/events" end className={navItemClass}>
                 <Calendar className="w-4 h-4" />
                 <span>Assigned Events</span>
+              </NavLink>
+              <NavLink to="/dashboard/events/tasks" className={navItemClass}>
+                <CheckSquare className="w-4 h-4" />
+                <span>Volunteer Tasks</span>
+              </NavLink>
+              <NavLink to="/dashboard/events/volunteers" className={navItemClass}>
+                <Users className="w-4 h-4" />
+                <span>Volunteer Rosters</span>
               </NavLink>
               <NavLink to="/dashboard/events/checkin" className={navItemClass}>
                 <QrCode className="w-4 h-4" />
@@ -169,6 +186,7 @@ export const DashboardSidebar = ({ currentRole }) => {
               </NavLink>
             </>
           )}
+
 
           {/* ========================================================= */}
           {/* 4. VOLUNTEER EXCLUSIVE NAVIGATION                         */}
@@ -224,6 +242,15 @@ export const DashboardSidebar = ({ currentRole }) => {
             </>
           )}
 
+          {/* Account Settings */}
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
+            Account & Security
+          </div>
+          <NavLink to="/dashboard/profile" className={navItemClass}>
+            <ShieldCheck className="w-4 h-4" />
+            <span>My Profile</span>
+          </NavLink>
+
           {/* Common communication link */}
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-4 mt-6 mb-2">
             Broadcasts
@@ -243,6 +270,7 @@ export const DashboardSidebar = ({ currentRole }) => {
             </button>
           )}
         </nav>
+
       </div>
 
       {/* Announcements Broadcast Modal */}

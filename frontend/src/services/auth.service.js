@@ -105,7 +105,45 @@ export const authService = {
   async deleteUser(id) {
     const res = await api.delete(`/users/${id}`);
     return res.user || res.data || res;
+  },
+
+  /**
+   * Get current authenticated user's profile
+   * Endpoint: GET /profile
+   */
+  async getProfile() {
+    const res = await api.get('/profile');
+    if (res.user) {
+      localStorage.setItem('user', JSON.stringify(res.user));
+    }
+    return res.user || res.data || res;
+  },
+
+  /**
+   * Update current authenticated user's profile
+   * Endpoint: PATCH /profile
+   */
+  async updateProfile(profileData) {
+    const res = await api.patch('/profile', profileData);
+    if (res.user) {
+      localStorage.setItem('user', JSON.stringify(res.user));
+    }
+    return res;
+  },
+
+  /**
+   * Change current authenticated user's password
+   * Endpoint: PATCH /profile/password
+   */
+  async changePassword({ currentPassword, newPassword, confirmPassword }) {
+    const res = await api.patch('/profile/password', {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    return res;
   }
 };
+
 
 export default authService;

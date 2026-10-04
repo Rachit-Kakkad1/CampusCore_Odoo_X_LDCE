@@ -50,24 +50,27 @@ function idempotencyMiddleware(options = {}) {
 
       // Intercept res.json to store the response upon completion
       const originalJson = res.json.bind(res);
-      res.json = function interceptedJson(body) {
+      res.json = async function interceptedJson(body) {
         // Only cache successful or business conflict responses (don't cache 500s)
         if (res.statusCode < 500) {
-          const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
-          pool.query(
-            `INSERT INTO idempotency_keys (
-              user_id, endpoint, idempotency_key, request_hash, response_status, response_body, expires_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (user_id, endpoint, idempotency_key) DO NOTHING;`,
-            [userId, endpoint, cleanKey, requestHash, res.statusCode, JSON.stringify(body), expiresAt]
-          ).catch((err) => {
+          try {
+            const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
+            await pool.query(
+              `INSERT INTO idempotency_keys (
+                user_id, endpoint, idempotency_key, request_hash, response_status, response_body, expires_at
+              )
+              VALUES ($1, $2, $3, $4, $5, $6, $7)
+              ON CONFLICT (user_id, endpoint, idempotency_key) DO NOTHING;`,
+              [userId, endpoint, cleanKey, requestHash, res.statusCode, JSON.stringify(body), expiresAt]
+            );
+          } catch (err) {
             console.warn('Failed to persist idempotency key:', err.message);
-          });
+          }
         }
 
         return originalJson(body);
       };
+
 
       next();
     } catch (err) {

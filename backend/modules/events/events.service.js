@@ -24,6 +24,7 @@ class EventsService {
       non_member_price,
       volunteers_enabled = false,
       volunteers_required = 0,
+      event_manager_id = null,
       created_by = null,
     } = eventData;
 
@@ -37,6 +38,7 @@ class EventsService {
     const parsedCapacity = parseInt(capacity, 10);
     const parsedMemberPrice = parseFloat(member_price);
     const parsedNonMemberPrice = parseFloat(non_member_price);
+    const parsedEventManagerId = event_manager_id ? parseInt(event_manager_id, 10) : null;
 
     if (isNaN(parsedCapacity) || parsedCapacity < 0) {
       const err = new Error('Capacity must be a non-negative integer');
@@ -82,6 +84,7 @@ class EventsService {
       non_member_price: parsedNonMemberPrice,
       volunteers_enabled: isVolunteersEnabled,
       volunteers_required: parsedVolunteersRequired,
+      event_manager_id: parsedEventManagerId,
       created_by,
     });
   }
@@ -458,6 +461,44 @@ class EventsService {
   }
 
   /**
+   * Adds/assigns a volunteer to an event directly (Admin / Event Manager).
+   */
+  async addVolunteer(eventId, userId, actorId) {
+    const id = parseInt(eventId, 10);
+    const uId = parseInt(userId, 10);
+    if (isNaN(id) || isNaN(uId)) {
+      const err = new Error('Invalid event ID or user ID');
+      err.code = 'INVALID_ID';
+      err.status = 400;
+      throw err;
+    }
+
+    const event = await eventRepository.getEventById(id);
+    if (!event) {
+      const err = new Error('Event not found');
+      err.code = 'EVENT_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+
+    if (event.status === 'cancelled') {
+      const err = new Error('Cannot assign volunteers to a cancelled event');
+      err.code = 'EVENT_CANCELLED';
+      err.status = 409;
+      throw err;
+    }
+
+    const assignment = await eventRepository.addVolunteer({
+      event_id: id,
+      user_id: uId,
+      status: 'approved',
+      approved_by: actorId,
+    });
+
+    return assignment;
+  }
+
+  /**
    * Retrieves volunteer applications for a specific user.
    */
   async getUserVolunteerApplications(userId) {
@@ -556,6 +597,35 @@ class EventsService {
     });
 
     return { success: true, message: 'Event cancelled successfully', event: cancelledEvent };
+  }
+
+  /**
+   * Admin / Event Manager: Retrieves paginated tickets across the platform.
+   */
+  async getAllTicketsAdmin(filters = {}) {
+    return await eventRepository.getAllTicketsAdmin(filters);
+  }
+
+  /**
+   * Admin / Event Manager: Retrieves single ticket detailed record with audit log.
+   */
+  async getTicketDetailsAdmin(ticketId, managerId = null) {
+    const parsedId = parseInt(ticketId, 10);
+    if (isNaN(parsedId)) {
+      const err = new Error('Invalid ticket ID');
+      err.code = 'INVALID_ID';
+      err.status = 400;
+      throw err;
+    }
+
+    const ticket = await eventRepository.getTicketDetailsAdmin(parsedId, managerId);
+    if (!ticket) {
+      const err = new Error('Ticket not found or unauthorized');
+      err.code = 'TICKET_NOT_FOUND';
+      err.status = 404;
+      throw err;
+    }
+    return ticket;
   }
 }
 

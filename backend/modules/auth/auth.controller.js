@@ -29,7 +29,28 @@ class AuthController {
     try {
       const userId = req.user ? (req.user.id || req.user.userId) : null;
       const user = await authService.getMe(userId);
-      return res.status(200).json({ success: true, user });
+      return res.status(200).json({ success: true, user, profile: user });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  async getProfile(req, res) {
+    return this.getMe(req, res);
+  }
+
+  async updateProfile(req, res) {
+    try {
+      const userId = req.user ? (req.user.id || req.user.userId) : null;
+      const { name, phone } = req.body || {};
+      const updated = await authService.updateProfile(userId, { name, phone }, req);
+      return res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        user: updated,
+        profile: updated,
+      });
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });

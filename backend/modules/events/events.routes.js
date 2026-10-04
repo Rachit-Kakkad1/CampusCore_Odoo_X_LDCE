@@ -27,10 +27,22 @@ eventsRouter.get('/:id/stats', requireRole('admin', 'event_manager', 'treasurer'
 // Volunteer application & management under event
 eventsRouter.post('/:id/volunteers/apply', requireRole('volunteer', 'admin'), (req, res) => eventsController.applyAsVolunteer(req, res));
 eventsRouter.post('/:id/volunteer/apply', requireRole('volunteer', 'admin'), (req, res) => eventsController.applyAsVolunteer(req, res));
+eventsRouter.post('/:id/volunteers', requireRole('admin', 'event_manager'), (req, res) => eventsController.addVolunteer(req, res));
+eventsRouter.post('/:id/volunteers/add', requireRole('admin', 'event_manager'), (req, res) => eventsController.addVolunteer(req, res));
 eventsRouter.get('/:id/volunteers', requireRole('admin', 'event_manager'), (req, res) => eventsController.getEventVolunteers(req, res));
 eventsRouter.patch('/:id/volunteers/:applicationId', requireRole('admin', 'event_manager'), (req, res) => eventsController.updateVolunteerStatus(req, res));
 eventsRouter.delete('/:id/volunteers/:applicationId', requireRole('admin', 'event_manager'), (req, res) => eventsController.removeVolunteer(req, res));
 eventsRouter.post('/:id/volunteers/:applicationId/remove', requireRole('admin', 'event_manager'), (req, res) => eventsController.removeVolunteer(req, res));
+eventsRouter.get('/:id/volunteer-tasks', requireRole('admin', 'event_manager'), (req, res) => {
+  const tasksController = require('../tasks/tasks.controller');
+  req.query.event_id = req.params.id;
+  return tasksController.getAllTasks(req, res);
+});
+eventsRouter.get('/:id/tasks', requireRole('admin', 'event_manager'), (req, res) => {
+  const tasksController = require('../tasks/tasks.controller');
+  req.query.event_id = req.params.id;
+  return tasksController.getAllTasks(req, res);
+});
 
 // Ticket checkout / purchase under event (with purchase rate limit and idempotency support)
 eventsRouter.post('/:id/tickets', optionalAuth, purchaseRateLimiter, idempotencyMiddleware(), (req, res) => eventsController.checkoutTicket(req, res));
@@ -39,10 +51,13 @@ eventsRouter.post('/:id/register', optionalAuth, purchaseRateLimiter, idempotenc
 
 // Tickets Router (/tickets or /api/tickets)
 const ticketsRouter = express.Router();
+ticketsRouter.get('/admin', requireRole('admin', 'event_manager'), (req, res) => eventsController.getAllTicketsAdmin(req, res));
+ticketsRouter.get('/admin/:id', requireRole('admin', 'event_manager'), (req, res) => eventsController.getTicketDetailsAdmin(req, res));
 ticketsRouter.get('/mine', requireAuth, (req, res) => eventsController.getMyTickets(req, res));
 ticketsRouter.get('/my-tickets', requireAuth, (req, res) => eventsController.getMyTickets(req, res));
 ticketsRouter.post('/:id/pay', optionalAuth, purchaseRateLimiter, idempotencyMiddleware(), (req, res) => eventsController.payTicket(req, res));
 ticketsRouter.get('/:id/qr', optionalAuth, (req, res) => eventsController.getTicketQR(req, res));
+ticketsRouter.get('/:id', requireRole('admin', 'event_manager'), (req, res) => eventsController.getTicketDetailsAdmin(req, res));
 
 // Check-in Router (/checkin or /api/checkin with checkinRateLimiter)
 const checkinRouter = express.Router();

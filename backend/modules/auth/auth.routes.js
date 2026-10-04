@@ -10,6 +10,10 @@ const authRouter = express.Router();
 authRouter.post('/register', (req, res) => authController.register(req, res));
 authRouter.post('/login', authRateLimiter, (req, res) => authController.login(req, res));
 authRouter.get('/me', requireAuth, (req, res) => authController.getMe(req, res));
+authRouter.get('/profile', requireAuth, (req, res) => authController.getProfile(req, res));
+authRouter.patch('/profile', requireAuth, (req, res) => authController.updateProfile(req, res));
+authRouter.patch('/profile/password', requireAuth, (req, res) => authController.changePassword(req, res));
+authRouter.post('/profile/password', requireAuth, (req, res) => authController.changePassword(req, res));
 authRouter.post('/logout', requireAuth, (req, res) => authController.logout(req, res));
 
 // Password Management

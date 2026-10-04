@@ -18,7 +18,6 @@ import DashboardShell from '../../components/dashboard/DashboardShell';
 import DashboardPageHeader from '../../components/dashboard/DashboardPageHeader';
 import { DashboardLoadingState } from '../../components/dashboard/DashboardLoadingState';
 import { DashboardErrorState } from '../../components/dashboard/DashboardErrorState';
-import PageTabs from '../../components/dashboard/PageTabs';
 import {
   FinanceTransactionTable,
   FinanceOwingList,
@@ -65,7 +64,7 @@ export const TreasurerDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Determine active tab from URL pathname
+  // Determine active tab from URL pathname (controlled by left sidebar)
   const getTabFromPath = useCallback((pathname) => {
     if (pathname.includes('/expenses')) return 'expenses';
     if (pathname.includes('/owing')) return 'owing';
@@ -78,15 +77,6 @@ export const TreasurerDashboard = () => {
   useEffect(() => {
     setActiveTab(getTabFromPath(location.pathname));
   }, [location.pathname, getTabFromPath]);
-
-  const handleTabChange = (newTab) => {
-    setActiveTab(newTab);
-    if (newTab === 'ledger') {
-      navigate('/dashboard/finance');
-    } else {
-      navigate(`/dashboard/finance/${newTab}`);
-    }
-  };
 
   // Business Data States
   const [summary, setSummary] = useState(null);
@@ -277,19 +267,42 @@ export const TreasurerDashboard = () => {
   const pendingClaimsTotal = parseFloat(summary?.pending_expenses?.total || summary?.pending_expenses_total || 0);
   const pendingDuesTotal = parseFloat(summary?.pending_dues?.total || summary?.unpaid_dues_total || 0);
 
-  const tabs = [
-    { id: 'ledger', label: `General Ledger (${transactions.length})`, icon: DollarSign },
-    { id: 'expenses', label: `Expense Claims (${expenses.length})`, icon: Receipt },
-    { id: 'owing', label: `Who Still Owes (${owingMembers.length})`, icon: AlertCircle },
-    { id: 'fundraisers', label: `Fundraisers (${fundraisers.length})`, icon: HeartHandshake },
-  ];
+  const headerMeta = useMemo(() => {
+    switch (activeTab) {
+      case 'expenses':
+        return {
+          title: 'Expense Claims & Reimbursements',
+          subtitle: 'Audit reimbursement claims submitted by volunteers and members, verify invoices, and disburse reimbursements.',
+          badge: 'Expense Operations',
+        };
+      case 'owing':
+        return {
+          title: 'Accounts Receivable: Outstanding Dues',
+          subtitle: 'Monitor member dues compliance, identify overdue accounts, and audit membership financial standings.',
+          badge: 'Dues Enforcement',
+        };
+      case 'fundraisers':
+        return {
+          title: 'Fundraising Campaigns & Income Batches',
+          subtitle: 'Create donation campaigns, monitor real-time donor proceeds, and log offline donation batches.',
+          badge: 'Campaign Treasury',
+        };
+      case 'ledger':
+      default:
+        return {
+          title: 'Central Financial Transaction Ledger',
+          subtitle: `Welcome, ${user?.name || 'Treasurer'}. Authoritative financial transactions ledger, realized revenue streams, and liquid balance telemetry.`,
+          badge: 'Executive Treasury Authority',
+        };
+    }
+  }, [activeTab, user?.name]);
 
   return (
     <DashboardShell activeRole={user?.role || 'treasurer'}>
       <DashboardPageHeader
-        title="Financial Management & Treasury"
-        subtitle={`Welcome, ${user?.name || 'Treasurer'}. Authoritative financial transactions ledger, expense approvals, dues tracking, and campaign revenue.`}
-        badge="Executive Finance Authority"
+        title={headerMeta.title}
+        subtitle={headerMeta.subtitle}
+        badge={headerMeta.badge}
       />
 
       {/* Toast Notification */}
@@ -331,9 +344,12 @@ export const TreasurerDashboard = () => {
       ) : (
         <div className="space-y-8">
           {/* ========================================================================= */}
-          {/* 1. 3D TELEMETRY CARDS                                                     */}
+          {/* 1. CENTRAL FINANCIAL LEDGER & 3D TELEMETRY (When activeTab === 'ledger')  */}
           {/* ========================================================================= */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {activeTab === 'ledger' && (
+            <>
+              {/* 3D Telemetry Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* Net Balance Card */}
             <ThreeDCard accentGlow="rgba(16, 185, 129, 0.15)">
               <div className="p-5">
@@ -553,23 +569,12 @@ export const TreasurerDashboard = () => {
             </div>
           </div>
 
-          {/* ========================================================================= */}
-          {/* 3. OPERATIONAL WORKSPACE TABS                                             */}
-          {/* ========================================================================= */}
-          <div>
-            <PageTabs
-              tabs={tabs}
-              activeTab={activeTab}
-              onChange={handleTabChange}
-            />
-          </div>
-
-          {/* Tab 1: Central Financial Transaction Ledger */}
-          {activeTab === 'ledger' && (
-            <FinanceTransactionTable
-              transactions={transactions}
-              loading={loading}
-            />
+              {/* Central Financial Transaction Ledger */}
+              <FinanceTransactionTable
+                transactions={transactions}
+                loading={loading}
+              />
+            </>
           )}
 
           {/* Tab 2: Expense Claims & Reimbursements */}

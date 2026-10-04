@@ -10,7 +10,9 @@
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
     "db:seed:mega": "node db/seed_mega.js",
+    "db:seed:features": "node db/seed_new_features.js",
     "db:verify": "node db/verify.js",
+
     "test": "node tests/runAllTests.js",
     "migrate": "node db/migrate.js",
     "seed": "node db/seed.js",

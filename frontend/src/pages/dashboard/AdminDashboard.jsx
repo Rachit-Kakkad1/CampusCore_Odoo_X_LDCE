@@ -13,6 +13,8 @@ import {
   AdminFundraiserManagement,
   AdminAnnouncementManagement,
   AdminSecurityManagement,
+  AdminTicketManagement,
+  AdminVolunteerTasks,
 } from '../../components/dashboard/admin';
 import membershipService from '../../services/membership.service';
 import eventsService from '../../services/events.service';
@@ -29,6 +31,8 @@ export const AdminDashboard = () => {
   const getTabFromLocation = useCallback((pathname) => {
     if (pathname.includes('/dashboard/admin/users')) return 'users';
     if (pathname.includes('/dashboard/admin/members')) return 'members';
+    if (pathname.includes('/dashboard/admin/tickets')) return 'tickets';
+    if (pathname.includes('/dashboard/admin/tasks')) return 'tasks';
     if (pathname.includes('/dashboard/admin/events')) return 'events';
     if (pathname.includes('/dashboard/admin/store') || pathname.includes('/dashboard/admin/merchandise')) return 'merchandise';
     if (pathname.includes('/dashboard/admin/fundraisers')) return 'fundraisers';
@@ -36,6 +40,7 @@ export const AdminDashboard = () => {
     if (pathname.includes('/dashboard/admin/security')) return 'security';
     return 'overview';
   }, []);
+
 
   const [activeTab, setActiveTab] = useState(() => getTabFromLocation(location.pathname));
 
@@ -334,8 +339,17 @@ export const AdminDashboard = () => {
         />
       )}
 
+      {activeTab === 'tickets' && (
+        <AdminTicketManagement />
+      )}
+
+      {activeTab === 'tasks' && (
+        <AdminVolunteerTasks />
+      )}
+
       {activeTab === 'events' && (
         <AdminEventManagement
+
           events={events}
           loading={loading}
           onEventCreated={() => handleCreatedSuccess('Event created and published successfully!')}

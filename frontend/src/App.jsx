@@ -16,7 +16,9 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import TreasurerDashboard from './pages/dashboard/TreasurerDashboard';
 import EventManagerDashboard from './pages/dashboard/EventManagerDashboard';
 import VolunteerDashboard from './pages/dashboard/VolunteerDashboard';
+import Profile from './pages/dashboard/Profile';
 import MerchandisePage from './pages/merchandise/MerchandisePage';
+
 import AdminMerchandisePage from './pages/dashboard/AdminMerchandisePage';
 import { GuestHome, PublicEvents, PublicEventDetails } from './pages/public';
 import MembershipPage from './pages/membership/MembershipPage';
@@ -840,8 +842,25 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/dashboard/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/store" element={<MerchandisePage />} />
         <Route path="/merchandise" element={<MerchandisePage />} />
+
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

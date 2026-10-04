@@ -18,6 +18,7 @@ const suites = [
   { name: '8. Fallback Codes, Volunteers & Cancellation Tests', cmd: 'node tests/volunteers_and_cancellation.test.js' },
   { name: '9. Security, Sessions & Concurrency Tests', cmd: 'node tests/security_and_concurrency.test.js' },
   { name: '10. Fundraiser & Real Donation Financial Lifecycle Tests', cmd: 'node tests/fundraiser_donation.test.js' },
+  { name: '11. Admin Tickets, Volunteer Tasks & Profile Tests', cmd: 'node tests/adminTicketsAndVolunteerTasks.test.js' },
 ];
 
 let allPassed = true;

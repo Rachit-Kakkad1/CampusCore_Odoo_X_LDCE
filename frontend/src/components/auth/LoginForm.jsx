@@ -14,8 +14,9 @@ const DB_ACCOUNTS = [
   { role: 'Event Mgr', email: 'ethan@odoo-ldce.org', desc: 'Events & Tickets' },
   { role: 'Volunteer', email: 'vik@odoo-ldce.org', desc: 'Tasks & Check-in' },
   { role: 'Active Member', email: 'maya@odoo-ldce.org', desc: 'Active Dues & Pass' },
-  { role: 'Pending Member', email: 'pia@odoo-ldce.org', desc: 'Pending Payment' },
+  { role: 'Expired Member', email: 'eddie@odoo-ldce.org', desc: 'Expired Membership' },
 ];
+
 
 export default function LoginForm({ mode, setMode }) {
   const isRegister = mode === 'register';

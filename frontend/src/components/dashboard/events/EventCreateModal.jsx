@@ -1,10 +1,12 @@
 // frontend/src/components/dashboard/events/EventCreateModal.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ActionButton } from '../ActionButton';
 import eventsService from '../../../services/events.service';
-import { X, Calendar, MapPin, Users, Tag, AlertCircle } from 'lucide-react';
+import authService from '../../../services/auth.service';
+import { X, Calendar, MapPin, Users, Tag, AlertCircle, UserCheck } from 'lucide-react';
 
 export const EventCreateModal = ({ isOpen, onClose, onCreated }) => {
+  const currentUser = authService.getStoredUser();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [venue, setVenue] = useState('');
@@ -13,8 +15,32 @@ export const EventCreateModal = ({ isOpen, onClose, onCreated }) => {
   const [capacity, setCapacity] = useState('100');
   const [memberPrice, setMemberPrice] = useState('300');
   const [nonMemberPrice, setNonMemberPrice] = useState('500');
+  const [volunteersEnabled, setVolunteersEnabled] = useState(false);
+  const [volunteersRequired, setVolunteersRequired] = useState('5');
+  const [eventManagerId, setEventManagerId] = useState('');
+
+  const [availableUsers, setAvailableUsers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchUsers = async () => {
+        try {
+          const res = await authService.getAllUsers();
+          const list = res?.users || res?.data || res || [];
+          setAvailableUsers(Array.isArray(list) ? list : []);
+          // Default to current user if they are an event manager
+          if (currentUser?.id && (currentUser.role === 'event_manager' || currentUser.role === 'admin')) {
+            setEventManagerId(String(currentUser.id));
+          }
+        } catch (err) {
+          console.warn('Failed to load users in EventCreateModal:', err);
+        }
+      };
+      fetchUsers();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -38,6 +64,9 @@ export const EventCreateModal = ({ isOpen, onClose, onCreated }) => {
         capacity: parseInt(capacity, 10) || 100,
         member_price: parseFloat(memberPrice) || 0,
         non_member_price: parseFloat(nonMemberPrice) || 0,
+        volunteers_enabled: Boolean(volunteersEnabled),
+        volunteers_required: volunteersEnabled ? parseInt(volunteersRequired, 10) : 0,
+        event_manager_id: eventManagerId ? parseInt(eventManagerId, 10) : null,
       });
 
       onCreated?.(res?.event || res?.data || res);
@@ -123,6 +152,39 @@ export const EventCreateModal = ({ isOpen, onClose, onCreated }) => {
             </div>
           </div>
 
+          {/* Event Manager Selector */}
+          <div>
+            <label className="block font-mono text-xs uppercase tracking-wider text-slate-700 font-semibold mb-1 flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-primary" />
+              <span>Assigned Event Manager</span>
+            </label>
+            <select
+              value={eventManagerId}
+              onChange={(e) => setEventManagerId(e.target.value)}
+              className="w-full px-3 py-2 border border-border font-sans text-sm bg-white focus:outline-hidden focus:border-slate-900"
+            >
+              <option value="">-- Unassigned / General Admin --</option>
+              {availableUsers
+                .filter(u => u.role === 'event_manager' || u.role === 'admin')
+                .map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email}) — [{u.role.toUpperCase()}]
+                  </option>
+                ))}
+              {availableUsers.filter(u => u.role !== 'event_manager' && u.role !== 'admin').length > 0 && (
+                <optgroup label="Other Members">
+                  {availableUsers
+                    .filter(u => u.role !== 'event_manager' && u.role !== 'admin')
+                    .map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.email})
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-mono text-xs uppercase tracking-wider text-slate-700 font-semibold mb-1">
@@ -192,6 +254,37 @@ export const EventCreateModal = ({ isOpen, onClose, onCreated }) => {
                 className="w-full px-3 py-2 border border-border font-mono text-xs focus:outline-hidden focus:border-slate-900"
               />
             </div>
+          </div>
+
+          {/* Volunteer Settings */}
+          <div className="pt-2 border-t border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="font-mono text-xs uppercase tracking-wider text-slate-700 font-semibold flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-primary" />
+                <span>Require Volunteers for this Event</span>
+              </label>
+              <input
+                type="checkbox"
+                checked={volunteersEnabled}
+                onChange={(e) => setVolunteersEnabled(e.target.checked)}
+                className="w-4 h-4 text-primary rounded border-border"
+              />
+            </div>
+            {volunteersEnabled && (
+              <div className="p-3 bg-purple-50 border border-purple-200">
+                <label className="block font-mono text-[11px] uppercase text-purple-900 font-bold mb-1">
+                  Number of Volunteers Needed
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={volunteersRequired}
+                  onChange={(e) => setVolunteersRequired(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-purple-300 bg-white font-mono text-xs text-slate-900"
+                />
+              </div>
+            )}
           </div>
 
           {/* Footer Actions */}

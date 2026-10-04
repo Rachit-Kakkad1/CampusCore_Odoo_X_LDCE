@@ -78,6 +78,16 @@ export const EventListTable = ({
                   </div>
                 </div>
 
+                {/* Event Manager Badge */}
+                {event.event_manager_name && (
+                  <div className="flex items-center justify-between p-2 bg-indigo-50/60 border border-indigo-100 text-xs font-mono">
+                    <span className="text-slate-500 text-[10px] uppercase">Event Manager:</span>
+                    <span className="font-semibold text-indigo-900 truncate max-w-[180px]">
+                      {event.event_manager_name}
+                    </span>
+                  </div>
+                )}
+
                 {/* Pricing Badges */}
                 <div className="flex items-center justify-between font-mono text-xs pt-1">
                   <div className="flex items-center gap-1.5 text-primary font-bold">

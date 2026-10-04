@@ -29,10 +29,12 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'member'
     CHECK (role IN ('admin', 'treasurer', 'event_manager', 'volunteer', 'member')),
+  phone VARCHAR(50),
   failed_login_attempts INT NOT NULL DEFAULT 0,
   locked_until TIMESTAMP WITH TIME ZONE,
   last_login_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- -----------------------------------------------------------------------------
@@ -117,10 +119,12 @@ CREATE TABLE events (
   cancelled_at TIMESTAMP WITH TIME ZONE,
   cancelled_by INT REFERENCES users(id) ON DELETE SET NULL,
   cancellation_reason TEXT,
+  event_manager_id INT REFERENCES users(id) ON DELETE SET NULL,
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+CREATE INDEX IF NOT EXISTS idx_events_event_manager_id ON events(event_manager_id);
 
 -- -----------------------------------------------------------------------------
 -- 5. EVENT ATTENDEES (GUEST ATTENDEES WITHOUT SYSTEM ACCOUNTS)
@@ -251,12 +255,21 @@ CREATE TABLE fundraisers (
 
 CREATE TABLE tasks (
   id SERIAL PRIMARY KEY,
-  fundraiser_id INT NOT NULL REFERENCES fundraisers(id) ON DELETE CASCADE,
+  fundraiser_id INT REFERENCES fundraisers(id) ON DELETE CASCADE,
+  event_id INT REFERENCES events(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
+  description TEXT,
   assignee_id INT REFERENCES users(id) ON DELETE SET NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'todo'
-    CHECK (status IN ('todo', 'in_progress', 'completed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    CHECK (status IN ('todo', 'in_progress', 'completed', 'cancelled', 'pending', 'TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'PENDING')),
+  priority VARCHAR(20) NOT NULL DEFAULT 'medium'
+    CHECK (priority IN ('low', 'medium', 'high', 'urgent', 'LOW', 'MEDIUM', 'HIGH', 'URGENT')),
+  due_date TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  completed_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE fundraiser_income (

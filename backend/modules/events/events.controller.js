@@ -29,7 +29,8 @@ class EventsController {
 
   async getAllEvents(req, res) {
     try {
-      const { status, search } = req.query;
+      const { status, search, event_manager_id, manager_id } = req.query;
+      const resolvedManagerId = event_manager_id || manager_id || null;
       const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
 
       const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined || req.query.limit !== undefined;
@@ -46,6 +47,7 @@ class EventsController {
         const result = await eventsService.getAllEvents({
           status,
           search,
+          event_manager_id: resolvedManagerId,
           page,
           pageSize,
           limit: pageSize,
@@ -65,7 +67,7 @@ class EventsController {
       }
 
       // Backward-compatible unpaginated query
-      const events = await eventsService.getAllEvents({ status, search });
+      const events = await eventsService.getAllEvents({ status, search, event_manager_id: resolvedManagerId });
       const list = Array.isArray(events) ? events : (events.rows || []);
       return res.status(200).json({
         success: true,
@@ -384,6 +386,31 @@ class EventsController {
     }
   }
 
+  async addVolunteer(req, res) {
+    try {
+      const eventId = req.params.id;
+      const { user_id, userId } = req.body || {};
+      const targetUserId = user_id || userId;
+      const actor = req.user || getCurrentUser(req);
+      const actorId = actor ? (actor.id || actor.userId) : null;
+
+      if (!targetUserId) {
+        return res.status(400).json({ error: 'MISSING_USER_ID', message: 'User ID is required to add volunteer' });
+      }
+
+      const result = await eventsService.addVolunteer(eventId, targetUserId, actorId);
+      return res.status(201).json({
+        success: true,
+        message: 'Volunteer added to event successfully',
+        volunteer: result,
+        data: result,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
   async getMyVolunteerApplications(req, res) {
     try {
       const user = req.user || getCurrentUser(req);
@@ -444,6 +471,105 @@ class EventsController {
     } catch (err) {
       const status = err.status || 500;
       return res.status(status).json({ error: err.code || 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+
+  /**
+   * Admin / Event Manager: List all tickets with rich filtering, search, sorting and database pagination.
+   */
+  async getAllTicketsAdmin(req, res) {
+    try {
+      const { search, buyer_type, payment_status, check_in_status, event_id, from_date, to_date } = req.query;
+      const { parsePaginationParams, buildPaginationResponse } = require('../../shared/pagination/paginate');
+
+      // Scope to event manager's events if role is event_manager
+      let managerId = null;
+      if (req.user && req.user.role === 'event_manager') {
+        managerId = req.user.id || req.user.userId;
+      }
+
+      const { page, pageSize, offset, sort, sortDirection } = parsePaginationParams(req.query, {
+        defaultPageSize: 20,
+        maxPageSize: 100,
+        allowedSortFields: ['created_at', 'price', 'event_date', 'event_starts_at', 'buyer_name', 'checked_in_at', 'id'],
+        defaultSort: 'created_at',
+        defaultSortDirection: 'DESC',
+      });
+
+      const result = await eventsService.getAllTicketsAdmin({
+        search,
+        buyer_type,
+        payment_status,
+        check_in_status,
+        event_id,
+        from_date,
+        to_date,
+        manager_id: managerId,
+        page,
+        pageSize,
+        limit: pageSize,
+        offset,
+        sort,
+        sortDirection,
+      });
+
+      const rows = result.rows || [];
+      const totalItems = result.totalItems || 0;
+      const responsePayload = buildPaginationResponse(rows, totalItems, page, pageSize);
+
+      return res.status(200).json({
+        ...responsePayload,
+        total: totalItems,
+        totalItems,
+        tickets: rows,
+        items: rows,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
+    }
+  }
+
+  /**
+   * Admin / Event Manager: Detailed single ticket inspection with audit history.
+   */
+  async getTicketDetailsAdmin(req, res) {
+    try {
+      const { id } = req.params;
+      let managerId = null;
+      if (req.user && req.user.role === 'event_manager') {
+        managerId = req.user.id || req.user.userId;
+      }
+
+      const ticket = await eventsService.getTicketDetailsAdmin(id, managerId);
+
+      // Audit log the view by admin
+      const auditService = require('../../shared/audit/audit.service');
+      await auditService.recordLog({
+        actorId: req.user?.id || req.user?.userId,
+        action: 'TICKET_VIEWED_BY_ADMIN',
+        entityType: 'ticket',
+        entityId: ticket.id,
+        metadata: { ticket_code: ticket.ticket_code, event_id: ticket.event_id },
+        req,
+      });
+
+      return res.status(200).json({
+        success: true,
+        ticket,
+        data: ticket,
+      });
+    } catch (err) {
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.code || 'INTERNAL_ERROR',
+        message: err.message,
+      });
     }
   }
 }

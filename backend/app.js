@@ -52,7 +52,7 @@ const requireAuth = require('./shared/auth/requireAuth');
 const requireRole = require('./shared/auth/requireRole');
 
 usersRouter.get('/stats', requireAuth, requireRole('admin'), (req, res) => authController.getStats(req, res));
-usersRouter.get('/', requireAuth, requireRole('admin'), (req, res) => authController.getAllUsers(req, res));
+usersRouter.get('/', requireAuth, requireRole('admin', 'event_manager'), (req, res) => authController.getAllUsers(req, res));
 usersRouter.post('/', requireAuth, requireRole('admin'), (req, res) => authController.createUser(req, res));
 usersRouter.patch('/:id/role', requireAuth, requireRole('admin'), (req, res) => authController.updateRole(req, res));
 usersRouter.delete('/:id', requireAuth, requireRole('admin'), (req, res) => authController.deleteUser(req, res));
@@ -99,6 +99,27 @@ app.use('/api/donations', fundraiserRoutes);
 
 app.use('/tasks', tasksRouter);
 app.use('/api/tasks', tasksRouter);
+app.use('/volunteer/tasks', tasksRouter);
+app.use('/api/volunteer/tasks', tasksRouter);
+app.use('/admin/volunteer-tasks', tasksRouter);
+app.use('/api/admin/volunteer-tasks', tasksRouter);
+
+// Profile Endpoints
+const profileRouter = express.Router();
+profileRouter.get('/', requireAuth, (req, res) => authController.getProfile(req, res));
+profileRouter.patch('/', requireAuth, (req, res) => authController.updateProfile(req, res));
+profileRouter.patch('/password', requireAuth, (req, res) => authController.changePassword(req, res));
+profileRouter.post('/password', requireAuth, (req, res) => authController.changePassword(req, res));
+app.use('/profile', profileRouter);
+app.use('/api/profile', profileRouter);
+
+// Admin Tickets Endpoints
+const adminTicketsRouter = express.Router();
+const eventsController = require('./modules/events/events.controller');
+adminTicketsRouter.get('/', requireRole('admin', 'event_manager'), (req, res) => eventsController.getAllTicketsAdmin(req, res));
+adminTicketsRouter.get('/:id', requireRole('admin', 'event_manager'), (req, res) => eventsController.getTicketDetailsAdmin(req, res));
+app.use('/admin/tickets', adminTicketsRouter);
+app.use('/api/admin/tickets', adminTicketsRouter);
 
 app.use('/notifications', notificationRoutes);
 app.use('/api/notifications', notificationRoutes);

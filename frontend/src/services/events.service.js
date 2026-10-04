@@ -171,8 +171,25 @@ export const eventsService = {
    */
   async getEventVolunteers(eventId) {
     const res = await api.get(`/events/${eventId}/volunteers`);
-    return res.data;
+    return res.data || res;
   },
+
+  /**
+   * Alias for getEventVolunteers
+   */
+  async getVolunteers(eventId) {
+    return this.getEventVolunteers(eventId);
+  },
+
+  /**
+   * Add / assign a volunteer to an event directly (Admin / Event Manager)
+   * Endpoint: POST /events/:id/volunteers
+   */
+  async addVolunteer(eventId, userId) {
+    const res = await api.post(`/events/${eventId}/volunteers`, { user_id: userId });
+    return res.data || res;
+  },
+
 
   /**
    * Update volunteer application status (approved, rejected)
@@ -217,7 +234,26 @@ export const eventsService = {
   async updateEvent(eventId, updateData) {
     const res = await api.patch(`/events/${eventId}`, updateData);
     return res.data;
+  },
+
+  /**
+   * Fetch all tickets for admin panel with pagination, search, and filters
+   * Endpoint: GET /events/admin/tickets (or /admin/tickets)
+   */
+  async getAllTicketsAdmin(params = {}) {
+    const res = await api.get('/admin/tickets', { params });
+    return res.data || res;
+  },
+
+  /**
+   * Fetch complete admin ticket details by ID
+   * Endpoint: GET /events/admin/tickets/:id (or /admin/tickets/:id)
+   */
+  async getTicketDetailsAdmin(ticketId) {
+    const res = await api.get(`/admin/tickets/${ticketId}`);
+    return res.data || res;
   }
 };
 
 export default eventsService;
+

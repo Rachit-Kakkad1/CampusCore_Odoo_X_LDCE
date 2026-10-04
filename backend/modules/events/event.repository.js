@@ -23,14 +23,15 @@ class EventRepository {
       non_member_price,
       volunteers_enabled = false,
       volunteers_required = 0,
+      event_manager_id = null,
       created_by = null,
     } = data;
 
     const resolvedEndsAt = ends_at || new Date(new Date(starts_at).getTime() + 3 * 60 * 60 * 1000).toISOString();
 
     const queryText = `
-      INSERT INTO events (title, description, venue, starts_at, ends_at, capacity, seats_remaining, member_price, non_member_price, volunteers_enabled, volunteers_required, created_by, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+      INSERT INTO events (title, description, venue, starts_at, ends_at, capacity, seats_remaining, member_price, non_member_price, volunteers_enabled, volunteers_required, event_manager_id, created_by, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
       RETURNING *;
     `;
     const params = [
@@ -45,6 +46,7 @@ class EventRepository {
       non_member_price,
       Boolean(volunteers_enabled),
       parseInt(volunteers_required || 0, 10),
+      event_manager_id || null,
       created_by,
     ];
     const res = client ? await client.query(queryText, params) : await pool.query(queryText, params);
@@ -58,6 +60,7 @@ class EventRepository {
     const {
       status = null,
       search = null,
+      event_manager_id = null,
       page = null,
       pageSize = null,
       limit = null,
@@ -81,6 +84,11 @@ class EventRepository {
       } else if (s === 'past') {
         where.push(`e.status != 'cancelled' AND NOW() > COALESCE(e.ends_at, e.starts_at + INTERVAL '3 hours')`);
       }
+    }
+
+    if (event_manager_id) {
+      params.push(parseInt(event_manager_id, 10));
+      where.push(`e.event_manager_id = $${params.length}`);
     }
 
     if (search && search.trim()) {
@@ -110,6 +118,7 @@ class EventRepository {
       SELECT e.id, e.title, e.description, e.venue, e.starts_at, e.ends_at, e.capacity, e.seats_remaining,
              e.member_price, e.non_member_price, e.volunteers_enabled, e.volunteers_required,
              e.status, e.cancelled_at, e.cancelled_by, e.cancellation_reason,
+             e.event_manager_id, u_em.name AS event_manager_name, u_em.email AS event_manager_email,
              e.created_by, e.created_at,
              CASE
                WHEN e.status = 'cancelled' THEN 'cancelled'
@@ -120,6 +129,7 @@ class EventRepository {
              (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved')) AS volunteers_applied,
              GREATEST(0, e.volunteers_required - (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved'))) AS volunteers_remaining
       FROM events e
+      LEFT JOIN users u_em ON e.event_manager_id = u_em.id
       ${whereClause}
       ORDER BY ${safeSortCol} ${safeDir}, e.id ${safeDir}
     `;
@@ -155,6 +165,7 @@ class EventRepository {
       SELECT e.id, e.title, e.description, e.venue, e.starts_at, e.ends_at, e.capacity, e.seats_remaining,
              e.member_price, e.non_member_price, e.volunteers_enabled, e.volunteers_required,
              e.status, e.cancelled_at, e.cancelled_by, e.cancellation_reason,
+             e.event_manager_id, u_em.name AS event_manager_name, u_em.email AS event_manager_email,
              e.created_by, e.created_at,
              CASE
                WHEN e.status = 'cancelled' THEN 'cancelled'
@@ -165,6 +176,7 @@ class EventRepository {
              (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved')) AS volunteers_applied,
              GREATEST(0, e.volunteers_required - (SELECT COUNT(*)::int FROM event_volunteers ev WHERE ev.event_id = e.id AND ev.status IN ('pending', 'approved'))) AS volunteers_remaining
       FROM events e
+      LEFT JOIN users u_em ON e.event_manager_id = u_em.id
       WHERE e.id = $1;
     `;
     const result = await client.query(queryText, [id]);
@@ -182,7 +194,7 @@ class EventRepository {
     const queryText = `
       SELECT id, title, description, venue, starts_at, ends_at, capacity, seats_remaining,
              member_price, non_member_price, volunteers_enabled, volunteers_required,
-             status, cancelled_at, cancelled_by, cancellation_reason
+             event_manager_id, status, cancelled_at, cancelled_by, cancellation_reason
       FROM events
       WHERE id = $1
       FOR UPDATE;
@@ -202,7 +214,7 @@ class EventRepository {
     const allowed = [
       'title', 'description', 'venue', 'starts_at', 'ends_at',
       'capacity', 'seats_remaining', 'member_price', 'non_member_price',
-      'volunteers_enabled', 'volunteers_required'
+      'volunteers_enabled', 'volunteers_required', 'event_manager_id'
     ];
 
     for (const key of allowed) {
@@ -500,14 +512,17 @@ class EventRepository {
   }
 
   /**
-   * Retrieves all volunteer applications for an event with user details.
+   * Retrieves all volunteer applications for an event with user details and real task metrics.
    */
   async getVolunteerApplications(eventId, client = pool) {
     const queryText = `
       SELECT ev.*,
-             u.name as user_name, u.email as user_email, u.role as user_role,
+             u.name as user_name, u.email as user_email, u.role as user_role, u.phone as user_phone,
              app_u.name as approved_by_name,
-             rem_u.name as removed_by_name
+             rem_u.name as removed_by_name,
+             (SELECT COUNT(*)::int FROM tasks t WHERE t.event_id = ev.event_id AND t.assignee_id = ev.user_id) AS task_count,
+             (SELECT COUNT(*)::int FROM tasks t WHERE t.event_id = ev.event_id AND t.assignee_id = ev.user_id AND UPPER(t.status) = 'COMPLETED') AS completed_tasks,
+             (SELECT COUNT(*)::int FROM tasks t WHERE t.event_id = ev.event_id AND t.assignee_id = ev.user_id AND UPPER(t.status) IN ('TODO', 'PENDING', 'IN_PROGRESS')) AS pending_tasks
       FROM event_volunteers ev
       JOIN users u ON ev.user_id = u.id
       LEFT JOIN users app_u ON ev.approved_by = app_u.id
@@ -572,6 +587,275 @@ class EventRepository {
     `;
     const res = await client.query(queryText, [userId]);
     return res.rows;
+  }
+
+  /**
+   * Directly adds/assigns a volunteer to an event (Admin / Event Manager).
+   */
+  async addVolunteer({ event_id, user_id, status = 'approved', approved_by = null }, client = pool) {
+    const queryText = `
+      INSERT INTO event_volunteers (event_id, user_id, status, applied_at, approved_at, approved_by, created_at, updated_at)
+      VALUES ($1, $2, $3, NOW(), NOW(), $4, NOW(), NOW())
+      ON CONFLICT (event_id, user_id)
+      DO UPDATE SET status = EXCLUDED.status,
+                    approved_at = NOW(),
+                    approved_by = EXCLUDED.approved_by,
+                    updated_at = NOW()
+      RETURNING *;
+    `;
+    const res = await client.query(queryText, [event_id, user_id, status, approved_by]);
+    return res.rows[0];
+  }
+
+  /**
+   * Admin / Event Manager: Retrieves paginated tickets across the platform with rich joins.
+   */
+  async getAllTicketsAdmin({
+    search,
+    buyer_type,
+    payment_status,
+    check_in_status,
+    event_id,
+    from_date,
+    to_date,
+    manager_id = null,
+    page = 1,
+    pageSize = 20,
+    limit,
+    offset = 0,
+    sort = 'created_at',
+    sortDirection = 'DESC',
+  } = {}, client = pool) {
+    const conditions = [];
+    const params = [];
+
+    // Filter by Event Manager scope if restricted
+    if (manager_id) {
+      params.push(parseInt(manager_id, 10));
+      conditions.push(`(e.event_manager_id = $${params.length} OR e.created_by = $${params.length})`);
+    }
+
+    // Filter by specific Event ID
+    if (event_id) {
+      params.push(parseInt(event_id, 10));
+      conditions.push(`t.event_id = $${params.length}`);
+    }
+
+    // Filter by Buyer Type (member vs guest)
+    if (buyer_type) {
+      const bType = String(buyer_type).toUpperCase();
+      if (bType === 'MEMBER') {
+        conditions.push(`t.user_id IS NOT NULL`);
+      } else if (bType === 'GUEST' || bType === 'NON_MEMBER') {
+        conditions.push(`t.attendee_id IS NOT NULL`);
+      }
+    }
+
+    // Filter by Payment Status
+    if (payment_status && payment_status !== 'ALL') {
+      params.push(payment_status.toLowerCase());
+      conditions.push(`LOWER(t.payment_status) = $${params.length}`);
+    }
+
+    // Filter by Check-In Status
+    if (check_in_status && check_in_status !== 'ALL') {
+      const cStatus = String(check_in_status).toUpperCase();
+      if (cStatus === 'CHECKED_IN') {
+        conditions.push(`t.checked_in_at IS NOT NULL`);
+      } else if (cStatus === 'NOT_CHECKED_IN') {
+        conditions.push(`t.checked_in_at IS NULL`);
+      }
+    }
+
+    // Date Range Filters
+    if (from_date) {
+      params.push(new Date(from_date).toISOString());
+      conditions.push(`t.created_at >= $${params.length}`);
+    }
+    if (to_date) {
+      params.push(new Date(to_date).toISOString());
+      conditions.push(`t.created_at <= $${params.length}`);
+    }
+
+    // Search query parameterized across safe fields
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`;
+      const isNum = !isNaN(parseInt(search.trim(), 10));
+      params.push(term);
+      const searchParamIdx = params.length;
+
+      let searchClause = `(
+        u.name ILIKE $${searchParamIdx} OR
+        a.name ILIKE $${searchParamIdx} OR
+        u.email ILIKE $${searchParamIdx} OR
+        a.email ILIKE $${searchParamIdx} OR
+        u.phone ILIKE $${searchParamIdx} OR
+        a.mobile ILIKE $${searchParamIdx} OR
+        t.ticket_code ILIKE $${searchParamIdx} OR
+        t.fallback_code ILIKE $${searchParamIdx} OR
+        t.checkout_session_id ILIKE $${searchParamIdx} OR
+        e.title ILIKE $${searchParamIdx}
+      `;
+      if (isNum) {
+        params.push(parseInt(search.trim(), 10));
+        searchClause += ` OR t.id = $${params.length}`;
+      }
+      searchClause += `)`;
+      conditions.push(searchClause);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Total Count Query
+    const countSql = `
+      SELECT COUNT(DISTINCT t.id)::int as total
+      FROM tickets t
+      JOIN events e ON t.event_id = e.id
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN event_attendees a ON t.attendee_id = a.id
+      LEFT JOIN transactions tx ON tx.source_type = 'ticket' AND tx.source_id = t.id
+      ${whereClause};
+    `;
+    const countRes = await client.query(countSql, params);
+    const totalItems = countRes.rows[0]?.total || 0;
+
+    // Safe Sort Mapping
+    const sortFieldMap = {
+      created_at: 't.created_at',
+      price: 't.price',
+      event_date: 'e.starts_at',
+      event_starts_at: 'e.starts_at',
+      buyer_name: 'COALESCE(u.name, a.name)',
+      checked_in_at: 't.checked_in_at',
+      id: 't.id',
+    };
+    const sortColumn = sortFieldMap[sort] || 't.created_at';
+    const direction = (sortDirection || '').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Pagination Limit / Offset
+    const take = limit || pageSize || 20;
+    const skip = offset || (page - 1) * take;
+
+    const dataParams = [...params, take, skip];
+    const dataSql = `
+      SELECT 
+        t.id,
+        t.ticket_code,
+        t.fallback_code,
+        t.event_id,
+        t.user_id,
+        t.attendee_id,
+        t.price,
+        t.price_type,
+        t.payment_status,
+        t.checkout_session_id,
+        t.checked_in_at,
+        t.created_at,
+        e.title AS event_title,
+        e.venue AS event_venue,
+        e.starts_at AS event_starts_at,
+        e.ends_at AS event_ends_at,
+        e.status AS event_status,
+        e.event_manager_id,
+        COALESCE(u.name, a.name) AS buyer_name,
+        COALESCE(u.email, a.email) AS buyer_email,
+        COALESCE(u.phone, a.mobile) AS buyer_phone,
+        CASE WHEN t.user_id IS NOT NULL THEN 'MEMBER' ELSE 'GUEST' END AS buyer_type,
+        m.member_code,
+        m.status AS membership_status,
+        tx.id AS transaction_id,
+        COALESCE(t.checkout_session_id, CONCAT('TXN-', tx.id)) AS payment_reference,
+        tx.payment_mode,
+        ci_u.name AS checked_in_by_name
+      FROM tickets t
+      JOIN events e ON t.event_id = e.id
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN memberships m ON u.id = m.user_id
+      LEFT JOIN event_attendees a ON t.attendee_id = a.id
+      LEFT JOIN transactions tx ON tx.source_type = 'ticket' AND tx.source_id = t.id
+      LEFT JOIN users ci_u ON t.checked_in_by = ci_u.id
+      ${whereClause}
+      ORDER BY ${sortColumn} ${direction}, t.id DESC
+      LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length};
+    `;
+
+    const dataRes = await client.query(dataSql, dataParams);
+    return {
+      rows: dataRes.rows,
+      totalItems,
+    };
+  }
+
+  /**
+   * Retrieves single ticket detailed view for admin with audit trail.
+   */
+  async getTicketDetailsAdmin(ticketId, managerId = null, client = pool) {
+    const params = [parseInt(ticketId, 10)];
+    let mgrClause = '';
+    if (managerId) {
+      params.push(parseInt(managerId, 10));
+      mgrClause = `AND (e.event_manager_id = $2 OR e.created_by = $2)`;
+    }
+
+    const queryText = `
+      SELECT 
+        t.id,
+        t.ticket_code,
+        t.fallback_code,
+        t.event_id,
+        t.user_id,
+        t.attendee_id,
+        t.price,
+        t.price_type,
+        t.payment_status,
+        t.checkout_session_id,
+        t.checked_in_at,
+        t.created_at,
+        e.title AS event_title,
+        e.description AS event_description,
+        e.venue AS event_venue,
+        e.starts_at AS event_starts_at,
+        e.ends_at AS event_ends_at,
+        e.status AS event_status,
+        e.event_manager_id,
+        COALESCE(u.name, a.name) AS buyer_name,
+        COALESCE(u.email, a.email) AS buyer_email,
+        COALESCE(u.phone, a.mobile) AS buyer_phone,
+        CASE WHEN t.user_id IS NOT NULL THEN 'MEMBER' ELSE 'GUEST' END AS buyer_type,
+        m.member_code,
+        m.status AS membership_status,
+        tx.id AS transaction_id,
+        COALESCE(t.checkout_session_id, CONCAT('TXN-', tx.id)) AS payment_reference,
+        tx.payment_mode,
+        tx.created_at AS payment_time,
+        ci_u.name AS checked_in_by_name
+      FROM tickets t
+      JOIN events e ON t.event_id = e.id
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN memberships m ON u.id = m.user_id
+      LEFT JOIN event_attendees a ON t.attendee_id = a.id
+      LEFT JOIN transactions tx ON tx.source_type = 'ticket' AND tx.source_id = t.id
+      LEFT JOIN users ci_u ON t.checked_in_by = ci_u.id
+      WHERE t.id = $1 ${mgrClause};
+    `;
+    const res = await client.query(queryText, params);
+    const ticket = res.rows[0];
+    if (!ticket) return null;
+
+    // Fetch related audit trail
+    const auditRes = await client.query(`
+      SELECT id, action, entity_type, entity_id, metadata, created_at
+      FROM audit_logs
+      WHERE (entity_type = 'ticket' AND entity_id = $1)
+         OR (metadata->>'ticket_id' = $1::text)
+      ORDER BY created_at DESC
+      LIMIT 10;
+    `, [ticket.id]);
+
+    return {
+      ...ticket,
+      audit_logs: auditRes.rows,
+    };
   }
 }
 

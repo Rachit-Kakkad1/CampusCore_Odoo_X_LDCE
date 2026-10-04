@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import eventsService from '../../../services/events.service';
+import authService from '../../../services/auth.service';
 import Pagination from '../../common/Pagination';
 import {
   Plus,
@@ -21,7 +22,9 @@ import {
   QrCode,
   ArrowRight,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  UserCheck,
+  UserPlus
 } from 'lucide-react';
 import { ThreeDCard } from '../charts/ThreeDCharts';
 import { StatusBadge } from '../StatusBadge';
@@ -45,9 +48,28 @@ export const AdminEventManagement = ({
   const [category, setCategory] = useState('Technical');
   const [volunteersEnabled, setVolunteersEnabled] = useState(false);
   const [volunteersRequired, setVolunteersRequired] = useState('5');
+  const [eventManagerId, setEventManagerId] = useState('');
+
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [addVolunteerUserId, setAddVolunteerUserId] = useState('');
+  const [addingVolunteer, setAddingVolunteer] = useState(false);
+  const [addVolunteerSuccess, setAddVolunteerSuccess] = useState('');
 
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await authService.getAllUsers();
+        const list = res?.users || res?.data || res || [];
+        setAvailableUsers(Array.isArray(list) ? list : []);
+      } catch (err) {
+        console.warn('Failed to load users for manager/volunteer selection:', err);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // Volunteer Roster Modal State
   const [volunteerModal, setVolunteerModal] = useState({
@@ -188,8 +210,33 @@ export const AdminEventManagement = ({
     setCategory('Technical');
     setVolunteersEnabled(false);
     setVolunteersRequired('5');
+    setEventManagerId('');
     setFormError(null);
     setShowAddModal(true);
+  };
+
+  const handleAddVolunteerDirectly = async (e) => {
+    e?.preventDefault();
+    if (!addVolunteerUserId || !volunteerModal.event) return;
+    try {
+      setAddingVolunteer(true);
+      setAddVolunteerSuccess('');
+      await eventsService.addVolunteer(volunteerModal.event.id, parseInt(addVolunteerUserId, 10));
+      setAddVolunteerSuccess('Volunteer assigned and approved successfully!');
+      setAddVolunteerUserId('');
+      const res = await eventsService.getEventVolunteers(volunteerModal.event.id);
+      const list = res?.volunteers || res?.data || res || [];
+      setVolunteerModal((prev) => ({
+        ...prev,
+        volunteers: Array.isArray(list) ? list : [],
+      }));
+      onEventCreated?.();
+      setTimeout(() => setAddVolunteerSuccess(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to add volunteer');
+    } finally {
+      setAddingVolunteer(false);
+    }
   };
 
   const handleCreate = async (e) => {
@@ -224,6 +271,7 @@ export const AdminEventManagement = ({
         non_member_price: parseFloat(nonMemberPrice),
         volunteers_enabled: Boolean(volunteersEnabled),
         volunteers_required: volunteersEnabled ? parseInt(volunteersRequired, 10) : 0,
+        event_manager_id: eventManagerId ? parseInt(eventManagerId, 10) : null,
       };
 
       if (endsAt) {
@@ -445,6 +493,7 @@ export const AdminEventManagement = ({
             <thead>
               <tr className="border-b border-border bg-slate-50/80 text-[10px] uppercase font-bold tracking-wider text-slate-600">
                 <th className="p-3.5">Event Title & Venue</th>
+                <th className="p-3.5">Event Manager</th>
                 <th className="p-3.5">Scheduled Timeline</th>
                 <th className="p-3.5">Capacity & Absorption</th>
                 <th className="p-3.5">Seats Status</th>
@@ -488,6 +537,29 @@ export const AdminEventManagement = ({
                           </span>
                         </div>
                       </div>
+                    </td>
+
+                    {/* Assigned Event Manager */}
+                    <td className="p-3.5">
+                      {ev.event_manager_name ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-purple-100 border border-purple-200 text-purple-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {ev.event_manager_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-slate-900 block text-xs leading-tight">
+                              {ev.event_manager_name}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {ev.event_manager_email || 'Assigned Manager'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs text-[10px] font-mono text-slate-500 bg-slate-100 border border-slate-200">
+                          Unassigned
+                        </span>
+                      )}
                     </td>
 
                     {/* Timeline */}
@@ -900,6 +972,42 @@ export const AdminEventManagement = ({
                           </p>
                         </div>
                       )}
+
+                      {/* Section 5: Event Manager Assignment */}
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-primary" />
+                          <span>Assigned Event Manager</span>
+                        </label>
+                        <select
+                          value={eventManagerId}
+                          onChange={(e) => setEventManagerId(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-primary text-xs text-slate-900 font-medium rounded-xs outline-none transition-all shadow-2xs"
+                        >
+                          <option value="">-- Unassigned / General Admin Management --</option>
+                          {availableUsers
+                            .filter((u) => u.role === 'event_manager' || u.role === 'admin')
+                            .map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {u.name} ({u.email}) — [{u.role.toUpperCase()}]
+                              </option>
+                            ))}
+                          {availableUsers.filter((u) => u.role !== 'event_manager' && u.role !== 'admin').length > 0 && (
+                            <optgroup label="Other Members">
+                              {availableUsers
+                                .filter((u) => u.role !== 'event_manager' && u.role !== 'admin')
+                                .map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.name} ({u.email})
+                                  </option>
+                                ))}
+                            </optgroup>
+                          )}
+                        </select>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          Assigned event manager can coordinate volunteer rosters, allocate operational tasks, and execute door scanning.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -1079,13 +1187,54 @@ export const AdminEventManagement = ({
 
             {/* Modal Body */}
             <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {/* Direct Volunteer Add Section (Admin/Manager) */}
+              <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-lg">
+                <form onSubmit={handleAddVolunteerDirectly} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-purple-900 mb-1 flex items-center gap-1">
+                      <UserPlus className="w-3.5 h-3.5 text-purple-700" />
+                      <span>Directly Add / Assign Volunteer</span>
+                    </label>
+                    <select
+                      value={addVolunteerUserId}
+                      onChange={(e) => setAddVolunteerUserId(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-purple-200 text-xs text-slate-900 rounded-xs focus:outline-none focus:border-purple-600"
+                    >
+                      <option value="">-- Select Member / Volunteer to Assign --</option>
+                      {availableUsers
+                        .filter(u => !volunteerModal.volunteers.some(v => v.user_id === u.id && (v.status === 'approved' || v.status === 'pending')))
+                        .map(u => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} ({u.email}) — [{u.role.toUpperCase()}]
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="self-end sm:self-auto sm:mt-4">
+                    <button
+                      type="submit"
+                      disabled={!addVolunteerUserId || addingVolunteer}
+                      className="w-full sm:w-auto px-4 py-2 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {addingVolunteer ? 'Assigning...' : '+ Add Volunteer'}
+                    </button>
+                  </div>
+                </form>
+                {addVolunteerSuccess && (
+                  <div className="mt-2 text-xs font-mono text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{addVolunteerSuccess}</span>
+                  </div>
+                )}
+              </div>
+
               {volunteerModal.loading ? (
                 <div className="p-12 text-center text-xs text-slate-400 font-mono">
                   Loading volunteer roster...
                 </div>
               ) : volunteerModal.volunteers.length === 0 ? (
                 <div className="p-12 text-center text-xs text-slate-500 font-mono bg-slate-50 border border-slate-200 rounded-lg">
-                  No volunteer applications received for this event yet.
+                  No volunteer applications received for this event yet. Use the tool above to directly add volunteers.
                 </div>
               ) : (
                 <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">

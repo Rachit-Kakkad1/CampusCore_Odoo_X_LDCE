@@ -32,15 +32,35 @@ class AuthRepository {
   }
 
   /**
-   * Retrieves safe user profile by ID (without password_hash).
+   * Retrieves safe user profile by ID (without password_hash) including phone, updated_at and membership.
    */
   async getUserById(id, client = pool) {
     const queryText = `
-      SELECT id, name, email, role, created_at
-      FROM users
-      WHERE id = $1;
+      SELECT 
+        u.id, u.name, u.email, u.phone, u.role, u.created_at, u.updated_at,
+        m.id AS membership_id, m.member_code, m.status AS membership_status,
+        m.dues_status, m.dues_amount, m.expiry_date
+      FROM users u
+      LEFT JOIN memberships m ON u.id = m.user_id
+      WHERE u.id = $1;
     `;
     const result = await client.query(queryText, [id]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Updates user profile fields (name, phone) safely.
+   */
+  async updateUserProfile(id, { name, phone }, client = pool) {
+    const queryText = `
+      UPDATE users
+      SET name = COALESCE($1, name),
+          phone = COALESCE($2, phone),
+          updated_at = NOW()
+      WHERE id = $3
+      RETURNING id, name, email, phone, role, created_at, updated_at;
+    `;
+    const result = await client.query(queryText, [name || null, phone !== undefined ? phone : null, id]);
     return result.rows[0] || null;
   }
 

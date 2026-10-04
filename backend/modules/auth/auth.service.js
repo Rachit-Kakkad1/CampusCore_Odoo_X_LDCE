@@ -265,6 +265,59 @@ class AuthService {
   }
 
   /**
+   * Updates authenticated user's own profile (name, phone).
+   */
+  async updateProfile(userId, { name, phone }, req = null) {
+    if (!userId) {
+      const err = new Error('Authentication required');
+      err.status = 401;
+      err.code = 'UNAUTHORIZED';
+      throw err;
+    }
+
+    const current = await authRepository.getUserById(userId);
+    if (!current) {
+      const err = new Error('User not found');
+      err.status = 404;
+      err.code = 'USER_NOT_FOUND';
+      throw err;
+    }
+
+    const cleanName = name !== undefined ? String(name).trim() : current.name;
+    if (!cleanName) {
+      const err = new Error('Name cannot be empty');
+      err.status = 400;
+      err.code = 'INVALID_NAME';
+      throw err;
+    }
+
+    const cleanPhone = phone !== undefined ? (phone ? String(phone).trim() : null) : current.phone;
+    if (cleanPhone && cleanPhone.length > 50) {
+      const err = new Error('Phone number must not exceed 50 characters');
+      err.status = 400;
+      err.code = 'INVALID_PHONE';
+      throw err;
+    }
+
+    const updated = await authRepository.updateUserProfile(userId, {
+      name: cleanName,
+      phone: cleanPhone,
+    });
+
+    await auditService.recordLog({
+      actorId: userId,
+      action: 'USER_PROFILE_UPDATED',
+      entityType: 'user',
+      entityId: userId,
+      oldValue: { name: current.name, phone: current.phone },
+      newValue: { name: cleanName, phone: cleanPhone },
+      req,
+    });
+
+    return updated;
+  }
+
+  /**
    * Retrieves all users for administrative workspace (with optional pagination, search, and role filtering).
    */
   async getAllUsers(filter = {}) {

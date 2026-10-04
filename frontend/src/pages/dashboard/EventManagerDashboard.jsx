@@ -10,17 +10,29 @@ import {
   EventCreateModal,
   EventDoorCheckIn,
   EventStatsModal,
+  EventManagerVolunteers,
+  EventManagerTasks,
 } from '../../components/dashboard/events';
 import eventsService from '../../services/events.service';
-import { Calendar, QrCode, Users, Ticket } from 'lucide-react';
+import { Calendar, QrCode, Users, Ticket, CheckSquare, UserPlus } from 'lucide-react';
 
 export const EventManagerDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Route-aware active tab: 'events' | 'checkin'
-  const isCheckInRoute = location.pathname.includes('/checkin');
-  const activeTab = isCheckInRoute ? 'checkin' : 'events';
+  // Route-aware active tab: 'events' | 'volunteers' | 'tasks' | 'checkin'
+  const getInitialTab = () => {
+    if (location.pathname.includes('/checkin')) return 'checkin';
+    if (location.pathname.includes('/volunteers')) return 'volunteers';
+    if (location.pathname.includes('/tasks')) return 'tasks';
+    return 'events';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+
+  useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [location.pathname]);
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,15 +61,18 @@ export const EventManagerDashboard = () => {
   }, [loadEvents]);
 
   const handleTabChange = (tabId) => {
-    if (tabId === 'checkin') {
-      navigate('/dashboard/events/checkin');
-    } else {
+    setActiveTab(tabId);
+    if (tabId === 'events') {
       navigate('/dashboard/events');
+    } else {
+      navigate(`/dashboard/events/${tabId}`);
     }
   };
 
+
   const handleOpenCheckIn = (event) => {
     setCheckInEvent(event);
+    setActiveTab('checkin');
     navigate('/dashboard/events/checkin');
   };
 
@@ -69,6 +84,8 @@ export const EventManagerDashboard = () => {
 
   const tabs = [
     { id: 'events', label: `Assigned Events (${totalEvents})` },
+    { id: 'volunteers', label: 'Volunteer Rosters' },
+    { id: 'tasks', label: 'Task Delegation' },
     { id: 'checkin', label: 'Door Check-in Station' },
   ];
 
@@ -76,7 +93,7 @@ export const EventManagerDashboard = () => {
     <DashboardShell activeRole="event_manager">
       <DashboardPageHeader
         title="Event Operations Console"
-        subtitle="Manage assigned events, track live ticket capacity, allocate volunteer resources, and operate door check-in."
+        subtitle="Manage assigned events, direct volunteer rosters, delegate operational tasks, and operate door check-in."
         badge="Event-Scoped Operations"
         actionLabel="+ Create New Event"
         onAction={() => setShowCreateModal(true)}
@@ -120,14 +137,28 @@ export const EventManagerDashboard = () => {
       </div>
 
       {/* Main Tab Views */}
-      {activeTab === 'events' ? (
+      {activeTab === 'events' && (
         <EventListTable
           events={events}
           loading={loading}
           onViewStats={(ev) => setStatsEvent(ev)}
           onOpenCheckIn={handleOpenCheckIn}
         />
-      ) : (
+      )}
+
+      {activeTab === 'volunteers' && (
+        <EventManagerVolunteers
+          events={events}
+        />
+      )}
+
+      {activeTab === 'tasks' && (
+        <EventManagerTasks
+          events={events}
+        />
+      )}
+
+      {activeTab === 'checkin' && (
         <EventDoorCheckIn
           events={events}
           initialEventId={checkInEvent?.id || null}
