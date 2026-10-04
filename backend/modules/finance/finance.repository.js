@@ -445,11 +445,11 @@ const financeRepository = {
     // If approved, create a corresponding transaction outflow
     if (updated && newStatus === 'approved') {
       const txSql = `
-        INSERT INTO transactions (source_type, source_id, amount, direction, status, created_at)
-        VALUES ('expense', $1, $2, 'out', 'paid', NOW())
-        ON CONFLICT DO NOTHING;
+        INSERT INTO transactions (source_type, source_id, user_id, amount, direction, payment_mode, status, created_at)
+        VALUES ('expense', $1, $2, $3, 'out', 'online', 'paid', NOW())
+        ON CONFLICT (source_type, source_id) DO NOTHING;
       `;
-      await query(txSql, [updated.id, updated.amount]);
+      await query(txSql, [updated.id, updated.submitted_by || approver || null, updated.amount]);
     }
 
     return updated;
