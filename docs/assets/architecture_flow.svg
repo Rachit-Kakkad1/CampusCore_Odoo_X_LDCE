@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 360" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0f1d" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#161233" />
+    </linearGradient>
+
+    <linearGradient id="cardGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.8" />
+    </linearGradient>
+
+    <linearGradient id="cyanBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+
+    <linearGradient id="emeraldGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+
+    <linearGradient id="violetPink" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </linearGradient>
+
+    <linearGradient id="amberGold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+
+    <pattern id="grid2" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.04" />
+    </pattern>
+
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#818cf8" />
+    </marker>
+  </defs>
+
+  <rect width="1100" height="360" rx="16" fill="url(#bgGrad2)" />
+  <rect width="1100" height="360" rx="16" fill="url(#grid2)" />
+  <rect x="1" y="1" width="1098" height="358" rx="15" fill="none" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.25" />
+
+  <!-- Section Header -->
+  <g transform="translate(40, 36)">
+    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" letter-spacing="2" fill="#38bdf8">ARCHITECTURE INVARIANT</text>
+    <text x="0" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="800" fill="#f8fafc">Zero-Race Concurrency &amp; Double-Entry Pipeline</text>
+  </g>
+
+  <!-- Flow Steps -->
+  <!-- Box 1: Client Request -->
+  <g transform="translate(40, 95)">
+    <rect width="210" height="215" rx="12" fill="url(#cardGrad2)" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.4" />
+    <rect width="210" height="36" rx="12" fill="#38bdf8" fill-opacity="0.1" />
+    <text x="16" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#38bdf8">1. CLIENT TIER</text>
+    <text x="16" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#f1f5f9">Concurrent Request</text>
+    <text x="16" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• 10 Parallel Checkouts</text>
+    <text x="16" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• Last Remaining Seat</text>
+    <text x="16" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• Dynamic Member Rate</text>
+    <text x="16" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• QR Camera Pass Scan</text>
+    
+    <rect x="16" y="175" width="178" height="24" rx="6" fill="#38bdf8" fill-opacity="0.12" />
+    <text x="24" y="191" font-family="monospace" font-size="10.5" font-weight="700" fill="#38bdf8">POST /tickets/:id/pay</text>
+  </g>
+
+  <!-- Arrow 1 to 2 -->
+  <path d="M 255 200 L 295 200" stroke="#818cf8" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Box 2: Gateway & Security -->
+  <g transform="translate(305, 95)">
+    <rect width="220" height="215" rx="12" fill="url(#cardGrad2)" stroke="#818cf8" stroke-width="1.2" stroke-opacity="0.4" />
+    <rect width="220" height="36" rx="12" fill="#818cf8" fill-opacity="0.1" />
+    <text x="16" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#818cf8">2. SECURITY GATEWAY</text>
+    <text x="16" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#f1f5f9">Shield &amp; Audit Guard</text>
+    <text x="16" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• JWT Bearer Verify</text>
+    <text x="16" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• RBAC Authorization</text>
+    <text x="16" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• Brute-Force Lockout</text>
+    <text x="16" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• Immutable Audit Trail</text>
+    
+    <rect x="16" y="175" width="188" height="24" rx="6" fill="#818cf8" fill-opacity="0.12" />
+    <text x="24" y="191" font-family="monospace" font-size="10.5" font-weight="700" fill="#818cf8">requireAuth + requireRole</text>
+  </g>
+
+  <!-- Arrow 2 to 3 -->
+  <path d="M 530 200 L 570 200" stroke="#818cf8" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Box 3: Isolation Row Lock -->
+  <g transform="translate(580, 95)">
+    <rect width="230" height="215" rx="12" fill="url(#cardGrad2)" stroke="#a855f7" stroke-width="1.2" stroke-opacity="0.4" />
+    <rect width="230" height="36" rx="12" fill="#a855f7" fill-opacity="0.1" />
+    <text x="16" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#c084fc">3. CONCURRENCY ENGINE</text>
+    <text x="16" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#f1f5f9">Pessimistic Row Lock</text>
+    <text x="16" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• BEGIN Transaction</text>
+    <text x="16" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• SELECT ... FOR UPDATE</text>
+    <text x="16" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• seats_available &gt; 0 check</text>
+    <text x="16" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• 1 Confirmed / 9 Rejected</text>
+    
+    <rect x="16" y="175" width="198" height="24" rx="6" fill="#a855f7" fill-opacity="0.12" />
+    <text x="24" y="191" font-family="monospace" font-size="10.5" font-weight="700" fill="#c084fc">409 SEATS_UNAVAILABLE</text>
+  </g>
+
+  <!-- Arrow 3 to 4 -->
+  <path d="M 815 200 L 855 200" stroke="#818cf8" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Box 4: Ledger & Cryptography -->
+  <g transform="translate(865, 95)">
+    <rect width="200" height="215" rx="12" fill="url(#cardGrad2)" stroke="#34d399" stroke-width="1.2" stroke-opacity="0.4" />
+    <rect width="200" height="36" rx="12" fill="#34d399" fill-opacity="0.1" />
+    <text x="16" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#34d399">4. LEDGER COMMIT</text>
+    <text x="16" y="65" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#f1f5f9">Signed Pass &amp; Inflow</text>
+    <text x="16" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• HMAC Pass Issued</text>
+    <text x="16" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• Door Code: FB-XXXXXX</text>
+    <text x="16" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• Double-Entry Ledger</text>
+    <text x="16" y="156" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#94a3b8">• COMMIT Transaction</text>
+    
+    <rect x="16" y="175" width="168" height="24" rx="6" fill="#34d399" fill-opacity="0.12" />
+    <text x="24" y="191" font-family="monospace" font-size="10.5" font-weight="700" fill="#34d399">UNIQUE(type, id)</text>
+  </g>
+</svg>
